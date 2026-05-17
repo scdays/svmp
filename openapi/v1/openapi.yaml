@@ -1,0 +1,1001 @@
+openapi: 3.1.0
+info:
+  title: 网络安全漏洞管理平台 · 开放平台 API
+  version: 2.2.0
+  description: |
+    对外第三方集成统一契约（Partner 接入）。
+
+    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.2
+    - Base path：`/api/open/v1`
+    - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
+    - 响应包装：除特别说明外，HTTP 200 仍使用业务 `code` 区分成功/失败
+    - 幂等：写操作支持请求头 `Idempotency-Key`
+
+    ## 生命周期
+
+    排查 → 验证 → **处置（修复 | 备案，二选一）** → 核验（引擎）
+
+    | 处置分支 | 路径 | 终态 |
+    |----------|------|------|
+    | 可修复 | `POST .../remediate` | 5 FIXED |
+    | 不可修复备案 | `POST .../archive` | 9 FIX_FAILED + unfixReason |
+  contact:
+    name: Platform Integration Team
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://{host}/api/open/v1
+    description: 生产环境
+    variables:
+      host:
+        default: vuln-platform.example.com
+  - url: https://{host}/api/open/v1
+    description: 测试环境
+    variables:
+      host:
+        default: vuln-platform-test.example.com
+
+tags:
+  - name: tasks
+    description: 扫描/排查任务
+  - name: instances
+    description: 漏洞实例查询与生命周期
+  - name: webhooks
+    description: 平台 → Partner 回调（由 Partner 实现接收端）
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
+paths:
+  /tasks:
+    post:
+      tags: [tasks]
+      operationId: createTask
+      summary: 创建扫描任务
+      description: |
+        排查阶段入口。需能力 `TASK_WRITE`。
+        成功后新发现实例默认 `vulnInstanceStatus = DISCOVERED`。
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+            examples:
+              minimal:
+                value:
+                  extTaskId: EXT-2026-0001
+                  taskName: 季度系统漏洞排查
+                  targets: ['10.0.0.1', '10.0.0.2']
+                  targetType: IPV4
+                  vulnCategory: SYSTEM
+      responses:
+        '200':
+          description: 业务响应（检查 body.code）
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CreateTaskResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    get:
+      tags: [tasks]
+      operationId: listTasks
+      summary: 分页查询任务列表
+      description: 需能力 `TASK_READ`。
+      parameters:
+        - name: extTaskId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/TaskProgressStatus'
+        - name: createdFrom
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: createdTo
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TaskListPage'
+
+  /tasks/{taskId}:
+    get:
+      tags: [tasks]
+      operationId: getTask
+      summary: 查询任务进度
+      description: 需能力 `TASK_READ`。`taskId` 为平台内部任务 ID。
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TaskProgress'
+
+  /instances/search:
+    post:
+      tags: [instances]
+      operationId: searchInstances
+      summary: 分页搜索漏洞实例
+      description: |
+        需能力 `INSTANCE_READ`。
+        查询参数 `exportProfile=MIIT-2025` 可返回部侧字段名版本（若 Partner 已开通合规档）。
+      parameters:
+        - name: exportProfile
+          in: query
+          schema:
+            type: string
+            enum: [MIIT-2025]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstanceSearchRequest'
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/InstanceListPage'
+
+  /instances/{vulInstanceId}:
+    get:
+      tags: [instances]
+      operationId: getInstance
+      summary: 获取漏洞实例详情
+      description: 返回规范模型全量字段、修复台账 `remediation`、扩展 `extensions`。
+      parameters:
+        - $ref: '#/components/parameters/VulInstanceId'
+        - name: extTaskId
+          in: query
+          schema:
+            type: string
+          description: 可选，关联任务过滤上下文
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/VulnInstanceDetail'
+
+  /instances/{vulInstanceId}/verify:
+    post:
+      tags: [instances]
+      operationId: verifyInstance
+      summary: 验证漏洞实例
+      description: |
+        验证阶段。需能力 `INSTANCE_VERIFY`。
+        - `VALID` → `VERIFIED_VALID` (2)
+        - `FALSE_POSITIVE` → `VERIFIED_FALSE_POSITIVE` (3)，并禁止后续处置接口
+      parameters:
+        - $ref: '#/components/parameters/VulInstanceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyInstanceRequest'
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/InstanceTransitionResult'
+
+  /instances/verify:batch:
+    post:
+      tags: [instances]
+      operationId: verifyInstanceBatch
+      summary: 批量验证漏洞实例
+      description: 部分成功模式，返回 success / failed 列表。
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyInstanceBatchRequest'
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/VerifyInstanceBatchResult'
+
+  /instances/{vulInstanceId}/remediate:
+    post:
+      tags: [instances]
+      operationId: remediateInstance
+      summary: 处置·修复（可修复）
+      description: |
+        处置阶段分支之一。需能力 `INSTANCE_REMEDIATE`。
+        前置：`VERIFIED_VALID` 或 `VERIFY_FIXED_FAIL`，且未处于终态 5/9。
+        后置：`FIXED` (5)，清空 `unfixReason`。
+      parameters:
+        - $ref: '#/components/parameters/VulInstanceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemediateInstanceRequest'
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/InstanceTransitionResult'
+
+  /instances/{vulInstanceId}/archive:
+    post:
+      tags: [instances]
+      operationId: archiveInstance
+      summary: 处置·备案（不可修复）
+      description: |
+        处置阶段分支之一，与 `remediate` 互斥。需能力 `INSTANCE_ARCHIVE`。
+        后置：`FIX_FAILED` (9)，必填 `unfixReason`（映射部侧 `lvRsn`）。
+        `archiveExtension.provincialFields` 为省侧扩展预留。
+      parameters:
+        - $ref: '#/components/parameters/VulInstanceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveInstanceRequest'
+            examples:
+              acceptRisk:
+                value:
+                  unfixReason: 109
+                  archiveExtension:
+                    reasonDetail: 业务连续性限制，评估后接受风险
+                    operator: owner@corp.com
+                    approvedBy: manager@corp.com
+                    archiveId: ARC-2026-001
+                    recordedAt: '2026-05-16T11:00:00Z'
+                    provincialFields: {}
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/InstanceTransitionResult'
+
+  /instances/{vulInstanceId}/unfixable-records:
+    post:
+      tags: [instances]
+      operationId: archiveInstanceLegacy
+      summary: 处置·备案（兼容别名）
+      deprecated: true
+      description: |
+        **已废弃**。请使用 `POST .../archive`。
+        请求体与 `archive` 相同，平台内部转发。
+      parameters:
+        - $ref: '#/components/parameters/VulInstanceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveInstanceRequest'
+      responses:
+        '200':
+          description: 同 archive
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/InstanceTransitionResult'
+
+webhooks:
+  platformCallback:
+    post:
+      tags: [webhooks]
+      operationId: receivePlatformWebhook
+      summary: 平台事件回调（Partner 实现）
+      description: |
+        由平台向 Partner 注册的 `callbackUrl` 投递（非本平台提供的路径）。
+        签名校验：`X-Webhook-Signature`、`X-Webhook-Timestamp`（5 分钟有效）。
+      parameters:
+        - name: X-Webhook-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: X-Webhook-Timestamp
+          in: header
+          required: true
+          schema:
+            type: string
+            description: Unix 时间戳（秒）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformWebhookEvent'
+      responses:
+        '200':
+          description: Partner 接收成功
+        '4XX':
+          description: Partner 拒绝；平台将按策略重试
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Partner 访问令牌
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+      description: 与 `X-Signature`（HMAC-SHA256）配合使用
+
+  parameters:
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 平台内部任务 ID
+    VulInstanceId:
+      name: vulInstanceId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 系统漏洞实例 ID（规范主键，映射部侧 vulInfoID）
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        maxLength: 128
+      description: 写操作幂等键
+    Page:
+      name: page
+      in: query
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Size:
+      name: size
+      in: query
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 20
+
+  responses:
+    Unauthorized:
+      description: 鉴权失败（code 40101）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            code: 40101
+            message: unauthorized
+            data: null
+            requestId: req-401
+    Forbidden:
+      description: 能力未开通（code 40301）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    TooManyRequests:
+      description: 限流（code 42901）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+
+  schemas:
+    ApiResponse:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code:
+          type: integer
+          description: |
+            业务状态码。0=成功。
+            常见：40001 参数错误，40002 状态机不允许，40005 处置互斥，
+            40101 鉴权失败，40301 能力未开通，40901 幂等冲突，50001 引擎失败
+          examples: [0]
+        message:
+          type: string
+          examples: [ok]
+        data:
+          nullable: true
+          description: 成功时承载业务数据；失败时为 null 或错误详情
+        requestId:
+          type: string
+          description: 请求追踪 ID
+
+    TargetType:
+      type: string
+      enum: [IPV4, IPV6, URL]
+
+    VulnCategory:
+      type: string
+      enum: [SYSTEM, WEB]
+
+    TaskPriority:
+      type: string
+      enum: [LOW, MEDIUM, HIGH]
+
+    TaskAcceptStatus:
+      type: string
+      enum: [ACCEPTED, QUEUED, REJECTED]
+
+    TaskProgressStatus:
+      type: string
+      enum: [PENDING, RUNNING, FINISHED, FAILED]
+
+    VulnInstanceStatus:
+      type: string
+      description: 映射部侧 vulInfoStat（A.8）
+      enum:
+        - POTENTIAL
+        - DISCOVERED
+        - VERIFIED_VALID
+        - VERIFIED_FALSE_POSITIVE
+        - FIXED
+        - VERIFY_FIXED_PASS
+        - VERIFY_FIXED_FAIL
+        - VERIFY_FAILED
+        - FIX_FAILED
+        - VERIFY_FIX_FAILED
+
+    UnfixReasonCode:
+      type: integer
+      description: 映射部侧 lvRsn（A.23）
+      enum: [101, 102, 103, 104, 105, 107, 108, 109, 999]
+
+    VerifyResult:
+      type: string
+      enum: [VALID, FALSE_POSITIVE]
+
+    RemediateMethod:
+      type: string
+      description: 映射部侧 A.10（1050/1051/1052）
+      enum: [PATCH, MITIGATION, BLOCK]
+
+    ExposureType:
+      type: string
+      enum: [INTERNAL, INTERNET]
+
+    SeverityLevel:
+      type: integer
+      minimum: 1
+      maximum: 5
+      description: 漏洞等级（与引擎/部侧映射由 Profile 配置）
+
+    ScanTaskOptions:
+      type: object
+      properties:
+        portScope:
+          type: string
+          example: '1-65535'
+        isLiveProbe:
+          type: boolean
+          default: true
+        pswdGuessEnabled:
+          type: boolean
+          default: false
+
+    CreateTaskRequest:
+      type: object
+      required: [extTaskId, taskName, targets, targetType, vulnCategory]
+      properties:
+        extTaskId:
+          type: string
+          maxLength: 128
+          description: Partner 幂等键
+        taskName:
+          type: string
+          maxLength: 256
+        targets:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        targetType:
+          $ref: '#/components/schemas/TargetType'
+        vulnCategory:
+          $ref: '#/components/schemas/VulnCategory'
+        callbackUrl:
+          type: string
+          format: uri
+          description: 覆盖 Partner 默认回调地址
+        scanTemplateId:
+          type: integer
+          description: 引擎扫描模板 ID
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        scheduleTime:
+          type: string
+          format: date-time
+        options:
+          $ref: '#/components/schemas/ScanTaskOptions'
+
+    CreateTaskResponse:
+      type: object
+      required: [extTaskId, taskId, status, createdAt]
+      properties:
+        extTaskId:
+          type: string
+        taskId:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskAcceptStatus'
+        createdAt:
+          type: string
+          format: date-time
+
+    TaskProgress:
+      type: object
+      required: [taskId, status]
+      properties:
+        extTaskId:
+          type: string
+        taskId:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskProgressStatus'
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        errorMessage:
+          type: string
+
+    TaskSummary:
+      allOf:
+        - $ref: '#/components/schemas/TaskProgress'
+        - type: object
+          properties:
+            taskName:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+
+    TaskListPage:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskSummary'
+        page:
+          type: integer
+        size:
+          type: integer
+        total:
+          type: integer
+
+    InstanceSearchRequest:
+      type: object
+      required: [page, size]
+      properties:
+        taskId:
+          type: string
+        extTaskId:
+          type: string
+        statusList:
+          type: array
+          items:
+            $ref: '#/components/schemas/VulnInstanceStatus'
+        severityList:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeverityLevel'
+        page:
+          type: integer
+          minimum: 1
+        size:
+          type: integer
+          minimum: 1
+          maximum: 1000
+
+    VulnInstanceSummary:
+      type: object
+      required:
+        - vulInstanceId
+        - vulnInstanceStatus
+        - title
+        - lastTransitionAt
+      properties:
+        vulInstanceId:
+          type: string
+        vulId:
+          type: string
+          description: 产品漏洞编号（部侧 vulID）
+        vulnInstanceStatus:
+          $ref: '#/components/schemas/VulnInstanceStatus'
+        unfixReason:
+          $ref: '#/components/schemas/UnfixReasonCode'
+          nullable: true
+        title:
+          type: string
+        severity:
+          $ref: '#/components/schemas/SeverityLevel'
+        orgVulnId:
+          type: string
+          description: 原始漏洞编号（如 CVE）
+        networkAddress:
+          type: string
+        port:
+          type: integer
+        service:
+          type: string
+        exposureType:
+          $ref: '#/components/schemas/ExposureType'
+        lastTransitionAt:
+          type: string
+          format: date-time
+        extVulnRef:
+          type: string
+          description: Partner 侧实例引用
+        engineDisposalId:
+          type: string
+          description: 引擎内部 ID（仅映射用，部分 Partner 可见）
+
+    InstanceListPage:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VulnInstanceSummary'
+        page:
+          type: integer
+        size:
+          type: integer
+        total:
+          type: integer
+
+    RemediationRecord:
+      type: object
+      properties:
+        method:
+          $ref: '#/components/schemas/RemediateMethod'
+        miitProcMethod:
+          type: integer
+          description: 部侧明细码，如 1050
+        description:
+          type: string
+        fixLink:
+          type: string
+          format: uri
+        defenseDevice:
+          type: string
+        remediateDuration:
+          type: string
+          example: '3日'
+        operator:
+          type: string
+        remediatedAt:
+          type: string
+          format: date-time
+
+    ArchiveExtension:
+      type: object
+      required: [reasonDetail, operator]
+      properties:
+        reasonDetail:
+          type: string
+          maxLength: 2000
+        operator:
+          type: string
+        approvedBy:
+          type: string
+        archiveId:
+          type: string
+        recordedAt:
+          type: string
+          format: date-time
+        provincialFields:
+          type: object
+          additionalProperties: true
+          description: 省侧扩展字段容器，待规范扩充
+
+    VulnInstanceDetail:
+      allOf:
+        - $ref: '#/components/schemas/VulnInstanceSummary'
+        - type: object
+          properties:
+            remediation:
+              $ref: '#/components/schemas/RemediationRecord'
+              nullable: true
+            archiveExtension:
+              $ref: '#/components/schemas/ArchiveExtension'
+              nullable: true
+            extensions:
+              type: object
+              additionalProperties: true
+
+    VerifyInstanceRequest:
+      type: object
+      required: [vulnCategory, result, operator]
+      properties:
+        extTaskId:
+          type: string
+        vulnCategory:
+          $ref: '#/components/schemas/VulnCategory'
+        result:
+          $ref: '#/components/schemas/VerifyResult'
+        method:
+          type: integer
+          description: 部侧 A.10 处置方式码（如 1021、1026）
+        evidence:
+          type: string
+        operator:
+          type: string
+        operatedAt:
+          type: string
+          format: date-time
+
+    VerifyInstanceBatchRequest:
+      type: object
+      required: [items, operator]
+      properties:
+        extTaskId:
+          type: string
+        operator:
+          type: string
+        items:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            required: [vulInstanceId, vulnCategory, result]
+            properties:
+              vulInstanceId:
+                type: string
+              vulnCategory:
+                $ref: '#/components/schemas/VulnCategory'
+              result:
+                $ref: '#/components/schemas/VerifyResult'
+              method:
+                type: integer
+              evidence:
+                type: string
+
+    VerifyBatchFailure:
+      type: object
+      required: [vulInstanceId, code, message]
+      properties:
+        vulInstanceId:
+          type: string
+        code:
+          type: integer
+        message:
+          type: string
+
+    VerifyInstanceBatchResult:
+      type: object
+      required: [success, failed]
+      properties:
+        success:
+          type: array
+          items:
+            $ref: '#/components/schemas/InstanceTransitionResult'
+        failed:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifyBatchFailure'
+
+    RemediateInstanceRequest:
+      type: object
+      required: [method, description, remediateDuration, operator, remediatedAt]
+      properties:
+        method:
+          $ref: '#/components/schemas/RemediateMethod'
+        description:
+          type: string
+        fixLink:
+          type: string
+          format: uri
+          description: method=PATCH 时必填
+        defenseDevice:
+          type: string
+          description: method=MITIGATION 或 BLOCK 时必填
+        remediateDuration:
+          type: string
+          pattern: '^\d+(日|周|月)$'
+          example: '3日'
+        operator:
+          type: string
+        remediatedAt:
+          type: string
+          format: date-time
+        remark:
+          type: string
+
+    ArchiveInstanceRequest:
+      type: object
+      required: [unfixReason, archiveExtension]
+      properties:
+        unfixReason:
+          $ref: '#/components/schemas/UnfixReasonCode'
+        archiveExtension:
+          $ref: '#/components/schemas/ArchiveExtension'
+
+    InstanceTransitionResult:
+      type: object
+      required: [vulInstanceId, vulnInstanceStatus]
+      properties:
+        vulInstanceId:
+          type: string
+        vulnInstanceStatus:
+          $ref: '#/components/schemas/VulnInstanceStatus'
+        unfixReason:
+          $ref: '#/components/schemas/UnfixReasonCode'
+          nullable: true
+        transitionAt:
+          type: string
+          format: date-time
+
+    PlatformWebhookEventType:
+      type: string
+      enum:
+        - TASK_COMPLETED
+        - TASK_FAILED
+        - INSTANCE_STATUS_CHANGED
+        - INSTANCE_REMEDIATED
+        - INSTANCE_ARCHIVED
+        - EXPORT_READY
+
+    TaskCompletedPayload:
+      type: object
+      properties:
+        extTaskId:
+          type: string
+        taskId:
+          type: string
+        status:
+          type: string
+          enum: [FINISHED, FAILED]
+        summary:
+          type: object
+          properties:
+            totalInstances:
+              type: integer
+            verifiedValid:
+              type: integer
+            falsePositive:
+              type: integer
+
+    InstanceEventPayload:
+      type: object
+      properties:
+        vulInstanceId:
+          type: string
+        vulnInstanceStatus:
+          $ref: '#/components/schemas/VulnInstanceStatus'
+        previousStatus:
+          $ref: '#/components/schemas/VulnInstanceStatus'
+
+    PlatformWebhookEvent:
+      type: object
+      required: [eventId, eventType, occurredAt, partnerId, payload]
+      properties:
+        eventId:
+          type: string
+        eventType:
+          $ref: '#/components/schemas/PlatformWebhookEventType'
+        occurredAt:
+          type: string
+          format: date-time
+        partnerId:
+          type: string
+        payload:
+          oneOf:
+            - $ref: '#/components/schemas/TaskCompletedPayload'
+            - $ref: '#/components/schemas/InstanceEventPayload'
+          description: 结构随 eventType 变化

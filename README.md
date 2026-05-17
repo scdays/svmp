@@ -2,6 +2,18 @@
 
 本仓库存放漏洞管理平台与外部系统对接的设计文档（草稿）。
 
+## OpenAPI
+
+| 文件 | 说明 |
+|------|------|
+| [openapi/v1/openapi.yaml](./openapi/v1/openapi.yaml) | 开放平台 API **3.1** 定义（V2.2：含修复/备案并列、Webhook 回调模型） |
+
+本地预览（需安装 [Swagger UI](https://github.com/swagger-api/swagger-ui) 或 Redoc）：
+
+```bash
+npx @redocly/cli preview-docs openapi/v1/openapi.yaml
+```
+
 ## 文档索引
 
 | 文档 | 版本 | 说明 |
