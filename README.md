@@ -6,7 +6,7 @@
 
 | 文件 | 说明 |
 |------|------|
-| [openapi/v1/openapi.yaml](./openapi/v1/openapi.yaml) | 开放平台 API **3.1**（V2.2.2：部侧字段 `vulInfoID`/`vulInfoStat`/`lvRsn`） |
+| [openapi/v1/openapi.yaml](./openapi/v1/openapi.yaml) | 开放平台 API **3.1**（V2.2.3：字段与部侧表34 同名） |
 
 本地预览（需安装 [Swagger UI](https://github.com/swagger-api/swagger-ui) 或 Redoc）：
 

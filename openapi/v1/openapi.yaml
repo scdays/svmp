@@ -1,12 +1,12 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 2.2.2
+  version: 2.2.3
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
-    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.2.2
-    - 漏洞实例字段沿用部侧：`vulInfoID`、`vulInfoStat`、`lvRsn`、`vulID`
+    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.2.3
+    - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
     - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
     - 响应包装：除特别说明外，HTTP 200 仍使用业务 `code` 区分成功/失败
@@ -73,7 +73,7 @@ paths:
                   taskName: 季度系统漏洞排查
                   targets: ['10.0.0.1', '10.0.0.2']
                   targetType: IPV4
-                  vulnCategory: SYSTEM
+                  vulnType: 1
       responses:
         '200':
           description: 业务响应（检查 body.code）
@@ -190,7 +190,7 @@ paths:
       tags: [instances]
       operationId: getInstance
       summary: 获取漏洞实例详情
-      description: 返回规范模型全量字段、修复台账 `remediation`、扩展 `extensions`。
+      description: 返回表34 相关字段（`vulName`、`vulNetAddr`、`remedDesc` 等）及备案扩展字段。
       parameters:
         - $ref: '#/components/parameters/VulInstanceId'
         - name: extTaskId
@@ -307,7 +307,7 @@ paths:
       summary: 处置·备案（不可修复）
       description: |
         处置阶段分支之一，与 `remediate` 互斥。需能力 `INSTANCE_ARCHIVE`。
-        后置：`FIX_FAILED` (9)，必填 `lvRsn`（映射部侧 `lvRsn`）。
+        后置：`vulInfoStat=9`，必填 `lvRsn`。
         `archiveExtension.provincialFields` 为省侧扩展预留。
       parameters:
         - $ref: '#/components/parameters/VulInstanceId'
@@ -322,13 +322,11 @@ paths:
               acceptRisk:
                 value:
                   lvRsn: 109
-                  archiveExtension:
-                    reasonDetail: 业务连续性限制，评估后接受风险
-                    operator: owner@corp.com
-                    approvedBy: manager@corp.com
-                    archiveId: ARC-2026-001
-                    recordedAt: '2026-05-16T11:00:00Z'
-                    provincialFields: {}
+                  archiveReason: 业务连续性限制，评估后接受风险
+                  operator: owner@corp.com
+                  approvedBy: manager@corp.com
+                  recordAt: '2026-05-16T11:00:00Z'
+                  provincialFields: {}
       responses:
         '200':
           description: 业务响应
@@ -511,9 +509,19 @@ components:
       type: string
       enum: [IPV4, IPV6, URL]
 
-    VulnCategory:
-      type: string
-      enum: [SYSTEM, WEB]
+    VulnType:
+      type: integer
+      description: 漏洞类型（与 V1.1 一致）
+      enum: [1, 2]
+      x-enum-descriptions:
+        - 系统漏洞
+        - Web漏洞
+
+    VulLevel:
+      type: integer
+      minimum: 1
+      maximum: 5
+      description: 危害等级（部侧 vulLevel）
 
     TaskPriority:
       type: string
@@ -543,20 +551,10 @@ components:
       type: string
       enum: [VALID, FALSE_POSITIVE]
 
-    RemediateMethod:
-      type: string
-      description: 映射部侧 A.10（1050/1051/1052）
-      enum: [PATCH, MITIGATION, BLOCK]
-
-    ExposureType:
-      type: string
-      enum: [INTERNAL, INTERNET]
-
-    SeverityLevel:
+    IsAccess:
       type: integer
-      minimum: 1
-      maximum: 5
-      description: 漏洞等级（与引擎/部侧映射由 Profile 配置）
+      description: 部侧 isAccess，0=内网，1=互联网
+      enum: [0, 1]
 
     ScanTaskOptions:
       type: object
@@ -573,7 +571,7 @@ components:
 
     CreateTaskRequest:
       type: object
-      required: [extTaskId, taskName, targets, targetType, vulnCategory]
+      required: [extTaskId, taskName, targets, targetType, vulnType]
       properties:
         extTaskId:
           type: string
@@ -589,8 +587,8 @@ components:
             type: string
         targetType:
           $ref: '#/components/schemas/TargetType'
-        vulnCategory:
-          $ref: '#/components/schemas/VulnCategory'
+        vulnType:
+          $ref: '#/components/schemas/VulnType'
         callbackUrl:
           type: string
           format: uri
@@ -677,14 +675,14 @@ components:
           type: string
         extTaskId:
           type: string
-        statusList:
+        vulInfoStatList:
           type: array
           items:
             $ref: '#/components/schemas/VulInfoStat'
-        severityList:
+        vulLevelList:
           type: array
           items:
-            $ref: '#/components/schemas/SeverityLevel'
+            $ref: '#/components/schemas/VulLevel'
         page:
           type: integer
           minimum: 1
@@ -698,43 +696,41 @@ components:
       required:
         - vulInfoID
         - vulInfoStat
-        - title
-        - lastTransitionAt
+        - vulName
+        - transferTime
       properties:
         vulInfoID:
           type: string
         vulID:
           type: string
-          description: 产品漏洞编号（部侧 vulID）
         vulInfoStat:
           $ref: '#/components/schemas/VulInfoStat'
         lvRsn:
           $ref: '#/components/schemas/LvRsnCode'
           nullable: true
-        title:
+        vulName:
           type: string
-        severity:
-          $ref: '#/components/schemas/SeverityLevel'
-        orgVulnId:
+        vulLevel:
+          $ref: '#/components/schemas/VulLevel'
+        orgVulId:
           type: string
-          description: 原始漏洞编号（如 CVE）
-        networkAddress:
+        vulNetAddr:
           type: string
-        port:
+        vulPort:
           type: integer
-        service:
+        vulSvc:
           type: string
-        exposureType:
-          $ref: '#/components/schemas/ExposureType'
-        lastTransitionAt:
+        isAccess:
+          $ref: '#/components/schemas/IsAccess'
+        transferTime:
           type: string
-          format: date-time
+          description: 状态变更时间（部侧多为 Unix 秒字符串）
+        vulnDisposalId:
+          type: string
+          description: SVMP 处置 ID（引擎映射）
         extVulnRef:
           type: string
-          description: Partner 侧实例引用
-        engineDisposalId:
-          type: string
-          description: 引擎内部 ID（仅映射用，部分 Partner 可见）
+          description: Partner 扩展引用
 
     InstanceListPage:
       type: object
@@ -751,87 +747,76 @@ components:
         total:
           type: integer
 
-    RemediationRecord:
+    RemedInfo:
       type: object
+      description: 修复台账（部侧 remedInfo / 表34 相关字段）
       properties:
-        method:
-          $ref: '#/components/schemas/RemediateMethod'
-        miitProcMethod:
+        srcMethod:
           type: integer
-          description: 部侧明细码，如 1050
-        description:
+          description: 处置方式 A.10，如 1050
+        remedDesc:
           type: string
-        fixLink:
+        fixLnk:
           type: string
           format: uri
-        defenseDevice:
+        defDev:
           type: string
-        remediateDuration:
+        remedTime:
           type: string
           example: '3日'
-        operator:
-          type: string
-        remediatedAt:
-          type: string
-          format: date-time
-
-    ArchiveExtension:
-      type: object
-      required: [reasonDetail, operator]
-      properties:
-        reasonDetail:
-          type: string
-          maxLength: 2000
-        operator:
-          type: string
-        approvedBy:
-          type: string
-        archiveId:
-          type: string
-        recordedAt:
-          type: string
-          format: date-time
-        provincialFields:
-          type: object
-          additionalProperties: true
-          description: 省侧扩展字段容器，待规范扩充
 
     VulInfoDetail:
       allOf:
         - $ref: '#/components/schemas/VulInfoSummary'
         - type: object
           properties:
-            remediation:
-              $ref: '#/components/schemas/RemediationRecord'
-              nullable: true
-            archiveExtension:
-              $ref: '#/components/schemas/ArchiveExtension'
-              nullable: true
-            extensions:
+            vulAddrType:
+              type: integer
+              description: 1=IPv4, 2=IPv6, 3=HTTP, 4=N/A, 5=其他
+            assetID:
+              type: string
+            assetName:
+              type: string
+            vulInstCpe:
+              type: string
+            remedDesc:
+              type: string
+            fixLnk:
+              type: string
+            defDev:
+              type: string
+            remedTime:
+              type: string
+            srcMethod:
+              type: integer
+            archiveReason:
+              type: string
+            provincialFields:
               type: object
               additionalProperties: true
+            extVulnRef:
+              type: string
 
     VerifyInstanceRequest:
       type: object
-      required: [vulnCategory, verifyResult, operator]
+      required: [vulnType, verifyResult, operator]
       properties:
         extTaskId:
           type: string
-        vulnCategory:
-          $ref: '#/components/schemas/VulnCategory'
+        vulnType:
+          $ref: '#/components/schemas/VulnType'
         verifyResult:
           $ref: '#/components/schemas/VerifyResult'
           description: VALID→vulInfoStat=2；FALSE_POSITIVE→vulInfoStat=3
-        method:
+        srcMethod:
           type: integer
           description: 部侧 A.10 处置方式码（如 1021、1026）
-        evidence:
+        transferTime:
           type: string
         operator:
           type: string
-        operatedAt:
+        remark:
           type: string
-          format: date-time
 
     VerifyInstanceBatchRequest:
       type: object
@@ -847,17 +832,17 @@ components:
           maxItems: 500
           items:
             type: object
-            required: [vulInfoID, vulnCategory, verifyResult]
+            required: [vulInfoID, vulnType, verifyResult]
             properties:
               vulInfoID:
                 type: string
-              vulnCategory:
-                $ref: '#/components/schemas/VulnCategory'
+              vulnType:
+                $ref: '#/components/schemas/VulnType'
               verifyResult:
                 $ref: '#/components/schemas/VerifyResult'
-              method:
+              srcMethod:
                 type: integer
-              evidence:
+              remark:
                 type: string
 
     VerifyBatchFailure:
@@ -886,39 +871,48 @@ components:
 
     RemediateInstanceRequest:
       type: object
-      required: [method, description, remediateDuration, operator, remediatedAt]
+      required: [srcMethod, remedDesc, remedTime, operator]
       properties:
-        method:
-          $ref: '#/components/schemas/RemediateMethod'
-        description:
+        srcMethod:
+          type: integer
+          description: A.10，如 1050/1051/1052
+        remedDesc:
           type: string
-        fixLink:
+        fixLnk:
           type: string
           format: uri
-          description: method=PATCH 时必填
-        defenseDevice:
+          description: srcMethod=1050 时必填
+        defDev:
           type: string
-          description: method=MITIGATION 或 BLOCK 时必填
-        remediateDuration:
+          description: srcMethod=1051 或 1052 时必填
+        remedTime:
           type: string
           pattern: '^\d+(日|周|月)$'
           example: '3日'
         operator:
           type: string
-        remediatedAt:
+        transferTime:
           type: string
-          format: date-time
         remark:
           type: string
 
     ArchiveInstanceRequest:
       type: object
-      required: [lvRsn, archiveExtension]
+      required: [lvRsn, archiveReason, operator]
       properties:
         lvRsn:
           $ref: '#/components/schemas/LvRsnCode'
-        archiveExtension:
-          $ref: '#/components/schemas/ArchiveExtension'
+        archiveReason:
+          type: string
+        operator:
+          type: string
+        approvedBy:
+          type: string
+        recordAt:
+          type: string
+        provincialFields:
+          type: object
+          additionalProperties: true
 
     InstanceTransitionResult:
       type: object
@@ -931,9 +925,8 @@ components:
         lvRsn:
           $ref: '#/components/schemas/LvRsnCode'
           nullable: true
-        transitionAt:
+        transferTime:
           type: string
-          format: date-time
 
     PlatformWebhookEventType:
       type: string
