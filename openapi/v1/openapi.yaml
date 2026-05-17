@@ -1,11 +1,12 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 2.2.0
+  version: 2.2.2
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
-    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.2
+    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.2.2
+    - 漏洞实例字段沿用部侧：`vulInfoID`、`vulInfoStat`、`lvRsn`、`vulID`
     - Base path：`/api/open/v1`
     - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
     - 响应包装：除特别说明外，HTTP 200 仍使用业务 `code` 区分成功/失败
@@ -17,8 +18,8 @@ info:
 
     | 处置分支 | 路径 | 终态 |
     |----------|------|------|
-    | 可修复 | `POST .../remediate` | 5 FIXED |
-    | 不可修复备案 | `POST .../archive` | 9 FIX_FAILED + unfixReason |
+    | 可修复 | `POST .../remediate` | vulInfoStat=5 |
+    | 不可修复备案 | `POST .../archive` | vulInfoStat=9 + lvRsn |
   contact:
     name: Platform Integration Team
   license:
@@ -56,7 +57,7 @@ paths:
       summary: 创建扫描任务
       description: |
         排查阶段入口。需能力 `TASK_WRITE`。
-        成功后新发现实例默认 `vulnInstanceStatus = DISCOVERED`。
+        成功后新发现漏洞实例默认 `vulInfoStat = 1`（初始发现）。
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -184,7 +185,7 @@ paths:
                       data:
                         $ref: '#/components/schemas/InstanceListPage'
 
-  /instances/{vulInstanceId}:
+  /instances/{vulInfoID}:
     get:
       tags: [instances]
       operationId: getInstance
@@ -208,9 +209,9 @@ paths:
                   - type: object
                     properties:
                       data:
-                        $ref: '#/components/schemas/VulnInstanceDetail'
+                        $ref: '#/components/schemas/VulInfoDetail'
 
-  /instances/{vulInstanceId}/verify:
+  /instances/{vulInfoID}/verify:
     post:
       tags: [instances]
       operationId: verifyInstance
@@ -268,15 +269,15 @@ paths:
                       data:
                         $ref: '#/components/schemas/VerifyInstanceBatchResult'
 
-  /instances/{vulInstanceId}/remediate:
+  /instances/{vulInfoID}/remediate:
     post:
       tags: [instances]
       operationId: remediateInstance
       summary: 处置·修复（可修复）
       description: |
         处置阶段分支之一。需能力 `INSTANCE_REMEDIATE`。
-        前置：`VERIFIED_VALID` 或 `VERIFY_FIXED_FAIL`，且未处于终态 5/9。
-        后置：`FIXED` (5)，清空 `unfixReason`。
+        前置：`vulInfoStat ∈ {2, 7}`，且未处于终态 5/9。
+        后置：`vulInfoStat=5`，清空 `lvRsn`。
       parameters:
         - $ref: '#/components/parameters/VulInstanceId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -299,14 +300,14 @@ paths:
                       data:
                         $ref: '#/components/schemas/InstanceTransitionResult'
 
-  /instances/{vulInstanceId}/archive:
+  /instances/{vulInfoID}/archive:
     post:
       tags: [instances]
       operationId: archiveInstance
       summary: 处置·备案（不可修复）
       description: |
         处置阶段分支之一，与 `remediate` 互斥。需能力 `INSTANCE_ARCHIVE`。
-        后置：`FIX_FAILED` (9)，必填 `unfixReason`（映射部侧 `lvRsn`）。
+        后置：`FIX_FAILED` (9)，必填 `lvRsn`（映射部侧 `lvRsn`）。
         `archiveExtension.provincialFields` 为省侧扩展预留。
       parameters:
         - $ref: '#/components/parameters/VulInstanceId'
@@ -320,7 +321,7 @@ paths:
             examples:
               acceptRisk:
                 value:
-                  unfixReason: 109
+                  lvRsn: 109
                   archiveExtension:
                     reasonDetail: 业务连续性限制，评估后接受风险
                     operator: owner@corp.com
@@ -341,7 +342,7 @@ paths:
                       data:
                         $ref: '#/components/schemas/InstanceTransitionResult'
 
-  /instances/{vulInstanceId}/unfixable-records:
+  /instances/{vulInfoID}/unfixable-records:
     post:
       tags: [instances]
       operationId: archiveInstanceLegacy
@@ -427,12 +428,12 @@ components:
         type: string
       description: 平台内部任务 ID
     VulInstanceId:
-      name: vulInstanceId
+      name: vulInfoID
       in: path
       required: true
       schema:
         type: string
-      description: 系统漏洞实例 ID（规范主键，映射部侧 vulInfoID）
+      description: 系统漏洞实例 ID（部侧 vulInfoID，漏洞实例主键）
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -526,22 +527,14 @@ components:
       type: string
       enum: [PENDING, RUNNING, FINISHED, FAILED]
 
-    VulnInstanceStatus:
-      type: string
-      description: 映射部侧 vulInfoStat（A.8）
-      enum:
-        - POTENTIAL
-        - DISCOVERED
-        - VERIFIED_VALID
-        - VERIFIED_FALSE_POSITIVE
-        - FIXED
-        - VERIFY_FIXED_PASS
-        - VERIFY_FIXED_FAIL
-        - VERIFY_FAILED
-        - FIX_FAILED
-        - VERIFY_FIX_FAILED
+    VulInfoStat:
+      type: integer
+      description: 系统漏洞状态，部侧附录 A.8（vulInfoStat）
+      minimum: 0
+      maximum: 10
+      examples: [1, 2, 5, 9]
 
-    UnfixReasonCode:
+    LvRsnCode:
       type: integer
       description: 映射部侧 lvRsn（A.23）
       enum: [101, 102, 103, 104, 105, 107, 108, 109, 999]
@@ -687,7 +680,7 @@ components:
         statusList:
           type: array
           items:
-            $ref: '#/components/schemas/VulnInstanceStatus'
+            $ref: '#/components/schemas/VulInfoStat'
         severityList:
           type: array
           items:
@@ -700,23 +693,23 @@ components:
           minimum: 1
           maximum: 1000
 
-    VulnInstanceSummary:
+    VulInfoSummary:
       type: object
       required:
-        - vulInstanceId
-        - vulnInstanceStatus
+        - vulInfoID
+        - vulInfoStat
         - title
         - lastTransitionAt
       properties:
-        vulInstanceId:
+        vulInfoID:
           type: string
-        vulId:
+        vulID:
           type: string
           description: 产品漏洞编号（部侧 vulID）
-        vulnInstanceStatus:
-          $ref: '#/components/schemas/VulnInstanceStatus'
-        unfixReason:
-          $ref: '#/components/schemas/UnfixReasonCode'
+        vulInfoStat:
+          $ref: '#/components/schemas/VulInfoStat'
+        lvRsn:
+          $ref: '#/components/schemas/LvRsnCode'
           nullable: true
         title:
           type: string
@@ -750,7 +743,7 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/VulnInstanceSummary'
+            $ref: '#/components/schemas/VulInfoSummary'
         page:
           type: integer
         size:
@@ -803,9 +796,9 @@ components:
           additionalProperties: true
           description: 省侧扩展字段容器，待规范扩充
 
-    VulnInstanceDetail:
+    VulInfoDetail:
       allOf:
-        - $ref: '#/components/schemas/VulnInstanceSummary'
+        - $ref: '#/components/schemas/VulInfoSummary'
         - type: object
           properties:
             remediation:
@@ -820,14 +813,15 @@ components:
 
     VerifyInstanceRequest:
       type: object
-      required: [vulnCategory, result, operator]
+      required: [vulnCategory, verifyResult, operator]
       properties:
         extTaskId:
           type: string
         vulnCategory:
           $ref: '#/components/schemas/VulnCategory'
-        result:
+        verifyResult:
           $ref: '#/components/schemas/VerifyResult'
+          description: VALID→vulInfoStat=2；FALSE_POSITIVE→vulInfoStat=3
         method:
           type: integer
           description: 部侧 A.10 处置方式码（如 1021、1026）
@@ -853,13 +847,13 @@ components:
           maxItems: 500
           items:
             type: object
-            required: [vulInstanceId, vulnCategory, result]
+            required: [vulInfoID, vulnCategory, verifyResult]
             properties:
-              vulInstanceId:
+              vulInfoID:
                 type: string
               vulnCategory:
                 $ref: '#/components/schemas/VulnCategory'
-              result:
+              verifyResult:
                 $ref: '#/components/schemas/VerifyResult'
               method:
                 type: integer
@@ -868,9 +862,9 @@ components:
 
     VerifyBatchFailure:
       type: object
-      required: [vulInstanceId, code, message]
+      required: [vulInfoID, code, message]
       properties:
-        vulInstanceId:
+        vulInfoID:
           type: string
         code:
           type: integer
@@ -919,23 +913,23 @@ components:
 
     ArchiveInstanceRequest:
       type: object
-      required: [unfixReason, archiveExtension]
+      required: [lvRsn, archiveExtension]
       properties:
-        unfixReason:
-          $ref: '#/components/schemas/UnfixReasonCode'
+        lvRsn:
+          $ref: '#/components/schemas/LvRsnCode'
         archiveExtension:
           $ref: '#/components/schemas/ArchiveExtension'
 
     InstanceTransitionResult:
       type: object
-      required: [vulInstanceId, vulnInstanceStatus]
+      required: [vulInfoID, vulInfoStat]
       properties:
-        vulInstanceId:
+        vulInfoID:
           type: string
-        vulnInstanceStatus:
-          $ref: '#/components/schemas/VulnInstanceStatus'
-        unfixReason:
-          $ref: '#/components/schemas/UnfixReasonCode'
+        vulInfoStat:
+          $ref: '#/components/schemas/VulInfoStat'
+        lvRsn:
+          $ref: '#/components/schemas/LvRsnCode'
           nullable: true
         transitionAt:
           type: string
@@ -974,12 +968,12 @@ components:
     InstanceEventPayload:
       type: object
       properties:
-        vulInstanceId:
+        vulInfoID:
           type: string
-        vulnInstanceStatus:
-          $ref: '#/components/schemas/VulnInstanceStatus'
-        previousStatus:
-          $ref: '#/components/schemas/VulnInstanceStatus'
+        vulInfoStat:
+          $ref: '#/components/schemas/VulInfoStat'
+        previousVulInfoStat:
+          $ref: '#/components/schemas/VulInfoStat'
 
     PlatformWebhookEvent:
       type: object
