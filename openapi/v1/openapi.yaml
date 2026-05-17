@@ -136,7 +136,9 @@ paths:
       tags: [tasks]
       operationId: getTask
       summary: 查询任务进度
-      description: 需能力 `TASK_READ`。`taskId` 为平台内部任务 ID。
+      description: |
+        需能力 `TASK_READ`。仅需路径参数 `taskId`（创建任务响应中返回），**无需** `extTaskId`。
+        平台内部转换为 SVMP `taskId` 后调用 `GET /task/progress`。
       parameters:
         - $ref: '#/components/parameters/TaskId'
       responses:
