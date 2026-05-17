@@ -100,6 +100,7 @@ paths:
       summary: 分页查询任务列表
       description: |
         需能力 `TASK_READ`。查询平台任务库；`extTaskId` 仅为可选过滤条件，不调用 SVMP。
+        响应 items 中**必含 taskId**（及建议回显 extTaskId），用于后续查进度。
       parameters:
         - name: extTaskId
           in: query
