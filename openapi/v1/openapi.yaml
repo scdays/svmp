@@ -10,7 +10,8 @@ info:
     - Base path：`/api/open/v1`
     - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
     - 响应包装：除特别说明外，HTTP 200 仍使用业务 `code` 区分成功/失败
-    - 幂等：写操作支持请求头 `Idempotency-Key`
+    - 幂等：`extTaskId` **仅创建任务**必填；查询任务只需 `taskId`
+    - 调 SVMP：`extTaskId` 不下发；查询进度仅 SVMP `taskId`
 
     ## 生命周期
 
@@ -57,6 +58,7 @@ paths:
       summary: 创建扫描任务
       description: |
         排查阶段入口。需能力 `TASK_WRITE`。
+        `extTaskId` 为 Partner 幂等键，仅在本接口必填；保存在平台映射表，不下发 SVMP。
         成功后新发现漏洞实例默认 `vulInfoStat = 1`（初始发现）。
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -96,12 +98,14 @@ paths:
       tags: [tasks]
       operationId: listTasks
       summary: 分页查询任务列表
-      description: 需能力 `TASK_READ`。
+      description: |
+        需能力 `TASK_READ`。查询平台任务库；`extTaskId` 仅为可选过滤条件，不调用 SVMP。
       parameters:
         - name: extTaskId
           in: query
           schema:
             type: string
+          description: Partner 任务键过滤（非 SVMP 参数）
         - name: status
           in: query
           schema:
@@ -578,7 +582,7 @@ components:
         extTaskId:
           type: string
           maxLength: 128
-          description: Partner 幂等键
+          description: Partner 幂等键（仅创建任务使用，查询类接口不需要）
         taskName:
           type: string
           maxLength: 256
@@ -675,8 +679,10 @@ components:
       properties:
         taskId:
           type: string
+          description: 平台任务 ID；调 SVMP 时仅传映射后的 SVMP taskId
         extTaskId:
           type: string
+          description: 可选；平台解析为 taskId，不传给 SVMP
         vulInfoStatList:
           type: array
           items:
