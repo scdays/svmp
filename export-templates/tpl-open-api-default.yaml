@@ -1,0 +1,41 @@
+# 开放平台默认外发（JSON 数组，字段与 §3 规范域 / 表34 列表项同名）
+exportTemplateId: tpl-open-api-default
+displayName: 排查任务结束 · 标准实例清单
+match:
+  scanTemplateIds: []   # 空表示兜底模板（未命中专用模板时使用）
+  vulnType: null
+output:
+  format: JSON
+  encoding: UTF-8
+  fileNamePattern: "export-{taskId}-{occurredAt}.json"
+trigger:
+  on: TASK_COMPLETED
+filter:
+  vulInfoStatList: [1, 2, 3, 5, 6, 7, 8, 9, 10]
+fields:
+  - target: vulInfoID
+    source: vulInfoID
+  - target: vulID
+    source: vulID
+  - target: vulInfoStat
+    source: vulInfoStat
+  - target: lvRsn
+    source: lvRsn
+  - target: vulName
+    source: vulName
+  - target: vulLevel
+    source: vulLevel
+  - target: orgVulId
+    source: orgVulId
+  - target: vulNetAddr
+    source: vulNetAddr
+  - target: vulPort
+    source: vulPort
+  - target: vulSvc
+    source: vulSvc
+  - target: isAccess
+    source: isAccess
+  - target: transferTime
+    source: transferTime
+  - target: vulnDisposalId
+    source: vulnDisposalId

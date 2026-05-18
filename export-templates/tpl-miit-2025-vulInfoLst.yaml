@@ -1,0 +1,21 @@
+# 部侧表34 嵌套结构（与 Compliance Profile MIIT-2025 一致）
+exportTemplateId: tpl-miit-2025-vulInfoLst
+displayName: 排查任务结束 · 部侧 vulInfoLst 报送包
+match:
+  scanTemplateIds: [10086, 10087]   # 示例：与监管排查模板绑定
+  vulnType: 1
+output:
+  format: MIIT-2025-VULINFOLST
+  encoding: UTF-8
+trigger:
+  on: TASK_COMPLETED
+filter:
+  vulInfoStatList: [1, 2, 5, 6, 7, 9, 10]
+assembler: miit2025.vulInfoLst   # 平台内置组装器，fields 仅作校验清单
+fields:
+  - target: vulInfoLst.comVulLst[].instVulLst[].vulInfoID
+    source: vulInfoID
+  - target: vulInfoLst.comVulLst[].instVulLst[].vulInfoStat
+    source: vulInfoStat
+  - target: vulInfoLst.comVulLst[].instVulLst[].vulName
+    source: vulName

@@ -14,11 +14,18 @@
 npx @redocly/cli preview-docs openapi/v1/openapi.yaml
 ```
 
+解析《数据外发字段说明》HTML（需先将文件放到 `export-templates/`）：
+
+```bash
+python3 tools/parse_export_fields_html.py export-templates/数据外发字段说明.html -o export-templates --write-drafts
+```
+
 ## 文档索引
 
 | 文档 | 版本 | 说明 |
 |------|------|------|
-| [漏洞管理平台对外集成能力设计方案-V2.0.md](./漏洞管理平台对外集成能力设计方案-V2.0.md) | **V2.2.9（当前）** | 含 **§5.9 修复核验** `verify-fix`；修复/备案并列（§3.5） |
+| [漏洞管理平台对外集成能力设计方案-V2.0.md](./漏洞管理平台对外集成能力设计方案-V2.0.md) | **V2.3.0（当前）** | §十二 **任务结束数据外发**（按 scanTemplate 多格式） |
+| [export-templates/](./export-templates/) | — | 外发模板 YAML + HTML 字段解析说明 |
 | [基础电信企业安全漏洞管理平台接口示例2025-V2.2.docx](./基础电信企业安全漏洞管理平台接口示例2025-V2.2.docx) | V2.2 | 部侧接口示例原文（**接口3 说明**为工单入站设计依据） |
 
 ## 演进说明
