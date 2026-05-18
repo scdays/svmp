@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 2.2.8
+  version: 2.2.9
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
-    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.2.8（§6.3 SVMP 执行层对接说明）
+    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.2.9（§5.9 修复核验 verify-fix）
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
     - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
@@ -15,7 +15,7 @@ info:
 
     ## 生命周期
 
-    排查 → 验证 → **处置（修复 | 备案，二选一）** → 核验（引擎）
+    排查 → 验证 → **处置（修复 | 备案，二选一）** → **修复核验**（`verify-fix`）
 
     | 处置分支 | 路径 | 终态 |
     |----------|------|------|
@@ -612,6 +612,105 @@ paths:
                       transferTime: '1747483600'
                       archiveReason: 业务连续性限制，经评估接受风险
 
+  /instances/{vulInfoID}/verify-fix:
+    post:
+      tags: [instances]
+      operationId: verifyFixInstance
+      summary: 修复核验（单条）
+      description: |
+        修复后核验阶段，与 `verify`（验证漏洞真假）不同。需能力 `INSTANCE_VERIFY_FIX`。
+        前置 `vulInfoStat=5`。
+        - 传 `verifyFixResult`：同步回写 → **6**（FIXED）/ **7**（NOT_FIXED）/ **10**（FAILED）
+        - 不传 `verifyFixResult`、传 `procMethod`：触发 SVMP `POST /vuln/disposal/verify`，异步；完成后 Webhook `INSTANCE_VERIFY_FIX_COMPLETED`
+      parameters:
+        - $ref: '#/components/parameters/VulInstanceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyFixInstanceRequest'
+            examples:
+              reportFixed:
+                summary: 回写核验修复（vulInfoStat→6）
+                value:
+                  verifyFixResult: FIXED
+                  procMethod: 1060
+                  operator: sec-qa@corp.com
+                  transferTime: '1747488000'
+              triggerEngine:
+                summary: 触发 SVMP 异步核验
+                value:
+                  procMethod: 1060
+                  operator: sec-qa@corp.com
+                  remark: 提交自适应扫描核验
+      responses:
+        '200':
+          description: 业务响应（同步终态或异步受理）
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        oneOf:
+                          - $ref: '#/components/schemas/InstanceTransitionResult'
+                          - $ref: '#/components/schemas/VerifyFixAsyncAccepted'
+              examples:
+                syncFixed:
+                  summary: 回写成功 vulInfoStat→6
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-f001
+                    data:
+                      vulInfoID: VI-20260517-0002
+                      vulInfoStat: 6
+                      transferTime: '1747488000'
+                      srcMethod: 1060
+                asyncAccepted:
+                  summary: 异步受理
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-f002
+                    data:
+                      vulInfoID: VI-20260517-0002
+                      vulInfoStat: 5
+                      verifyFixStatus: RUNNING
+                      verifyFixJobId: VFJ-20260517-0001
+                      message: 已提交 SVMP 修复核验
+
+  /instances/verify-fix:batch:
+    post:
+      tags: [instances]
+      operationId: verifyFixInstanceBatch
+      summary: 批量修复核验
+      description: 部分成功；每条由 items[].vulInfoID 标识。需能力 `INSTANCE_VERIFY_FIX`。
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyFixInstanceBatchRequest'
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/VerifyFixInstanceBatchResult'
+
   /instances/{vulInfoID}/unfixable-records:
     post:
       tags: [instances]
@@ -697,6 +796,17 @@ webhooks:
                     vulInfoID: VI-20260517-0002
                     vulInfoStat: 5
                     previousVulInfoStat: 2
+              verifyFixCompleted:
+                summary: 修复核验完成回调
+                value:
+                  eventId: evt-20260517-0003
+                  eventType: INSTANCE_VERIFY_FIX_COMPLETED
+                  occurredAt: '2026-05-17T15:00:00Z'
+                  partnerId: partner-demo-01
+                  payload:
+                    vulInfoID: VI-20260517-0002
+                    vulInfoStat: 6
+                    previousVulInfoStat: 5
       responses:
         '200':
           description: Partner 接收成功（建议 body `{"received":true}`）
@@ -860,6 +970,16 @@ components:
     VerifyResult:
       type: string
       enum: [VALID, FALSE_POSITIVE]
+
+    VerifyFixResult:
+      type: string
+      description: 修复核验结果；FIXED→vulInfoStat=6，NOT_FIXED→7，FAILED→10
+      enum: [FIXED, NOT_FIXED, FAILED]
+
+    VerifyFixStatus:
+      type: string
+      description: 触发引擎异步核验时的受理状态
+      enum: [PENDING, RUNNING]
 
     IsAccess:
       type: integer
@@ -1188,6 +1308,79 @@ components:
           items:
             $ref: '#/components/schemas/VerifyBatchFailure'
 
+    VerifyFixInstanceRequest:
+      type: object
+      required: [operator]
+      properties:
+        verifyFixResult:
+          $ref: '#/components/schemas/VerifyFixResult'
+          description: 有值则同步回写终态；省略则须传 procMethod 触发 SVMP 异步核验
+        procMethod:
+          type: integer
+          description: 未传 verifyFixResult 时必填（如 1060、1061、1030–1032）
+        transferTime:
+          type: string
+        operator:
+          type: string
+        remark:
+          type: string
+
+    VerifyFixAsyncAccepted:
+      type: object
+      required: [vulInfoID, vulInfoStat, verifyFixStatus]
+      properties:
+        vulInfoID:
+          type: string
+        vulInfoStat:
+          $ref: '#/components/schemas/VulInfoStat'
+          description: 受理时通常为 5
+        verifyFixStatus:
+          $ref: '#/components/schemas/VerifyFixStatus'
+        verifyFixJobId:
+          type: string
+        message:
+          type: string
+
+    VerifyFixInstanceBatchRequest:
+      type: object
+      required: [items, operator]
+      properties:
+        operator:
+          type: string
+        items:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            required: [vulInfoID]
+            properties:
+              vulInfoID:
+                type: string
+              verifyFixResult:
+                $ref: '#/components/schemas/VerifyFixResult'
+              procMethod:
+                type: integer
+              transferTime:
+                type: string
+              remark:
+                type: string
+
+    VerifyFixInstanceBatchResult:
+      type: object
+      required: [success, failed]
+      properties:
+        success:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/InstanceTransitionResult'
+              - $ref: '#/components/schemas/VerifyFixAsyncAccepted'
+        failed:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifyBatchFailure'
+
     RemediateInstanceRequest:
       type: object
       required: [srcMethod, remedDesc, remedTime, operator]
@@ -1261,6 +1454,7 @@ components:
         - INSTANCE_STATUS_CHANGED
         - INSTANCE_REMEDIATED
         - INSTANCE_ARCHIVED
+        - INSTANCE_VERIFY_FIX_COMPLETED
         - EXPORT_READY
 
     TaskCompletedPayload:

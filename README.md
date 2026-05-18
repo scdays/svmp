@@ -6,7 +6,7 @@
 
 | 文件 | 说明 |
 |------|------|
-| [openapi/v1/openapi.yaml](./openapi/v1/openapi.yaml) | 开放平台 API **3.1**（V2.2.7：字段与部侧表34 同名，各操作含请求/响应 examples） |
+| [openapi/v1/openapi.yaml](./openapi/v1/openapi.yaml) | 开放平台 API **3.1**（V2.2.9：含 `verify-fix` / `verify-fix:batch`） |
 
 本地预览（需安装 [Swagger UI](https://github.com/swagger-api/swagger-ui) 或 Redoc）：
 
@@ -18,7 +18,7 @@ npx @redocly/cli preview-docs openapi/v1/openapi.yaml
 
 | 文档 | 版本 | 说明 |
 |------|------|------|
-| [漏洞管理平台对外集成能力设计方案-V2.0.md](./漏洞管理平台对外集成能力设计方案-V2.0.md) | **V2.2.8（当前）** | 通用集成 + 部侧工单；**修复/备案并列处置**（§3.5）；SVMP 执行层对接见 §6.3 |
+| [漏洞管理平台对外集成能力设计方案-V2.0.md](./漏洞管理平台对外集成能力设计方案-V2.0.md) | **V2.2.9（当前）** | 含 **§5.9 修复核验** `verify-fix`；修复/备案并列（§3.5） |
 | [基础电信企业安全漏洞管理平台接口示例2025-V2.2.docx](./基础电信企业安全漏洞管理平台接口示例2025-V2.2.docx) | V2.2 | 部侧接口示例原文（**接口3 说明**为工单入站设计依据） |
 
 ## 演进说明
