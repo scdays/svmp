@@ -225,8 +225,8 @@ paths:
       summary: 验证漏洞实例
       description: |
         验证阶段。需能力 `INSTANCE_VERIFY`。
-        - `VALID` → `VERIFIED_VALID` (2)
-        - `FALSE_POSITIVE` → `VERIFIED_FALSE_POSITIVE` (3)，并禁止后续处置接口
+        以路径参数 vulInfoID 标识实例，**不需要** extTaskId / taskId。
+        verifyResult：VALID→vulInfoStat=2；FALSE_POSITIVE→vulInfoStat=3。
       parameters:
         - $ref: '#/components/parameters/VulInstanceId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -254,7 +254,8 @@ paths:
       tags: [instances]
       operationId: verifyInstanceBatch
       summary: 批量验证漏洞实例
-      description: 部分成功模式，返回 success / failed 列表。
+      description: |
+        部分成功模式。每条由 items[].vulInfoID 标识，**不需要** extTaskId。
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -814,8 +815,6 @@ components:
       type: object
       required: [vulnType, verifyResult, operator]
       properties:
-        extTaskId:
-          type: string
         vulnType:
           $ref: '#/components/schemas/VulnType'
         verifyResult:
