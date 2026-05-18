@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 2.2.7
+  version: 2.2.8
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
-    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.2.7（§五含各接口请求/响应示例）
+    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.2.8（§6.3 SVMP 执行层对接说明）
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
     - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
@@ -677,7 +677,7 @@ webhooks:
                   eventId: evt-20260517-0001
                   eventType: TASK_COMPLETED
                   occurredAt: '2026-05-17T14:00:00Z'
-                  partnerId: partner-soc-01
+                  partnerId: partner-demo-01
                   payload:
                     extTaskId: EXT-TASK-2026-0001
                     taskId: TASK-7f3a2b1c
@@ -692,7 +692,7 @@ webhooks:
                   eventId: evt-20260517-0002
                   eventType: INSTANCE_REMEDIATED
                   occurredAt: '2026-05-17T14:05:00Z'
-                  partnerId: partner-soc-01
+                  partnerId: partner-demo-01
                   payload:
                     vulInfoID: VI-20260517-0002
                     vulInfoStat: 5
@@ -821,7 +821,7 @@ components:
 
     VulnType:
       type: integer
-      description: 漏洞类型（与 V1.1 一致）
+      description: 漏洞类型（1=系统漏洞，2=Web 漏洞）
       enum: [1, 2]
       x-enum-descriptions:
         - 系统漏洞
