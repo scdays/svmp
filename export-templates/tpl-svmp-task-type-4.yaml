@@ -1,0 +1,129 @@
+# 由《数据外发字段说明》章节「口令猜测 任务」生成，请校对 source 映射
+exportTemplateId: tpl-svmp-task-type-4
+displayName: 口令猜测 任务
+match:
+  engineTaskType: 4  # TASK_PWD_SCAN
+  scanTemplateIds: []  # 可选：再细绑 scanTemplateId
+output:
+  format: SVMP-TAR-GZ
+  packageFiles:
+    - task_info.txt
+    - asset_info.txt
+  encoding: UTF-8
+trigger:
+  on: TASK_COMPLETED
+filter:
+  vulInfoStatList: [1, 2, 3, 5, 6, 7, 8, 9, 10]
+fields:
+  - target: baseInfo
+    source: baseInfo
+  - target: device
+    source: device
+  - target: ipType
+    source: ipType
+  - target: source
+    source: source
+  - target: targets
+    source: targets
+  - target: page
+    source: page
+  - target: size
+    source: size
+  - target: taskType
+    source: taskType
+  - target: type
+    source: type
+  - target: days
+    source: days
+  - target: hours
+    source: hours
+  - target: minute
+    source: minute
+  - target: ftp
+    source: ftp
+  - target: sms
+    source: sms
+  - target: email
+    source: email
+  - target: isAll
+    source: isAll
+  - target: taskUuid
+    source: taskUuid
+  - target: sysScan
+    source: sysScan
+  - target: debug
+    source: debug
+  - target: scanpri
+    source: scanpri
+  - target: alertMsg
+    source: alertMsg
+  - target: encoding
+    source: encoding
+  - target: portScan
+    source: portScan
+  - target: udp
+    source: udp
+  - target: speed
+    source: speed
+  - target: liveCheck
+    source: liveCheck  # 口令猜测配置
+  - target: tcp
+    source: tcp  # 口令猜测配置
+  - target: icmp
+    source: icmp  # 口令猜测配置
+  - target: live
+    source: live  # 口令猜测配置
+  - target: ports
+    source: ports  # 口令猜测配置
+  - target: liveArp
+    source: liveArp  # 口令猜测配置
+  - target: pswdGuess
+    source: pswdGuess  # 口令猜测配置
+  - target: count
+    source: count  # 猜测次数
+  - target: thread
+    source: thread  # 最大并发线程 数
+  - target: timeout
+    source: timeout  # 口令猜测时间 （分钟）
+  - target: interval
+    source: interval  # 口令猜测频率 （秒）
+  - target: taskCount
+    source: taskCount
+  - target: taskStatus
+    source: taskStatus
+  - target: scanTimes
+    source: scanTimes
+  - target: execType
+    source: execType
+  - target: id
+    source: id
+  - target: taskSource
+    source: taskSource
+  - target: hostCount
+    source: hostCount
+  - target: product
+    source: product
+  - target: target
+    source: target
+  - target: summary
+    source: summary
+  - target: scanInfo
+    source: scanInfo
+  - target: assetKey
+    source: assetKey
+  - target: assetName
+    source: assetName
+  - target: status
+    source: status
+  - target: os
+    source: os  # 该扫描目标弱口令 数量
+  - target: riskValue
+    source: riskValue  # 该扫描目标弱口令 数量
+  - target: riskLevel
+    source: riskLevel  # 该扫描目标弱口令 数量
+  - target: syncTime
+    source: syncTime  # 该扫描目标弱口令 数量
+  - target: other_info
+    source: other_info
+  - target: asset_pwds
+    source: asset_pwds  # 弱口令信息 {

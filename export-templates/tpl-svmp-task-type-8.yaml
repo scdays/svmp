@@ -1,0 +1,14 @@
+# 网站扫描：task_info / vul_info 与主机扫描一致；另含站点信息 *.txt
+exportTemplateId: tpl-svmp-task-type-8
+displayName: 网站扫描任务
+extends: tpl-svmp-task-type-1
+match:
+  engineTaskType: 8  # TASK_WEB_SCAN
+output:
+  format: SVMP-TAR-GZ
+  packageFiles:
+    - task_info.txt
+    - vul_info.txt
+    - site_info/*.txt
+trigger:
+  on: TASK_COMPLETED

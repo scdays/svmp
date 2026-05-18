@@ -1,0 +1,1342 @@
+{
+  "format": "pdf-html",
+  "sectionCount": 7,
+  "taskTypeMacros": {
+    "TASK_SYS_SCAN": 1,
+    "TASK_WEB_SCAN": 8,
+    "TASK_ASSET_FIND": 16,
+    "TASK_PWD_SCAN": 4,
+    "TASK_SYS_PWD_SCAN": 5,
+    "TASK_WAITING": 100,
+    "TASK_RUNNING": 103,
+    "TASK_FINISHED": 105,
+    "TASK_TIME_OUT": 106,
+    "TASK_ERROR": 107,
+    "TASK_HANG_UP": 120,
+    "TASK_DELETED_ING": 108,
+    "TASK_DELETED": 109,
+    "TASK_DELETED_FAIL": 110,
+    "TASK_PAUSE_ING": 111,
+    "TASK_PAUSE": 112,
+    "TASK_PAUSE_FAIL": 113,
+    "TASK_RESUME_ING": 114,
+    "TASK_RESUME": 115,
+    "TASK_RESUME_FAIL": 116,
+    "TASK_STOPPED_ING": 117,
+    "TASK_STOPPED": 118
+  },
+  "sections": [
+    {
+      "sectionTitle": "接口宏定义",
+      "taskTypeMacros": {
+        "TASK_SYS_SCAN": 1,
+        "TASK_WEB_SCAN": 8,
+        "TASK_ASSET_FIND": 16,
+        "TASK_PWD_SCAN": 4,
+        "TASK_SYS_PWD_SCAN": 5,
+        "TASK_WAITING": 100,
+        "TASK_RUNNING": 103,
+        "TASK_FINISHED": 105,
+        "TASK_TIME_OUT": 106,
+        "TASK_ERROR": 107,
+        "TASK_HANG_UP": 120,
+        "TASK_DELETED_ING": 108,
+        "TASK_DELETED": 109,
+        "TASK_DELETED_FAIL": 110,
+        "TASK_PAUSE_ING": 111,
+        "TASK_PAUSE": 112,
+        "TASK_PAUSE_FAIL": 113,
+        "TASK_RESUME_ING": 114,
+        "TASK_RESUME": 115,
+        "TASK_RESUME_FAIL": 116,
+        "TASK_STOPPED_ING": 117,
+        "TASK_STOPPED": 118
+      },
+      "fields": []
+    },
+    {
+      "sectionTitle": "主机扫描",
+      "fieldCount": 39,
+      "fields": [
+        {
+          "name": "baseInfo",
+          "description": "任务基础信息",
+          "jsonKey": "baseInfo"
+        },
+        {
+          "name": "device",
+          "description": "任务设备信息 {",
+          "jsonKey": "device"
+        },
+        {
+          "name": "ipType",
+          "description": "IP 类型（ IPv4/IPv6 /URL ）",
+          "jsonKey": "ipType"
+        },
+        {
+          "name": "source",
+          "description": "数据来源",
+          "jsonKey": "source"
+        },
+        {
+          "name": "sysScan",
+          "description": "系统配置",
+          "jsonKey": "sysScan"
+        },
+        {
+          "name": "debug",
+          "description": "调试模式",
+          "jsonKey": "debug"
+        },
+        {
+          "name": "oracle",
+          "description": "是否启用 Ora cle 漏洞深度扫描",
+          "jsonKey": "oracle"
+        },
+        {
+          "name": "portScan",
+          "description": "端口配置",
+          "jsonKey": "portScan"
+        },
+        {
+          "name": "udp",
+          "description": "UDP 扫描",
+          "jsonKey": "udp"
+        },
+        {
+          "name": "speed",
+          "description": "扫描速度",
+          "jsonKey": "speed"
+        },
+        {
+          "name": "liveCheck",
+          "description": "存活探测配置",
+          "jsonKey": "liveCheck"
+        },
+        {
+          "name": "tcp",
+          "description": "是否开启 TCP PING",
+          "jsonKey": "tcp"
+        },
+        {
+          "name": "icmp",
+          "description": "是否开启 ICM P PING",
+          "jsonKey": "icmp"
+        },
+        {
+          "name": "live",
+          "description": "是否开启主机 存活测试",
+          "jsonKey": "live"
+        },
+        {
+          "name": "ports",
+          "description": "TCP PING 端口范围",
+          "jsonKey": "ports"
+        },
+        {
+          "name": "taskCount",
+          "description": "策略已执行任 务数量",
+          "jsonKey": "taskCount"
+        },
+        {
+          "name": "scanTimes",
+          "description": "扫描次数",
+          "jsonKey": "scanTimes"
+        },
+        {
+          "name": "execType",
+          "description": "执行方式",
+          "jsonKey": "execType"
+        },
+        {
+          "name": "id",
+          "description": "任务策略 ID",
+          "jsonKey": "id"
+        },
+        {
+          "name": "taskType",
+          "description": "任务类型",
+          "jsonKey": "taskType"
+        },
+        {
+          "name": "hostCount",
+          "description": "任务存活目标 数",
+          "jsonKey": "hostCount"
+        },
+        {
+          "name": "product",
+          "description": "任务涉及设备 型号",
+          "jsonKey": "product"
+        },
+        {
+          "name": "target",
+          "description": "扫描目标信息",
+          "jsonKey": "target"
+        },
+        {
+          "name": "summary",
+          "description": "综述信息",
+          "jsonKey": "summary"
+        },
+        {
+          "name": "assetKey",
+          "description": "扫描目标对应资产 库资产 IP",
+          "jsonKey": "assetKey"
+        },
+        {
+          "name": "assetName",
+          "description": "对应的 TVM 资产管 理中的资产 名称",
+          "jsonKey": "assetName"
+        },
+        {
+          "name": "status",
+          "description": "当前风险同步状态",
+          "jsonKey": "status"
+        },
+        {
+          "name": "taskUuid",
+          "description": "扫描目标所在子任 务 UUID",
+          "jsonKey": "taskUuid"
+        },
+        {
+          "name": "os",
+          "description": "操作系统",
+          "jsonKey": "os"
+        },
+        {
+          "name": "riskValue",
+          "description": "风险值",
+          "jsonKey": "riskValue"
+        },
+        {
+          "name": "riskLevel",
+          "description": "风险等级",
+          "jsonKey": "riskLevel"
+        },
+        {
+          "name": "syncTime",
+          "description": "风险同步时间",
+          "jsonKey": "syncTime"
+        },
+        {
+          "name": "others",
+          "description": "漏洞描述",
+          "jsonKey": "others"
+        },
+        {
+          "name": "cnvd",
+          "description": "漏洞 cn vd",
+          "jsonKey": "cnvd"
+        },
+        {
+          "name": "cve",
+          "description": "漏洞 cve",
+          "jsonKey": "cve"
+        },
+        {
+          "name": "cvss",
+          "description": "漏洞 CVSS",
+          "jsonKey": "cvss"
+        },
+        {
+          "name": "vulLocalId",
+          "description": "漏洞 名称",
+          "jsonKey": "vulLocalId"
+        },
+        {
+          "name": "name",
+          "description": "漏洞 名称",
+          "jsonKey": "name"
+        },
+        {
+          "name": "times",
+          "description": "漏洞出现次数 } 4.asset_ vuls.txt 任务扫描目标与漏洞关联信息 也就是 处置单 / 系统漏洞信息 文件内容及含义 {",
+          "jsonKey": "times"
+        }
+      ],
+      "taskType": 1,
+      "taskTypeMacro": "TASK_SYS_SCAN",
+      "exportPackage": "tar.gz",
+      "exportFiles": [
+        "task_info.txt",
+        "asset_info.txt",
+        "asset_vuls.txt",
+        "vul_info.txt"
+      ]
+    },
+    {
+      "sectionTitle": "网站扫描任务",
+      "fieldCount": 5,
+      "fields": [
+        {
+          "name": "vulnId",
+          "description": "漏洞 ID",
+          "jsonKey": "vulnId"
+        },
+        {
+          "name": "vendor",
+          "description": "漏洞厂商",
+          "jsonKey": "vendor"
+        },
+        {
+          "name": "name",
+          "description": "漏洞 名称",
+          "jsonKey": "name"
+        },
+        {
+          "name": "urls",
+          "description": "漏洞发 现的 url {",
+          "jsonKey": "urls"
+        },
+        {
+          "name": "vUrl",
+          "description": "请求 url",
+          "jsonKey": "vUrl"
+        }
+      ],
+      "taskType": 8,
+      "taskTypeMacro": "TASK_WEB_SCAN",
+      "exportFiles": [
+        "task_info.txt",
+        "vul_info.txt"
+      ]
+    },
+    {
+      "sectionTitle": "资产发现 任务",
+      "fieldCount": 8,
+      "fields": [
+        {
+          "name": "ip",
+          "description": "ip",
+          "jsonKey": "ip"
+        },
+        {
+          "name": "osName",
+          "description": "操作系统",
+          "jsonKey": "osName"
+        },
+        {
+          "name": "geo_id",
+          "description": "地理视图 id",
+          "jsonKey": "geo_id"
+        },
+        {
+          "name": "geo",
+          "description": "地理视 图",
+          "jsonKey": "geo"
+        },
+        {
+          "name": "mac",
+          "description": "mac",
+          "jsonKey": "mac"
+        },
+        {
+          "name": "type",
+          "description": "资产类 型 host 主机 web 网站",
+          "jsonKey": "type"
+        },
+        {
+          "name": "port",
+          "description": "发现的端口 {",
+          "jsonKey": "port"
+        },
+        {
+          "name": "software",
+          "description": "发现的服务 {",
+          "jsonKey": "software"
+        }
+      ],
+      "taskType": 16,
+      "taskTypeMacro": "TASK_ASSET_FIND",
+      "exportFiles": [
+        "task_info.txt",
+        "asset_info.txt"
+      ]
+    },
+    {
+      "sectionTitle": "口令猜测 任务",
+      "fieldCount": 56,
+      "fields": [
+        {
+          "name": "baseInfo",
+          "description": "",
+          "jsonKey": "baseInfo"
+        },
+        {
+          "name": "device",
+          "description": "",
+          "jsonKey": "device"
+        },
+        {
+          "name": "ipType",
+          "description": "",
+          "jsonKey": "ipType"
+        },
+        {
+          "name": "source",
+          "description": "",
+          "jsonKey": "source"
+        },
+        {
+          "name": "targets",
+          "description": "",
+          "jsonKey": "targets"
+        },
+        {
+          "name": "page",
+          "description": "",
+          "jsonKey": "page"
+        },
+        {
+          "name": "size",
+          "description": "",
+          "jsonKey": "size"
+        },
+        {
+          "name": "taskType",
+          "description": "",
+          "jsonKey": "taskType"
+        },
+        {
+          "name": "type",
+          "description": "",
+          "jsonKey": "type"
+        },
+        {
+          "name": "days",
+          "description": "",
+          "jsonKey": "days"
+        },
+        {
+          "name": "hours",
+          "description": "",
+          "jsonKey": "hours"
+        },
+        {
+          "name": "minute",
+          "description": "",
+          "jsonKey": "minute"
+        },
+        {
+          "name": "ftp",
+          "description": "",
+          "jsonKey": "ftp"
+        },
+        {
+          "name": "sms",
+          "description": "",
+          "jsonKey": "sms"
+        },
+        {
+          "name": "email",
+          "description": "",
+          "jsonKey": "email"
+        },
+        {
+          "name": "isAll",
+          "description": "",
+          "jsonKey": "isAll"
+        },
+        {
+          "name": "taskUuid",
+          "description": "",
+          "jsonKey": "taskUuid"
+        },
+        {
+          "name": "sysScan",
+          "description": "",
+          "jsonKey": "sysScan"
+        },
+        {
+          "name": "debug",
+          "description": "",
+          "jsonKey": "debug"
+        },
+        {
+          "name": "scanpri",
+          "description": "",
+          "jsonKey": "scanpri"
+        },
+        {
+          "name": "alertMsg",
+          "description": "",
+          "jsonKey": "alertMsg"
+        },
+        {
+          "name": "encoding",
+          "description": "",
+          "jsonKey": "encoding"
+        },
+        {
+          "name": "portScan",
+          "description": "",
+          "jsonKey": "portScan"
+        },
+        {
+          "name": "udp",
+          "description": "",
+          "jsonKey": "udp"
+        },
+        {
+          "name": "speed",
+          "description": "",
+          "jsonKey": "speed"
+        },
+        {
+          "name": "liveCheck",
+          "description": "口令猜测配置",
+          "jsonKey": "liveCheck"
+        },
+        {
+          "name": "tcp",
+          "description": "口令猜测配置",
+          "jsonKey": "tcp"
+        },
+        {
+          "name": "icmp",
+          "description": "口令猜测配置",
+          "jsonKey": "icmp"
+        },
+        {
+          "name": "live",
+          "description": "口令猜测配置",
+          "jsonKey": "live"
+        },
+        {
+          "name": "ports",
+          "description": "口令猜测配置",
+          "jsonKey": "ports"
+        },
+        {
+          "name": "liveArp",
+          "description": "口令猜测配置",
+          "jsonKey": "liveArp"
+        },
+        {
+          "name": "pswdGuess",
+          "description": "口令猜测配置",
+          "jsonKey": "pswdGuess"
+        },
+        {
+          "name": "count",
+          "description": "猜测次数",
+          "jsonKey": "count"
+        },
+        {
+          "name": "thread",
+          "description": "最大并发线程 数",
+          "jsonKey": "thread"
+        },
+        {
+          "name": "timeout",
+          "description": "口令猜测时间 （分钟）",
+          "jsonKey": "timeout"
+        },
+        {
+          "name": "interval",
+          "description": "口令猜测频率 （秒）",
+          "jsonKey": "interval"
+        },
+        {
+          "name": "taskCount",
+          "description": "",
+          "jsonKey": "taskCount"
+        },
+        {
+          "name": "taskStatus",
+          "description": "",
+          "jsonKey": "taskStatus"
+        },
+        {
+          "name": "scanTimes",
+          "description": "",
+          "jsonKey": "scanTimes"
+        },
+        {
+          "name": "execType",
+          "description": "",
+          "jsonKey": "execType"
+        },
+        {
+          "name": "id",
+          "description": "",
+          "jsonKey": "id"
+        },
+        {
+          "name": "taskSource",
+          "description": "",
+          "jsonKey": "taskSource"
+        },
+        {
+          "name": "hostCount",
+          "description": "",
+          "jsonKey": "hostCount"
+        },
+        {
+          "name": "product",
+          "description": "",
+          "jsonKey": "product"
+        },
+        {
+          "name": "target",
+          "description": "",
+          "jsonKey": "target"
+        },
+        {
+          "name": "summary",
+          "description": "",
+          "jsonKey": "summary"
+        },
+        {
+          "name": "scanInfo",
+          "description": "",
+          "jsonKey": "scanInfo"
+        },
+        {
+          "name": "assetKey",
+          "description": "",
+          "jsonKey": "assetKey"
+        },
+        {
+          "name": "assetName",
+          "description": "",
+          "jsonKey": "assetName"
+        },
+        {
+          "name": "status",
+          "description": "",
+          "jsonKey": "status"
+        },
+        {
+          "name": "os",
+          "description": "该扫描目标弱口令 数量",
+          "jsonKey": "os"
+        },
+        {
+          "name": "riskValue",
+          "description": "该扫描目标弱口令 数量",
+          "jsonKey": "riskValue"
+        },
+        {
+          "name": "riskLevel",
+          "description": "该扫描目标弱口令 数量",
+          "jsonKey": "riskLevel"
+        },
+        {
+          "name": "syncTime",
+          "description": "该扫描目标弱口令 数量",
+          "jsonKey": "syncTime"
+        },
+        {
+          "name": "other_info",
+          "description": "",
+          "jsonKey": "other_info"
+        },
+        {
+          "name": "asset_pwds",
+          "description": "弱口令信息 {",
+          "jsonKey": "asset_pwds"
+        }
+      ],
+      "taskType": 4,
+      "taskTypeMacro": "TASK_PWD_SCAN",
+      "exportFiles": [
+        "task_info.txt",
+        "asset_info.txt"
+      ]
+    },
+    {
+      "sectionTitle": "数据外发处置单 ( 系统漏洞 )",
+      "fieldCount": 84,
+      "fields": [
+        {
+          "name": "workflow",
+          "description": "处置单 ID",
+          "jsonKey": "workflow"
+        },
+        {
+          "name": "assetUuid",
+          "description": "待纳管资产 U UID",
+          "jsonKey": "assetUuid"
+        },
+        {
+          "name": "assetId",
+          "description": "纳管资产资管 ID",
+          "jsonKey": "assetId"
+        },
+        {
+          "name": "controlAssetUuid",
+          "description": "纳管资 产 UUID",
+          "jsonKey": "controlAssetUuid"
+        },
+        {
+          "name": "assetName",
+          "description": "资产名称",
+          "jsonKey": "assetName"
+        },
+        {
+          "name": "assetKey",
+          "description": "资产关键字",
+          "jsonKey": "assetKey"
+        },
+        {
+          "name": "ipv4",
+          "description": "资产所属 ipv 4 地址",
+          "jsonKey": "ipv4"
+        },
+        {
+          "name": "ipv6",
+          "description": "资产所属 ipv 6 地址",
+          "jsonKey": "ipv6"
+        },
+        {
+          "name": "url",
+          "description": "资产所属 url 地址",
+          "jsonKey": "url"
+        },
+        {
+          "name": "vulTarget",
+          "description": "主机漏洞影响端口 / 网站漏洞影响目 标 URL",
+          "jsonKey": "vulTarget"
+        },
+        {
+          "name": "weakAccountInfo",
+          "description": "弱口令信息 {",
+          "jsonKey": "weakAccountInfo"
+        },
+        {
+          "name": "userName",
+          "description": "弱口令用户名",
+          "jsonKey": "userName"
+        },
+        {
+          "name": "password",
+          "description": "弱口令密码",
+          "jsonKey": "password"
+        },
+        {
+          "name": "isSystem",
+          "description": "是否系统弱口令 }],",
+          "jsonKey": "isSystem"
+        },
+        {
+          "name": "vulLocalId",
+          "description": "漏洞编号",
+          "jsonKey": "vulLocalId"
+        },
+        {
+          "name": "vulName",
+          "description": "漏洞名称",
+          "jsonKey": "vulName"
+        },
+        {
+          "name": "priority",
+          "description": "处置优先级分 值",
+          "jsonKey": "priority"
+        },
+        {
+          "name": "priorityLevel",
+          "description": "处置优先级",
+          "jsonKey": "priorityLevel"
+        },
+        {
+          "name": "riskLevel",
+          "description": "风险级别",
+          "jsonKey": "riskLevel"
+        },
+        {
+          "name": "source",
+          "description": "主机资产 / 网 站资产",
+          "jsonKey": "source"
+        },
+        {
+          "name": "status",
+          "description": "系统漏洞状态",
+          "jsonKey": "status"
+        },
+        {
+          "name": "executorId",
+          "description": "处置人 id",
+          "jsonKey": "executorId"
+        },
+        {
+          "name": "executorName",
+          "description": "处置人名称",
+          "jsonKey": "executorName"
+        },
+        {
+          "name": "autoUpdatePriority",
+          "description": "是否自动更新处置 优先级",
+          "jsonKey": "autoUpdatePriority"
+        },
+        {
+          "name": "priorityUpdateTime",
+          "description": "处置优先 级更新时间",
+          "jsonKey": "priorityUpdateTime"
+        },
+        {
+          "name": "createTime",
+          "description": "处置单创建时间",
+          "jsonKey": "createTime"
+        },
+        {
+          "name": "updateTime",
+          "description": "处置单更新时间",
+          "jsonKey": "updateTime"
+        },
+        {
+          "name": "workflowVulInfo",
+          "description": "处置单漏洞信 息（主机）",
+          "jsonKey": "workflowVulInfo"
+        },
+        {
+          "name": "service",
+          "description": "影响服务",
+          "jsonKey": "service"
+        },
+        {
+          "name": "protocol",
+          "description": "影响协议",
+          "jsonKey": "protocol"
+        },
+        {
+          "name": "others",
+          "description": "其他信息",
+          "jsonKey": "others"
+        },
+        {
+          "name": "softwareName",
+          "description": "组件名称",
+          "jsonKey": "softwareName"
+        },
+        {
+          "name": "softwareVersion",
+          "description": "组件版本 },",
+          "jsonKey": "softwareVersion"
+        },
+        {
+          "name": "method",
+          "description": "请求方式",
+          "jsonKey": "method"
+        },
+        {
+          "name": "param",
+          "description": "问题参数",
+          "jsonKey": "param"
+        },
+        {
+          "name": "taskInfo",
+          "description": "处置单关联任 务信息",
+          "jsonKey": "taskInfo"
+        },
+        {
+          "name": "taskName",
+          "description": "任务名称",
+          "jsonKey": "taskName"
+        },
+        {
+          "name": "taskUuid",
+          "description": "任务唯一标识",
+          "jsonKey": "taskUuid"
+        },
+        {
+          "name": "policyUuid",
+          "description": "任务策略唯一标识",
+          "jsonKey": "policyUuid"
+        },
+        {
+          "name": "endTime",
+          "description": "任务结束时间",
+          "jsonKey": "endTime"
+        },
+        {
+          "name": "taskType",
+          "description": "任务类型编号 },",
+          "jsonKey": "taskType"
+        },
+        {
+          "name": "verifyInfo",
+          "description": "处置单验证信息",
+          "jsonKey": "verifyInfo"
+        },
+        {
+          "name": "isVerify",
+          "description": "是否可验证",
+          "jsonKey": "isVerify"
+        },
+        {
+          "name": "verifyResult",
+          "description": "验证结果",
+          "jsonKey": "verifyResult"
+        },
+        {
+          "name": "verifyStatus",
+          "description": "验证状态",
+          "jsonKey": "verifyStatus"
+        },
+        {
+          "name": "expId",
+          "description": "验证使用 expId },",
+          "jsonKey": "expId"
+        },
+        {
+          "name": "vulInfo",
+          "description": "产品漏洞信息",
+          "jsonKey": "vulInfo"
+        },
+        {
+          "name": "cveId",
+          "description": "CVE 编号",
+          "jsonKey": "cveId"
+        },
+        {
+          "name": "vulStatus",
+          "description": "产品漏洞状态",
+          "jsonKey": "vulStatus"
+        },
+        {
+          "name": "isExp",
+          "description": "是否存在 EXP",
+          "jsonKey": "isExp"
+        },
+        {
+          "name": "isPoc",
+          "description": "是否存在 POC",
+          "jsonKey": "isPoc"
+        },
+        {
+          "name": "vpoint",
+          "description": "产品漏洞 脆弱性值",
+          "jsonKey": "vpoint"
+        },
+        {
+          "name": "vulDescription",
+          "description": "",
+          "jsonKey": "vulDescription"
+        },
+        {
+          "name": "vulSolution",
+          "description": "",
+          "jsonKey": "vulSolution"
+        },
+        {
+          "name": "vulld",
+          "description": "绿盟漏洞编号",
+          "jsonKey": "vulld"
+        },
+        {
+          "name": "dateRecorded",
+          "description": "记录日期",
+          "jsonKey": "dateRecorded"
+        },
+        {
+          "name": "cvssBaseScore",
+          "description": "CVSS 评分",
+          "jsonKey": "cvssBaseScore"
+        },
+        {
+          "name": "vulnName",
+          "description": "漏洞名称（英 文，中 文）",
+          "jsonKey": "vulnName"
+        },
+        {
+          "name": "cnvd",
+          "description": "CNVD 编号",
+          "jsonKey": "cnvd"
+        },
+        {
+          "name": "isDangerous",
+          "description": "是否危险",
+          "jsonKey": "isDangerous"
+        },
+        {
+          "name": "bugtraqId",
+          "description": "Bug traq 编号",
+          "jsonKey": "bugtraqId"
+        },
+        {
+          "name": "dateFound",
+          "description": "发现日期",
+          "jsonKey": "dateFound"
+        },
+        {
+          "name": "cnnvd",
+          "description": "CNNVD 编号",
+          "jsonKey": "cnnvd"
+        },
+        {
+          "name": "vulPoints",
+          "description": "漏洞危害等级 评分",
+          "jsonKey": "vulPoints"
+        },
+        {
+          "name": "cncve",
+          "description": "CNCVE 编号",
+          "jsonKey": "cncve"
+        },
+        {
+          "name": "total",
+          "description": "总计",
+          "jsonKey": "total"
+        },
+        {
+          "name": "typeTotal",
+          "description": "漏洞处置优先级总 计",
+          "jsonKey": "typeTotal"
+        },
+        {
+          "name": "low",
+          "description": "低危缓修漏洞数量",
+          "jsonKey": "low"
+        },
+        {
+          "name": "mid",
+          "description": "中危缓修漏洞数量",
+          "jsonKey": "mid"
+        },
+        {
+          "name": "high",
+          "description": "高危必修漏洞数量 },",
+          "jsonKey": "high"
+        },
+        {
+          "name": "statusTotal",
+          "description": "漏洞状态总计",
+          "jsonKey": "statusTotal"
+        },
+        {
+          "name": "pre",
+          "description": "参考系统漏洞状态",
+          "jsonKey": "pre"
+        },
+        {
+          "name": "new",
+          "description": "主机系统漏洞",
+          "jsonKey": "new"
+        },
+        {
+          "name": "valid",
+          "description": "主机系统漏洞",
+          "jsonKey": "valid"
+        },
+        {
+          "name": "invalid",
+          "description": "主机系统漏洞",
+          "jsonKey": "invalid"
+        },
+        {
+          "name": "missnow",
+          "description": "主机系统漏洞",
+          "jsonKey": "missnow"
+        },
+        {
+          "name": "fix",
+          "description": "主机系统漏洞",
+          "jsonKey": "fix"
+        },
+        {
+          "name": "confirmfix",
+          "description": "主机系统漏洞",
+          "jsonKey": "confirmfix"
+        },
+        {
+          "name": "confirmnofix",
+          "description": "主机系统漏洞",
+          "jsonKey": "confirmnofix"
+        },
+        {
+          "name": "verifyfail",
+          "description": "主机系统漏洞",
+          "jsonKey": "verifyfail"
+        },
+        {
+          "name": "vaildatefail",
+          "description": "主机系统漏洞",
+          "jsonKey": "vaildatefail"
+        },
+        {
+          "name": "fixfail",
+          "description": "主机系统漏洞",
+          "jsonKey": "fixfail"
+        },
+        {
+          "name": "hostVul",
+          "description": "主机系统漏洞",
+          "jsonKey": "hostVul"
+        },
+        {
+          "name": "webVul",
+          "description": "网站系统 漏洞",
+          "jsonKey": "webVul"
+        }
+      ],
+      "profile": "disposal-workflow",
+      "exportFiles": [
+        "vul_info.txt"
+      ]
+    },
+    {
+      "sectionTitle": "数据外发 —— 预警",
+      "fieldCount": 51,
+      "fields": [
+        {
+          "name": "id",
+          "description": "情报 ID",
+          "jsonKey": "id"
+        },
+        {
+          "name": "intell_uuid",
+          "description": "情报 UUID",
+          "jsonKey": "intell_uuid"
+        },
+        {
+          "name": "intell_name",
+          "description": "情报名称",
+          "jsonKey": "intell_name"
+        },
+        {
+          "name": "is_known",
+          "description": "是否已知情报",
+          "jsonKey": "is_known"
+        },
+        {
+          "name": "cvss_score",
+          "description": "C VSS 评分",
+          "jsonKey": "cvss_score"
+        },
+        {
+          "name": "risk_level",
+          "description": "风险等 级",
+          "jsonKey": "risk_level"
+        },
+        {
+          "name": "publisher",
+          "description": "发布者",
+          "jsonKey": "publisher"
+        },
+        {
+          "name": "poc_found",
+          "description": "是否发现 POC",
+          "jsonKey": "poc_found"
+        },
+        {
+          "name": "heat",
+          "description": "热度",
+          "jsonKey": "heat"
+        },
+        {
+          "name": "status",
+          "description": "状态",
+          "jsonKey": "status"
+        },
+        {
+          "name": "solution",
+          "description": "解决方案",
+          "jsonKey": "solution"
+        },
+        {
+          "name": "can_deleted",
+          "description": "是否可 删除",
+          "jsonKey": "can_deleted"
+        },
+        {
+          "name": "invalid_time",
+          "description": "无效时间",
+          "jsonKey": "invalid_time"
+        },
+        {
+          "name": "source",
+          "description": "来源",
+          "jsonKey": "source"
+        },
+        {
+          "name": "is_scan",
+          "description": "是否可扫描",
+          "jsonKey": "is_scan"
+        },
+        {
+          "name": "not_confirm",
+          "description": "未确认情报",
+          "jsonKey": "not_confirm"
+        },
+        {
+          "name": "confirm",
+          "description": "确认情 报",
+          "jsonKey": "confirm"
+        },
+        {
+          "name": "all_fixed",
+          "description": "所有已 修复",
+          "jsonKey": "all_fixed"
+        },
+        {
+          "name": "all_waited",
+          "description": "所有待处理",
+          "jsonKey": "all_waited"
+        },
+        {
+          "name": "cve_id",
+          "description": "CVE 编号",
+          "jsonKey": "cve_id"
+        },
+        {
+          "name": "is_fusion",
+          "description": "是否融 合",
+          "jsonKey": "is_fusion"
+        },
+        {
+          "name": "vul_ids",
+          "description": "漏洞 ID 列表",
+          "jsonKey": "vul_ids"
+        },
+        {
+          "name": "created_time",
+          "description": "创建时间",
+          "jsonKey": "created_time"
+        },
+        {
+          "name": "url_info",
+          "description": "/in tell/new/publi sh/new",
+          "jsonKey": "url_info"
+        },
+        {
+          "name": "app",
+          "description": "版本列表",
+          "jsonKey": "app"
+        },
+        {
+          "name": "ssh",
+          "description": "版本列表",
+          "jsonKey": "ssh"
+        },
+        {
+          "name": "versions",
+          "description": "版本列表",
+          "jsonKey": "versions"
+        },
+        {
+          "name": "version",
+          "description": "版本",
+          "jsonKey": "version"
+        },
+        {
+          "name": "vendor",
+          "description": "厂商",
+          "jsonKey": "vendor"
+        },
+        {
+          "name": "type",
+          "description": "类型",
+          "jsonKey": "type"
+        },
+        {
+          "name": "version_zh",
+          "description": "版本（中文） }}}],",
+          "jsonKey": "version_zh"
+        },
+        {
+          "name": "cwe_id",
+          "description": "CWE 编号",
+          "jsonKey": "cwe_id"
+        },
+        {
+          "name": "cnnvd_id",
+          "description": "CNNV D 编号",
+          "jsonKey": "cnnvd_id"
+        },
+        {
+          "name": "apache_id",
+          "description": "Apache 编号",
+          "jsonKey": "apache_id"
+        },
+        {
+          "name": "bid",
+          "description": "BID 编号",
+          "jsonKey": "bid"
+        },
+        {
+          "name": "cisco_id",
+          "description": "Cisc o 编号",
+          "jsonKey": "cisco_id"
+        },
+        {
+          "name": "xf_id",
+          "description": "XF 编号 } 2.warnin g_info.t xt 预警信息 {",
+          "jsonKey": "xf_id"
+        },
+        {
+          "name": "intell_id",
+          "description": "情报 ID",
+          "jsonKey": "intell_id"
+        },
+        {
+          "name": "warning_type",
+          "description": "预警类型",
+          "jsonKey": "warning_type"
+        },
+        {
+          "name": "trigger",
+          "description": "触发器",
+          "jsonKey": "trigger"
+        },
+        {
+          "name": "asset_uuid",
+          "description": "资产 UUID",
+          "jsonKey": "asset_uuid"
+        },
+        {
+          "name": "match_type",
+          "description": "匹配类型",
+          "jsonKey": "match_type"
+        },
+        {
+          "name": "products",
+          "description": "软 件信息",
+          "jsonKey": "products"
+        },
+        {
+          "name": "name",
+          "description": "软件名 称",
+          "jsonKey": "name"
+        },
+        {
+          "name": "degree",
+          "description": "影 响程度 } ],",
+          "jsonKey": "degree"
+        },
+        {
+          "name": "asset_name",
+          "description": "资产名称",
+          "jsonKey": "asset_name"
+        },
+        {
+          "name": "asset_key",
+          "description": "资产关键字",
+          "jsonKey": "asset_key"
+        },
+        {
+          "name": "importance",
+          "description": "重要性",
+          "jsonKey": "importance"
+        },
+        {
+          "name": "group_id",
+          "description": "组 ID",
+          "jsonKey": "group_id"
+        },
+        {
+          "name": "group_name",
+          "description": "组 名称",
+          "jsonKey": "group_name"
+        },
+        {
+          "name": "asset_type",
+          "description": "资产类型 }, {",
+          "jsonKey": "asset_type"
+        }
+      ],
+      "profile": "early-warning"
+    }
+  ],
+  "sourceFile": "数据外发字段说明.html"
+}

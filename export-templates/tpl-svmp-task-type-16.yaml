@@ -1,0 +1,13 @@
+# 资产发现：task_info.txt + asset_info.txt（行式资产），字段与主机扫描 task_info 一致
+exportTemplateId: tpl-svmp-task-type-16
+displayName: 资产发现任务
+extends: tpl-svmp-task-type-1
+match:
+  engineTaskType: 16  # TASK_ASSET_FIND
+output:
+  format: SVMP-TAR-GZ
+  packageFiles:
+    - task_info.txt
+    - asset_info.txt
+trigger:
+  on: TASK_COMPLETED

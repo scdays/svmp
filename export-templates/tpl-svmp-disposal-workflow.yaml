@@ -1,0 +1,183 @@
+# 由《数据外发字段说明》章节「数据外发处置单 ( 系统漏洞 )」生成，请校对 source 映射
+exportTemplateId: tpl-svmp-disposal-workflow
+displayName: 数据外发处置单 ( 系统漏洞 )
+match:
+  exportProfile: disposal-workflow
+output:
+  format: SVMP-TAR-GZ
+  packageFiles:
+    - vul_info.txt
+  encoding: UTF-8
+trigger:
+  on: TASK_COMPLETED
+filter:
+  vulInfoStatList: [1, 2, 3, 5, 6, 7, 8, 9, 10]
+fields:
+  - target: workflow
+    source: workflow  # 处置单 ID
+  - target: assetUuid
+    source: assetUuid  # 待纳管资产 U UID
+  - target: assetId
+    source: assetId  # 纳管资产资管 ID
+  - target: controlAssetUuid
+    source: controlAssetUuid  # 纳管资 产 UUID
+  - target: assetName
+    source: assetName  # 资产名称
+  - target: assetKey
+    source: assetKey  # 资产关键字
+  - target: ipv4
+    source: ipv4  # 资产所属 ipv 4 地址
+  - target: ipv6
+    source: ipv6  # 资产所属 ipv 6 地址
+  - target: url
+    source: url  # 资产所属 url 地址
+  - target: vulTarget
+    source: vulTarget  # 主机漏洞影响端口 / 网站漏洞影响目 标 URL
+  - target: weakAccountInfo
+    source: weakAccountInfo  # 弱口令信息 {
+  - target: userName
+    source: userName  # 弱口令用户名
+  - target: password
+    source: password  # 弱口令密码
+  - target: isSystem
+    source: isSystem  # 是否系统弱口令 }],
+  - target: vulLocalId
+    source: vulLocalId  # 漏洞编号
+  - target: vulName
+    source: vulName  # 漏洞名称
+  - target: priority
+    source: priority  # 处置优先级分 值
+  - target: priorityLevel
+    source: priorityLevel  # 处置优先级
+  - target: riskLevel
+    source: riskLevel  # 风险级别
+  - target: source
+    source: source  # 主机资产 / 网 站资产
+  - target: status
+    source: status  # 系统漏洞状态
+  - target: executorId
+    source: executorId  # 处置人 id
+  - target: executorName
+    source: executorName  # 处置人名称
+  - target: autoUpdatePriority
+    source: autoUpdatePriority  # 是否自动更新处置 优先级
+  - target: priorityUpdateTime
+    source: priorityUpdateTime  # 处置优先 级更新时间
+  - target: createTime
+    source: createTime  # 处置单创建时间
+  - target: updateTime
+    source: updateTime  # 处置单更新时间
+  - target: workflowVulInfo
+    source: workflowVulInfo  # 处置单漏洞信 息（主机）
+  - target: service
+    source: service  # 影响服务
+  - target: protocol
+    source: protocol  # 影响协议
+  - target: others
+    source: others  # 其他信息
+  - target: softwareName
+    source: softwareName  # 组件名称
+  - target: softwareVersion
+    source: softwareVersion  # 组件版本 },
+  - target: method
+    source: method  # 请求方式
+  - target: param
+    source: param  # 问题参数
+  - target: taskInfo
+    source: taskInfo  # 处置单关联任 务信息
+  - target: taskName
+    source: taskName  # 任务名称
+  - target: taskUuid
+    source: taskUuid  # 任务唯一标识
+  - target: policyUuid
+    source: policyUuid  # 任务策略唯一标识
+  - target: endTime
+    source: endTime  # 任务结束时间
+  - target: taskType
+    source: taskType  # 任务类型编号 },
+  - target: verifyInfo
+    source: verifyInfo  # 处置单验证信息
+  - target: isVerify
+    source: isVerify  # 是否可验证
+  - target: verifyResult
+    source: verifyResult  # 验证结果
+  - target: verifyStatus
+    source: verifyStatus  # 验证状态
+  - target: expId
+    source: expId  # 验证使用 expId },
+  - target: vulInfo
+    source: vulInfo  # 产品漏洞信息
+  - target: cveId
+    source: cveId  # CVE 编号
+  - target: vulStatus
+    source: vulStatus  # 产品漏洞状态
+  - target: isExp
+    source: isExp  # 是否存在 EXP
+  - target: isPoc
+    source: isPoc  # 是否存在 POC
+  - target: vpoint
+    source: vpoint  # 产品漏洞 脆弱性值
+  - target: vulDescription
+    source: vulDescription
+  - target: vulSolution
+    source: vulSolution
+  - target: vulld
+    source: vulld  # 绿盟漏洞编号
+  - target: dateRecorded
+    source: dateRecorded  # 记录日期
+  - target: cvssBaseScore
+    source: cvssBaseScore  # CVSS 评分
+  - target: vulnName
+    source: vulnName  # 漏洞名称（英 文，中 文）
+  - target: cnvd
+    source: cnvd  # CNVD 编号
+  - target: isDangerous
+    source: isDangerous  # 是否危险
+  - target: bugtraqId
+    source: bugtraqId  # Bug traq 编号
+  - target: dateFound
+    source: dateFound  # 发现日期
+  - target: cnnvd
+    source: cnnvd  # CNNVD 编号
+  - target: vulPoints
+    source: vulPoints  # 漏洞危害等级 评分
+  - target: cncve
+    source: cncve  # CNCVE 编号
+  - target: total
+    source: total  # 总计
+  - target: typeTotal
+    source: typeTotal  # 漏洞处置优先级总 计
+  - target: low
+    source: low  # 低危缓修漏洞数量
+  - target: mid
+    source: mid  # 中危缓修漏洞数量
+  - target: high
+    source: high  # 高危必修漏洞数量 },
+  - target: statusTotal
+    source: statusTotal  # 漏洞状态总计
+  - target: pre
+    source: pre  # 参考系统漏洞状态
+  - target: new
+    source: new  # 主机系统漏洞
+  - target: valid
+    source: valid  # 主机系统漏洞
+  - target: invalid
+    source: invalid  # 主机系统漏洞
+  - target: missnow
+    source: missnow  # 主机系统漏洞
+  - target: fix
+    source: fix  # 主机系统漏洞
+  - target: confirmfix
+    source: confirmfix  # 主机系统漏洞
+  - target: confirmnofix
+    source: confirmnofix  # 主机系统漏洞
+  - target: verifyfail
+    source: verifyfail  # 主机系统漏洞
+  - target: vaildatefail
+    source: vaildatefail  # 主机系统漏洞
+  - target: fixfail
+    source: fixfail  # 主机系统漏洞
+  - target: hostVul
+    source: hostVul  # 主机系统漏洞
+  - target: webVul
+    source: webVul  # 网站系统 漏洞
