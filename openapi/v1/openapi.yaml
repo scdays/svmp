@@ -649,9 +649,13 @@ components:
           type: string
 
     TaskSummary:
+      description: |
+        任务列表项。必须包含 taskId，供 Partner 调用 GET /tasks/{taskId}；
+        查询列表时无需传 extTaskId，但响应中会回显 extTaskId（若有）。
       allOf:
         - $ref: '#/components/schemas/TaskProgress'
         - type: object
+          required: [taskName, createdAt]
           properties:
             taskName:
               type: string
@@ -831,8 +835,6 @@ components:
       type: object
       required: [items, operator]
       properties:
-        extTaskId:
-          type: string
         operator:
           type: string
         items:
