@@ -1,0 +1,216 @@
+# 四阶段 XML 外发包（推荐）；legacy txt 见 deprecatedLegacyFiles
+exportTemplateId: tpl-svmp-xml-scan-bundle
+displayName: SVMP 扫描结果（四阶段 XML）
+match:
+  exportPackageProfile: svmp-xml-phases
+  # 按任务能力命中子文件（未启用的阶段可不产出对应 XML）
+  capabilities:
+    liveCheck: optional
+    portScan: optional
+    vulnScan: optional
+    weakPasswordScan: optional
+  engineTaskTypes: [1, 4, 5, 8, 16]  # TASK_SYS_SCAN / PWD / SYS_PWD / WEB / ASSET_FIND
+output:
+  format: SVMP-TAR-GZ-XML
+  encoding: UTF-8
+  fileNamePattern: 'svmp-export-{taskId}-{occurredAt}.tar.gz'
+  packageFiles:
+    - 主机存活探测结果.xml
+    - 端口扫描结果.xml
+    - 系统漏洞扫描结果.xml
+    - 弱口令扫描结果.xml
+  deprecatedLegacyFiles:
+    - task_info.txt
+    - asset_info.txt
+    - asset_vuls.txt
+    - vul_info.txt
+    - asset_pwds.txt
+trigger:
+  on: TASK_COMPLETED
+filter:
+  vulInfoStatList: [1, 2, 3, 5, 6, 7, 8, 9, 10]
+phases:
+  live:
+    file: 主机存活探测结果.xml
+    rootElement: LiveProbeResult
+    capability: liveCheck
+    fields:
+      - target: assetKey
+        source: assetKey  # 扫描目标对应资产 库资产 IP
+      - target: assetName
+        source: assetName  # 对应的 TVM 资产管 理中的资产 名称
+      - target: baseInfo
+        source: baseInfo  # 任务基础信息
+      - target: device
+        source: device  # 任务设备信息 {
+      - target: execType
+        source: execType  # 执行方式
+      - target: hostCount
+        source: hostCount  # 任务存活目标 数
+      - target: icmp
+        source: icmp  # 是否开启 ICM P PING
+      - target: id
+        source: id  # 任务策略 ID
+      - target: ipType
+        source: ipType  # IP 类型（ IPv4/IPv6 /URL ）
+      - target: live
+        source: live  # 是否开启主机 存活测试
+      - target: liveArp
+        source: liveArp  # 口令猜测配置
+      - target: liveCheck
+        source: liveCheck  # 存活探测配置
+      - target: os
+        source: os  # 操作系统
+      - target: ports
+        source: ports  # TCP PING 端口范围
+      - target: product
+        source: product  # 任务涉及设备 型号
+      - target: scanInfo
+        source: scanInfo
+      - target: scanTimes
+        source: scanTimes  # 扫描次数
+      - target: source
+        source: source  # 数据来源
+      - target: status
+        source: status  # 当前风险同步状态
+      - target: summary
+        source: summary  # 综述信息
+      # …共 27 字段，见 phase-field-catalog.json
+  port:
+    file: 端口扫描结果.xml
+    rootElement: PortScanResult
+    capability: portScan
+    fields:
+      - target: assetKey
+        source: assetKey  # 扫描目标对应资产 库资产 IP
+      - target: assetName
+        source: assetName  # 对应的 TVM 资产管 理中的资产 名称
+      - target: baseInfo
+        source: baseInfo  # 任务基础信息
+      - target: device
+        source: device  # 任务设备信息 {
+      - target: execType
+        source: execType  # 执行方式
+      - target: geo
+        source: geo  # 地理视 图
+      - target: geo_id
+        source: geo_id  # 地理视图 id
+      - target: hostCount
+        source: hostCount  # 任务存活目标 数
+      - target: id
+        source: id  # 任务策略 ID
+      - target: ip
+        source: ip  # ip
+      - target: ipType
+        source: ipType  # IP 类型（ IPv4/IPv6 /URL ）
+      - target: mac
+        source: mac  # mac
+      - target: os
+        source: os  # 操作系统
+      - target: osName
+        source: osName  # 操作系统
+      - target: port
+        source: port  # 发现的端口 {
+      - target: portScan
+        source: portScan  # 端口配置
+      - target: product
+        source: product  # 任务涉及设备 型号
+      - target: scanInfo
+        source: scanInfo
+      - target: scanTimes
+        source: scanTimes  # 扫描次数
+      - target: software
+        source: software  # 发现的服务 {
+      # …共 32 字段，见 phase-field-catalog.json
+  vuln:
+    file: 系统漏洞扫描结果.xml
+    rootElement: SystemVulnScanResult
+    capability: vulnScan
+    fields:
+      - target: alertMsg
+        source: alertMsg
+      - target: assetKey
+        source: assetKey  # 扫描目标对应资产 库资产 IP
+      - target: assetName
+        source: assetName  # 对应的 TVM 资产管 理中的资产 名称
+      - target: baseInfo
+        source: baseInfo  # 任务基础信息
+      - target: cnvd
+        source: cnvd  # 漏洞 cn vd
+      - target: cve
+        source: cve  # 漏洞 cve
+      - target: cvss
+        source: cvss  # 漏洞 CVSS
+      - target: debug
+        source: debug  # 调试模式
+      - target: device
+        source: device  # 任务设备信息 {
+      - target: encoding
+        source: encoding
+      - target: execType
+        source: execType  # 执行方式
+      - target: hostCount
+        source: hostCount  # 任务存活目标 数
+      - target: id
+        source: id  # 任务策略 ID
+      - target: ipType
+        source: ipType  # IP 类型（ IPv4/IPv6 /URL ）
+      - target: name
+        source: name  # 漏洞 名称
+      - target: oracle
+        source: oracle  # 是否启用 Ora cle 漏洞深度扫描
+      - target: others
+        source: others  # 漏洞描述
+      - target: product
+        source: product  # 任务涉及设备 型号
+      - target: riskLevel
+        source: riskLevel  # 风险等级
+      - target: riskValue
+        source: riskValue  # 风险值
+      # …共 42 字段，见 phase-field-catalog.json
+  weakpwd:
+    file: 弱口令扫描结果.xml
+    rootElement: WeakPasswordScanResult
+    capability: weakPasswordScan
+    fields:
+      - target: assetKey
+        source: assetKey  # 扫描目标对应资产 库资产 IP
+      - target: assetName
+        source: assetName  # 对应的 TVM 资产管 理中的资产 名称
+      - target: asset_pwds
+        source: asset_pwds  # 弱口令信息 {
+      - target: baseInfo
+        source: baseInfo  # 任务基础信息
+      - target: count
+        source: count  # 猜测次数
+      - target: device
+        source: device  # 任务设备信息 {
+      - target: execType
+        source: execType  # 执行方式
+      - target: hostCount
+        source: hostCount  # 任务存活目标 数
+      - target: id
+        source: id  # 任务策略 ID
+      - target: interval
+        source: interval  # 口令猜测频率 （秒）
+      - target: ipType
+        source: ipType  # IP 类型（ IPv4/IPv6 /URL ）
+      - target: isSystem
+        source: isSystem  # 是否系统弱口令 }],
+      - target: os
+        source: os  # 操作系统
+      - target: other_info
+        source: other_info
+      - target: password
+        source: password  # 弱口令密码
+      - target: product
+        source: product  # 任务涉及设备 型号
+      - target: pswdGuess
+        source: pswdGuess  # 口令猜测配置
+      - target: scanInfo
+        source: scanInfo
+      - target: scanTimes
+        source: scanTimes  # 扫描次数
+      - target: source
+        source: source  # 数据来源
+      # …共 32 字段，见 phase-field-catalog.json

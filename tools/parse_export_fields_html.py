@@ -332,6 +332,11 @@ def main() -> int:
     parser.add_argument("html_path", type=Path)
     parser.add_argument("-o", "--out-dir", type=Path, default=Path("export-templates"))
     parser.add_argument("--write-drafts", action="store_true")
+    parser.add_argument(
+        "--xml-phases",
+        action="store_true",
+        help="解析后生成四阶段 XML 外发目录（phase-field-catalog、样例 XML、tpl-svmp-xml-scan-bundle）",
+    )
     args = parser.parse_args()
 
     if not args.html_path.is_file():
@@ -360,6 +365,16 @@ def main() -> int:
             draft = args.out_dir / f"{tid}.yaml"
             draft.write_text(_to_yaml(sec, fields), encoding="utf-8")
             print(f"  模板: {draft} ({len(fields)} 字段)")
+
+    if args.xml_phases:
+        import subprocess
+
+        script = Path(__file__).resolve().parent / "build_export_xml_phases.py"
+        rc = subprocess.call(
+            [sys.executable, str(script), str(catalog_path), "-o", str(args.out_dir)],
+        )
+        if rc != 0:
+            return rc
 
     if catalog["sectionCount"] == 0 or total_fields == 0:
         print("警告: 未解析到有效字段。", file=sys.stderr)

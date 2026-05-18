@@ -1,0 +1,1064 @@
+{
+  "version": "1.0",
+  "description": "SVMP 任务结束外发：四阶段 XML（由 field-catalog 映射，替代多 txt 拼装）",
+  "packageFormat": "SVMP-TAR-GZ-XML",
+  "packageFiles": [
+    "主机存活探测结果.xml",
+    "端口扫描结果.xml",
+    "系统漏洞扫描结果.xml",
+    "弱口令扫描结果.xml"
+  ],
+  "deprecatedLegacyFiles": [
+    "task_info.txt",
+    "asset_info.txt",
+    "asset_vuls.txt",
+    "vul_info.txt",
+    "asset_pwds.txt"
+  ],
+  "phases": {
+    "live": {
+      "fileName": "主机存活探测结果.xml",
+      "rootElement": "LiveProbeResult",
+      "displayName": "主机存活探测",
+      "capability": "liveCheck",
+      "legacyTxt": [
+        "task_info.txt",
+        "asset_info.txt"
+      ],
+      "phaseId": "live",
+      "fieldCount": 27,
+      "fields": [
+        {
+          "name": "assetKey",
+          "source": "assetKey",
+          "description": "扫描目标对应资产 库资产 IP",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "assetName",
+          "source": "assetName",
+          "description": "对应的 TVM 资产管 理中的资产 名称",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "baseInfo",
+          "source": "baseInfo",
+          "description": "任务基础信息",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "device",
+          "source": "device",
+          "description": "任务设备信息 {",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "execType",
+          "source": "execType",
+          "description": "执行方式",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "hostCount",
+          "source": "hostCount",
+          "description": "任务存活目标 数",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "icmp",
+          "source": "icmp",
+          "description": "是否开启 ICM P PING",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "id",
+          "source": "id",
+          "description": "任务策略 ID",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "ipType",
+          "source": "ipType",
+          "description": "IP 类型（ IPv4/IPv6 /URL ）",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "live",
+          "source": "live",
+          "description": "是否开启主机 存活测试",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "liveArp",
+          "source": "liveArp",
+          "description": "口令猜测配置",
+          "fromSection": "口令猜测 任务"
+        },
+        {
+          "name": "liveCheck",
+          "source": "liveCheck",
+          "description": "存活探测配置",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "os",
+          "source": "os",
+          "description": "操作系统",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "ports",
+          "source": "ports",
+          "description": "TCP PING 端口范围",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "product",
+          "source": "product",
+          "description": "任务涉及设备 型号",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "scanInfo",
+          "source": "scanInfo",
+          "description": "",
+          "fromSection": "口令猜测 任务",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "scanTimes",
+          "source": "scanTimes",
+          "description": "扫描次数",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "source",
+          "source": "source",
+          "description": "数据来源",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "status",
+          "source": "status",
+          "description": "当前风险同步状态",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "summary",
+          "source": "summary",
+          "description": "综述信息",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "target",
+          "source": "target",
+          "description": "扫描目标信息",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "taskCount",
+          "source": "taskCount",
+          "description": "策略已执行任 务数量",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskSource",
+          "source": "taskSource",
+          "description": "",
+          "fromSection": "口令猜测 任务",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskStatus",
+          "source": "taskStatus",
+          "description": "",
+          "fromSection": "口令猜测 任务",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskType",
+          "source": "taskType",
+          "description": "任务类型",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskUuid",
+          "source": "taskUuid",
+          "description": "扫描目标所在子任 务 UUID",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "tcp",
+          "source": "tcp",
+          "description": "是否开启 TCP PING",
+          "fromSection": "主机扫描"
+        }
+      ]
+    },
+    "port": {
+      "fileName": "端口扫描结果.xml",
+      "rootElement": "PortScanResult",
+      "displayName": "端口扫描",
+      "capability": "portScan",
+      "legacyTxt": [
+        "task_info.txt",
+        "asset_info.txt"
+      ],
+      "phaseId": "port",
+      "fieldCount": 32,
+      "fields": [
+        {
+          "name": "assetKey",
+          "source": "assetKey",
+          "description": "扫描目标对应资产 库资产 IP",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "assetName",
+          "source": "assetName",
+          "description": "对应的 TVM 资产管 理中的资产 名称",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "baseInfo",
+          "source": "baseInfo",
+          "description": "任务基础信息",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "device",
+          "source": "device",
+          "description": "任务设备信息 {",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "execType",
+          "source": "execType",
+          "description": "执行方式",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "geo",
+          "source": "geo",
+          "description": "地理视 图",
+          "fromSection": "资产发现 任务"
+        },
+        {
+          "name": "geo_id",
+          "source": "geo_id",
+          "description": "地理视图 id",
+          "fromSection": "资产发现 任务"
+        },
+        {
+          "name": "hostCount",
+          "source": "hostCount",
+          "description": "任务存活目标 数",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "id",
+          "source": "id",
+          "description": "任务策略 ID",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "ip",
+          "source": "ip",
+          "description": "ip",
+          "fromSection": "资产发现 任务"
+        },
+        {
+          "name": "ipType",
+          "source": "ipType",
+          "description": "IP 类型（ IPv4/IPv6 /URL ）",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "mac",
+          "source": "mac",
+          "description": "mac",
+          "fromSection": "资产发现 任务"
+        },
+        {
+          "name": "os",
+          "source": "os",
+          "description": "操作系统",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "osName",
+          "source": "osName",
+          "description": "操作系统",
+          "fromSection": "资产发现 任务"
+        },
+        {
+          "name": "port",
+          "source": "port",
+          "description": "发现的端口 {",
+          "fromSection": "资产发现 任务"
+        },
+        {
+          "name": "portScan",
+          "source": "portScan",
+          "description": "端口配置",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "product",
+          "source": "product",
+          "description": "任务涉及设备 型号",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "scanInfo",
+          "source": "scanInfo",
+          "description": "",
+          "fromSection": "口令猜测 任务",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "scanTimes",
+          "source": "scanTimes",
+          "description": "扫描次数",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "software",
+          "source": "software",
+          "description": "发现的服务 {",
+          "fromSection": "资产发现 任务"
+        },
+        {
+          "name": "source",
+          "source": "source",
+          "description": "数据来源",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "speed",
+          "source": "speed",
+          "description": "扫描速度",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "status",
+          "source": "status",
+          "description": "当前风险同步状态",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "summary",
+          "source": "summary",
+          "description": "综述信息",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "target",
+          "source": "target",
+          "description": "扫描目标信息",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "taskCount",
+          "source": "taskCount",
+          "description": "策略已执行任 务数量",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskSource",
+          "source": "taskSource",
+          "description": "",
+          "fromSection": "口令猜测 任务",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskStatus",
+          "source": "taskStatus",
+          "description": "",
+          "fromSection": "口令猜测 任务",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskType",
+          "source": "taskType",
+          "description": "任务类型",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskUuid",
+          "source": "taskUuid",
+          "description": "扫描目标所在子任 务 UUID",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "type",
+          "source": "type",
+          "description": "资产类 型 host 主机 web 网站",
+          "fromSection": "资产发现 任务"
+        },
+        {
+          "name": "udp",
+          "source": "udp",
+          "description": "UDP 扫描",
+          "fromSection": "主机扫描"
+        }
+      ]
+    },
+    "vuln": {
+      "fileName": "系统漏洞扫描结果.xml",
+      "rootElement": "SystemVulnScanResult",
+      "displayName": "系统漏洞扫描",
+      "capability": "vulnScan",
+      "legacyTxt": [
+        "vul_info.txt",
+        "asset_vuls.txt"
+      ],
+      "phaseId": "vuln",
+      "fieldCount": 42,
+      "fields": [
+        {
+          "name": "alertMsg",
+          "source": "alertMsg",
+          "description": "",
+          "fromSection": "口令猜测 任务"
+        },
+        {
+          "name": "assetKey",
+          "source": "assetKey",
+          "description": "扫描目标对应资产 库资产 IP",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "assetName",
+          "source": "assetName",
+          "description": "对应的 TVM 资产管 理中的资产 名称",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "baseInfo",
+          "source": "baseInfo",
+          "description": "任务基础信息",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "cnvd",
+          "source": "cnvd",
+          "description": "漏洞 cn vd",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "cve",
+          "source": "cve",
+          "description": "漏洞 cve",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "cvss",
+          "source": "cvss",
+          "description": "漏洞 CVSS",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "debug",
+          "source": "debug",
+          "description": "调试模式",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "device",
+          "source": "device",
+          "description": "任务设备信息 {",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "encoding",
+          "source": "encoding",
+          "description": "",
+          "fromSection": "口令猜测 任务"
+        },
+        {
+          "name": "execType",
+          "source": "execType",
+          "description": "执行方式",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "hostCount",
+          "source": "hostCount",
+          "description": "任务存活目标 数",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "id",
+          "source": "id",
+          "description": "任务策略 ID",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "ipType",
+          "source": "ipType",
+          "description": "IP 类型（ IPv4/IPv6 /URL ）",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "name",
+          "source": "name",
+          "description": "漏洞 名称",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "oracle",
+          "source": "oracle",
+          "description": "是否启用 Ora cle 漏洞深度扫描",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "others",
+          "source": "others",
+          "description": "漏洞描述",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "product",
+          "source": "product",
+          "description": "任务涉及设备 型号",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "riskLevel",
+          "source": "riskLevel",
+          "description": "风险等级",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "riskValue",
+          "source": "riskValue",
+          "description": "风险值",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "scanInfo",
+          "source": "scanInfo",
+          "description": "",
+          "fromSection": "口令猜测 任务",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "scanTimes",
+          "source": "scanTimes",
+          "description": "扫描次数",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "scanpri",
+          "source": "scanpri",
+          "description": "",
+          "fromSection": "口令猜测 任务"
+        },
+        {
+          "name": "source",
+          "source": "source",
+          "description": "数据来源",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "status",
+          "source": "status",
+          "description": "当前风险同步状态",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "summary",
+          "source": "summary",
+          "description": "综述信息",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "syncTime",
+          "source": "syncTime",
+          "description": "风险同步时间",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "sysScan",
+          "source": "sysScan",
+          "description": "系统配置",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "target",
+          "source": "target",
+          "description": "扫描目标信息",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "taskCount",
+          "source": "taskCount",
+          "description": "策略已执行任 务数量",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskSource",
+          "source": "taskSource",
+          "description": "",
+          "fromSection": "口令猜测 任务",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskStatus",
+          "source": "taskStatus",
+          "description": "",
+          "fromSection": "口令猜测 任务",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskType",
+          "source": "taskType",
+          "description": "任务类型",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskUuid",
+          "source": "taskUuid",
+          "description": "扫描目标所在子任 务 UUID",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "times",
+          "source": "times",
+          "description": "漏洞出现次数 } 4.asset_ vuls.txt 任务扫描目标与漏洞关联信息 也就是 处置单 / 系统漏洞信息 文件内容及含义 {",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "urls",
+          "source": "urls",
+          "description": "漏洞发 现的 url {",
+          "fromSection": "网站扫描任务"
+        },
+        {
+          "name": "vUrl",
+          "source": "vUrl",
+          "description": "请求 url",
+          "fromSection": "网站扫描任务"
+        },
+        {
+          "name": "vendor",
+          "source": "vendor",
+          "description": "漏洞厂商",
+          "fromSection": "网站扫描任务"
+        },
+        {
+          "name": "vulLocalId",
+          "source": "vulLocalId",
+          "description": "漏洞 名称",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "vulTarget",
+          "source": "vulTarget",
+          "description": "主机漏洞影响端口 / 网站漏洞影响目 标 URL",
+          "fromSection": "数据外发处置单 ( 系统漏洞 )"
+        },
+        {
+          "name": "vulnId",
+          "source": "vulnId",
+          "description": "漏洞 ID",
+          "fromSection": "网站扫描任务"
+        },
+        {
+          "name": "workflow",
+          "source": "workflow",
+          "description": "处置单 ID",
+          "fromSection": "数据外发处置单 ( 系统漏洞 )"
+        }
+      ]
+    },
+    "weakpwd": {
+      "fileName": "弱口令扫描结果.xml",
+      "rootElement": "WeakPasswordScanResult",
+      "displayName": "弱口令扫描",
+      "capability": "weakPasswordScan",
+      "legacyTxt": [
+        "asset_pwds.txt",
+        "task_info.txt",
+        "asset_info.txt"
+      ],
+      "phaseId": "weakpwd",
+      "fieldCount": 32,
+      "fields": [
+        {
+          "name": "assetKey",
+          "source": "assetKey",
+          "description": "扫描目标对应资产 库资产 IP",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "assetName",
+          "source": "assetName",
+          "description": "对应的 TVM 资产管 理中的资产 名称",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "asset_pwds",
+          "source": "asset_pwds",
+          "description": "弱口令信息 {",
+          "fromSection": "口令猜测 任务"
+        },
+        {
+          "name": "baseInfo",
+          "source": "baseInfo",
+          "description": "任务基础信息",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "count",
+          "source": "count",
+          "description": "猜测次数",
+          "fromSection": "口令猜测 任务"
+        },
+        {
+          "name": "device",
+          "source": "device",
+          "description": "任务设备信息 {",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "execType",
+          "source": "execType",
+          "description": "执行方式",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "hostCount",
+          "source": "hostCount",
+          "description": "任务存活目标 数",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "id",
+          "source": "id",
+          "description": "任务策略 ID",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "interval",
+          "source": "interval",
+          "description": "口令猜测频率 （秒）",
+          "fromSection": "口令猜测 任务"
+        },
+        {
+          "name": "ipType",
+          "source": "ipType",
+          "description": "IP 类型（ IPv4/IPv6 /URL ）",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "isSystem",
+          "source": "isSystem",
+          "description": "是否系统弱口令 }],",
+          "fromSection": "数据外发处置单 ( 系统漏洞 )"
+        },
+        {
+          "name": "os",
+          "source": "os",
+          "description": "操作系统",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "other_info",
+          "source": "other_info",
+          "description": "",
+          "fromSection": "口令猜测 任务"
+        },
+        {
+          "name": "password",
+          "source": "password",
+          "description": "弱口令密码",
+          "fromSection": "数据外发处置单 ( 系统漏洞 )"
+        },
+        {
+          "name": "product",
+          "source": "product",
+          "description": "任务涉及设备 型号",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "pswdGuess",
+          "source": "pswdGuess",
+          "description": "口令猜测配置",
+          "fromSection": "口令猜测 任务"
+        },
+        {
+          "name": "scanInfo",
+          "source": "scanInfo",
+          "description": "",
+          "fromSection": "口令猜测 任务",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "scanTimes",
+          "source": "scanTimes",
+          "description": "扫描次数",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "source",
+          "source": "source",
+          "description": "数据来源",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "status",
+          "source": "status",
+          "description": "当前风险同步状态",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "summary",
+          "source": "summary",
+          "description": "综述信息",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "target",
+          "source": "target",
+          "description": "扫描目标信息",
+          "fromSection": "主机扫描"
+        },
+        {
+          "name": "taskCount",
+          "source": "taskCount",
+          "description": "策略已执行任 务数量",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskSource",
+          "source": "taskSource",
+          "description": "",
+          "fromSection": "口令猜测 任务",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskStatus",
+          "source": "taskStatus",
+          "description": "",
+          "fromSection": "口令猜测 任务",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskType",
+          "source": "taskType",
+          "description": "任务类型",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "taskUuid",
+          "source": "taskUuid",
+          "description": "扫描目标所在子任 务 UUID",
+          "fromSection": "主机扫描",
+          "scope": "taskMeta"
+        },
+        {
+          "name": "thread",
+          "source": "thread",
+          "description": "最大并发线程 数",
+          "fromSection": "口令猜测 任务"
+        },
+        {
+          "name": "timeout",
+          "source": "timeout",
+          "description": "口令猜测时间 （分钟）",
+          "fromSection": "口令猜测 任务"
+        },
+        {
+          "name": "userName",
+          "source": "userName",
+          "description": "弱口令用户名",
+          "fromSection": "数据外发处置单 ( 系统漏洞 )"
+        },
+        {
+          "name": "weakAccountInfo",
+          "source": "weakAccountInfo",
+          "description": "弱口令信息 {",
+          "fromSection": "数据外发处置单 ( 系统漏洞 )"
+        }
+      ]
+    }
+  },
+  "unassignedFieldNames": [
+    "all_fixed",
+    "all_waited",
+    "apache_id",
+    "app",
+    "assetId",
+    "assetUuid",
+    "asset_key",
+    "asset_name",
+    "asset_type",
+    "asset_uuid",
+    "autoUpdatePriority",
+    "bid",
+    "bugtraqId",
+    "can_deleted",
+    "cisco_id",
+    "cncve",
+    "cnnvd",
+    "cnnvd_id",
+    "confirm",
+    "confirmfix",
+    "confirmnofix",
+    "controlAssetUuid",
+    "createTime",
+    "created_time",
+    "cveId",
+    "cve_id",
+    "cvssBaseScore",
+    "cvss_score",
+    "cwe_id",
+    "dateFound",
+    "dateRecorded",
+    "days",
+    "degree",
+    "email",
+    "endTime",
+    "executorId",
+    "executorName",
+    "expId",
+    "fix",
+    "fixfail",
+    "ftp",
+    "group_id",
+    "group_name",
+    "heat",
+    "high",
+    "hostVul",
+    "hours",
+    "importance",
+    "intell_id",
+    "intell_name",
+    "intell_uuid",
+    "invalid",
+    "invalid_time",
+    "ipv4",
+    "ipv6",
+    "isAll",
+    "isDangerous",
+    "isExp",
+    "isPoc",
+    "isVerify",
+    "is_fusion",
+    "is_known",
+    "is_scan",
+    "low",
+    "match_type",
+    "method",
+    "mid",
+    "minute",
+    "missnow",
+    "new",
+    "not_confirm",
+    "page",
+    "param",
+    "poc_found",
+    "policyUuid",
+    "pre",
+    "priority",
+    "priorityLevel",
+    "priorityUpdateTime",
+    "products",
+    "protocol",
+    "publisher",
+    "risk_level",
+    "service",
+    "size",
+    "sms",
+    "softwareName",
+    "softwareVersion",
+    "solution",
+    "ssh",
+    "statusTotal",
+    "targets",
+    "taskInfo",
+    "taskName",
+    "total",
+    "trigger",
+    "typeTotal",
+    "updateTime",
+    "url",
+    "url_info",
+    "vaildatefail",
+    "valid",
+    "verifyInfo",
+    "verifyResult",
+    "verifyStatus",
+    "verifyfail",
+    "version",
+    "version_zh",
+    "versions",
+    "vpoint",
+    "vulDescription",
+    "vulInfo",
+    "vulName",
+    "vulPoints",
+    "vulSolution",
+    "vulStatus",
+    "vul_ids",
+    "vulld",
+    "vulnName",
+    "warning_type",
+    "webVul",
+    "workflowVulInfo",
+    "xf_id"
+  ]
+}

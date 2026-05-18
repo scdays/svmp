@@ -1,0 +1,77 @@
+# 单阶段：端口扫描 → 端口扫描结果.xml
+exportTemplateId: tpl-svmp-phase-port
+displayName: 端口扫描
+match:
+  capability: portScan
+output:
+  format: SVMP-XML
+  encoding: UTF-8
+  fileName: 端口扫描结果.xml
+  rootElement: PortScanResult
+trigger:
+  on: TASK_COMPLETED
+fields:
+  - target: assetKey
+    source: assetKey  # 扫描目标对应资产 库资产 IP
+  - target: assetName
+    source: assetName  # 对应的 TVM 资产管 理中的资产 名称
+  - target: baseInfo
+    source: baseInfo  # 任务基础信息
+  - target: device
+    source: device  # 任务设备信息 {
+  - target: execType
+    source: execType  # 执行方式
+  - target: geo
+    source: geo  # 地理视 图
+  - target: geo_id
+    source: geo_id  # 地理视图 id
+  - target: hostCount
+    source: hostCount  # 任务存活目标 数
+  - target: id
+    source: id  # 任务策略 ID
+  - target: ip
+    source: ip  # ip
+  - target: ipType
+    source: ipType  # IP 类型（ IPv4/IPv6 /URL ）
+  - target: mac
+    source: mac  # mac
+  - target: os
+    source: os  # 操作系统
+  - target: osName
+    source: osName  # 操作系统
+  - target: port
+    source: port  # 发现的端口 {
+  - target: portScan
+    source: portScan  # 端口配置
+  - target: product
+    source: product  # 任务涉及设备 型号
+  - target: scanInfo
+    source: scanInfo
+  - target: scanTimes
+    source: scanTimes  # 扫描次数
+  - target: software
+    source: software  # 发现的服务 {
+  - target: source
+    source: source  # 数据来源
+  - target: speed
+    source: speed  # 扫描速度
+  - target: status
+    source: status  # 当前风险同步状态
+  - target: summary
+    source: summary  # 综述信息
+  - target: target
+    source: target  # 扫描目标信息
+  - target: taskCount
+    source: taskCount  # 策略已执行任 务数量
+  - target: taskSource
+    source: taskSource
+  - target: taskStatus
+    source: taskStatus
+  - target: taskType
+    source: taskType  # 任务类型
+  - target: taskUuid
+    source: taskUuid  # 扫描目标所在子任 务 UUID
+  - target: type
+    source: type  # 资产类 型 host 主机 web 网站
+  - target: udp
+    source: udp  # UDP 扫描
