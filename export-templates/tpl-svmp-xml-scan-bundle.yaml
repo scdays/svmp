@@ -124,93 +124,76 @@ phases:
       # …共 32 字段，见 phase-field-catalog.json
   vuln:
     file: 系统漏洞扫描结果.xml
-    rootElement: SystemVulnScanResult
+    rootElement: aurora
+    format: aurora
+    officialSample: 系统漏洞扫描结果.xml
     capability: vulnScan
     fields:
-      - target: alertMsg
-        source: alertMsg
-      - target: assetKey
-        source: assetKey  # 扫描目标对应资产 库资产 IP
-      - target: assetName
-        source: assetName  # 对应的 TVM 资产管 理中的资产 名称
-      - target: baseInfo
-        source: baseInfo  # 任务基础信息
-      - target: cnvd
-        source: cnvd  # 漏洞 cn vd
-      - target: cve
-        source: cve  # 漏洞 cve
-      - target: cvss
-        source: cvss  # 漏洞 CVSS
-      - target: debug
-        source: debug  # 调试模式
-      - target: device
-        source: device  # 任务设备信息 {
-      - target: encoding
-        source: encoding
-      - target: execType
-        source: execType  # 执行方式
       - target: hostCount
-        source: hostCount  # 任务存活目标 数
-      - target: id
-        source: id  # 任务策略 ID
-      - target: ipType
-        source: ipType  # IP 类型（ IPv4/IPv6 /URL ）
-      - target: name
-        source: name  # 漏洞 名称
-      - target: oracle
-        source: oracle  # 是否启用 Ora cle 漏洞深度扫描
-      - target: others
-        source: others  # 漏洞描述
-      - target: product
-        source: product  # 任务涉及设备 型号
-      - target: riskLevel
-        source: riskLevel  # 风险等级
+        source: hostCount  # aurora/report/scanned_ip_count
       - target: riskValue
-        source: riskValue  # 风险值
-      # …共 42 字段，见 phase-field-catalog.json
+        source: riskValue  # aurora/report/targets/target/host_score
+      - target: assetKey
+        source: assetKey  # aurora/report/targets/target/ip
+      - target: riskValue
+        source: riskValue  # aurora/report/targets/target/vul_score
+      - target: cnvd
+        source: cnvd  # aurora/report/targets/target/vuln_detail/vuln/cncve
+      - target: cnvd
+        source: cnvd  # aurora/report/targets/target/vuln_detail/vuln/cnnvd
+      - target: cve
+        source: cve  # aurora/report/targets/target/vuln_detail/vuln/cve_id
+      - target: syncTime
+        source: syncTime  # aurora/report/targets/target/vuln_detail/vuln/date_found
+      - target: others
+        source: others  # aurora/report/targets/target/vuln_detail/vuln/description
+      - target: name
+        source: name  # aurora/report/targets/target/vuln_detail/vuln/name
+      - target: vulLocalId
+        source: vulLocalId  # aurora/report/targets/target/vuln_detail/vuln/plugin_id
+      - target: cvss
+        source: cvss  # aurora/report/targets/target/vuln_detail/vuln/risk_points
+      - target: others
+        source: others  # aurora/report/targets/target/vuln_detail/vuln/solution
+      - target: others
+        source: others  # aurora/report/targets/target/vuln_detail/vuln/threat_category
+      - target: vulLocalId
+        source: vulLocalId  # aurora/report/targets/target/vuln_detail/vuln/vul_id
+      - target: others
+        source: others  # aurora/report/targets/target/vuln_scanned/vuln/mess_string
+      - target: port
+        source: port  # aurora/report/targets/target/vuln_scanned/vuln/port
+      - target: protocol
+        source: protocol  # aurora/report/targets/target/vuln_scanned/vuln/protocol
+      - target: service
+        source: service  # aurora/report/targets/target/vuln_scanned/vuln/service
+      - target: status
+        source: status  # aurora/report/targets/target/vuln_scanned/vuln/vul_confirmed
+      # …共 26 字段，见 phase-field-catalog.json
   weakpwd:
     file: 弱口令扫描结果.xml
-    rootElement: WeakPasswordScanResult
+    rootElement: aurora
+    format: aurora
+    officialSample: 弱口令扫描结果.xml
     capability: weakPasswordScan
     fields:
       - target: assetKey
-        source: assetKey  # 扫描目标对应资产 库资产 IP
-      - target: assetName
-        source: assetName  # 对应的 TVM 资产管 理中的资产 名称
-      - target: asset_pwds
-        source: asset_pwds  # 弱口令信息 {
-      - target: baseInfo
-        source: baseInfo  # 任务基础信息
-      - target: count
-        source: count  # 猜测次数
-      - target: device
-        source: device  # 任务设备信息 {
-      - target: execType
-        source: execType  # 执行方式
-      - target: hostCount
-        source: hostCount  # 任务存活目标 数
-      - target: id
-        source: id  # 任务策略 ID
-      - target: interval
-        source: interval  # 口令猜测频率 （秒）
-      - target: ipType
-        source: ipType  # IP 类型（ IPv4/IPv6 /URL ）
-      - target: isSystem
-        source: isSystem  # 是否系统弱口令 }],
-      - target: os
-        source: os  # 操作系统
-      - target: other_info
-        source: other_info
+        source: assetKey  # aurora/report/targets/target/ip
       - target: password
-        source: password  # 弱口令密码
-      - target: product
-        source: product  # 任务涉及设备 型号
-      - target: pswdGuess
-        source: pswdGuess  # 口令猜测配置
-      - target: scanInfo
-        source: scanInfo
-      - target: scanTimes
-        source: scanTimes  # 扫描次数
-      - target: source
-        source: source  # 数据来源
-      # …共 32 字段，见 phase-field-catalog.json
+        source: password  # aurora/report/targets/target/password_results/password_result/password
+      - target: service
+        source: service  # aurora/report/targets/target/password_results/password_result/type
+      - target: userName
+        source: userName  # aurora/report/targets/target/password_results/password_result/username
+      - target: name
+        source: name  # aurora/report/targets/target/vuln_detail/vuln/name
+      - target: weakAccountInfo
+        source: weakAccountInfo  # aurora/report/targets/target/vuln_scanned/vuln/mess_string
+      - target: port
+        source: port  # aurora/report/targets/target/vuln_scanned/vuln/port
+      - target: vulLocalId
+        source: vulLocalId  # aurora/report/targets/target/vuln_scanned/vuln/vul_id
+      - target: id
+        source: id  # aurora/report/task/id
+      - target: taskType
+        source: taskType  # aurora/report/task/task_type

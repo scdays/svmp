@@ -341,21 +341,82 @@ def _sample_weakpwd() -> ET.Element:
 SAMPLE_BUILDERS = {
     "live": _sample_live,
     "port": _sample_port,
-    "vuln": _sample_vuln,
-    "weakpwd": _sample_weakpwd,
+}
+
+OFFICIAL_SAMPLE_NAMES = {
+    "vuln": "系统漏洞扫描结果.xml",
+    "weakpwd": "弱口令扫描结果.xml",
 }
 
 
 def write_samples(out_dir: Path) -> None:
     samples_dir = out_dir / "samples"
     samples_dir.mkdir(parents=True, exist_ok=True)
+    readme = samples_dir / "README.md"
+    readme.write_text(
+        "# XML 样例\n\n"
+        "- **系统漏洞 / 弱口令**：正式引擎样本在上一级目录 "
+        "`系统漏洞扫描结果.xml`、`弱口令扫描结果.xml`（绿盟 Aurora 格式）。\n"
+        "- **存活 / 端口**：本目录下为平台推导的占位结构（待引擎样本补齐）。\n",
+        encoding="utf-8",
+    )
     for phase_id, meta in PHASES.items():
+        official = out_dir / OFFICIAL_SAMPLE_NAMES.get(phase_id, "")
+        if official.is_file():
+            print(f"  正式样本（未复制）: {official}")
+            continue
+        if phase_id not in SAMPLE_BUILDERS:
+            continue
         root = SAMPLE_BUILDERS[phase_id]()
         _indent_xml(root)
         tree = ET.ElementTree(root)
         path = samples_dir / meta["fileName"]
         tree.write(path, encoding="utf-8", xml_declaration=True)
-        print(f"  样例: {path}")
+        print(f"  推导样例: {path}")
+
+
+def _write_phase_yaml_from_catalog(
+    out_dir: Path, phase_id: str, phase: dict[str, Any]
+) -> Path:
+    tid = f"tpl-svmp-phase-{phase_id}"
+    path = out_dir / f"{tid}.yaml"
+    fmt = phase.get("format", "")
+    root = phase.get("rootElement", "")
+    lines = [
+        f"# {phase['displayName']} → {phase['fileName']}",
+        f"exportTemplateId: {tid}",
+        f"displayName: {phase['displayName']}",
+        "match:",
+        f"  capability: {phase['capability']}",
+    ]
+    if fmt == "aurora":
+        lines.append(f"  engineXmlFormat: aurora")
+        lines.append(f"  officialSample: {phase.get('officialSample', '')}")
+    lines.extend(
+        [
+            "output:",
+            "  format: SVMP-XML",
+            "  encoding: UTF-8",
+            f"  fileName: {phase['fileName']}",
+            f"  rootElement: {root}",
+        ]
+    )
+    if fmt == "aurora":
+        lines.append("  # 绿盟 Aurora：aurora/data/report/targets/...")
+    lines.extend(
+        [
+            "trigger:",
+            "  on: TASK_COMPLETED",
+            "fields:",
+        ]
+    )
+    for f in phase.get("fields", []):
+        aurora = f.get("auroraPath", "")
+        comment = f"  # {aurora}" if aurora else ""
+        lines.append(f"  - target: {f['name']}")
+        lines.append(f"    source: {f['source']}{comment}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
 
 
 def write_bundle_template(out_dir: Path, phase_catalog: dict[str, Any]) -> Path:
@@ -401,10 +462,13 @@ def write_bundle_template(out_dir: Path, phase_catalog: dict[str, Any]) -> Path:
         lines.append(f"  {phase_id}:")
         lines.append(f"    file: {phase['fileName']}")
         lines.append(f"    rootElement: {phase['rootElement']}")
+        if phase.get("format") == "aurora":
+            lines.append("    format: aurora")
+            lines.append(f"    officialSample: {phase.get('officialSample', '')}")
         lines.append(f"    capability: {phase['capability']}")
         lines.append("    fields:")
         for f in phase["fields"][:20]:
-            desc = f.get("description") or ""
+            desc = f.get("description") or f.get("auroraPath") or ""
             comment = f"  # {desc}" if desc else ""
             lines.append(f"      - target: {f['name']}")
             lines.append(f"        source: {f['source']}{comment}")
@@ -415,33 +479,23 @@ def write_bundle_template(out_dir: Path, phase_catalog: dict[str, Any]) -> Path:
 
 
 def write_phase_templates(out_dir: Path, phase_catalog: dict[str, Any]) -> list[Path]:
-    written: list[Path] = []
-    for phase_id, phase in phase_catalog["phases"].items():
-        tid = f"tpl-svmp-phase-{phase_id}"
-        path = out_dir / f"{tid}.yaml"
-        lines = [
-            f"# 单阶段：{phase['displayName']} → {phase['fileName']}",
-            f"exportTemplateId: {tid}",
-            f"displayName: {phase['displayName']}",
-            "match:",
-            f"  capability: {phase['capability']}",
-            "output:",
-            "  format: SVMP-XML",
-            "  encoding: UTF-8",
-            f"  fileName: {phase['fileName']}",
-            f"  rootElement: {phase['rootElement']}",
-            "trigger:",
-            "  on: TASK_COMPLETED",
-            "fields:",
-        ]
-        for f in phase["fields"]:
-            desc = f.get("description") or ""
-            comment = f"  # {desc}" if desc else ""
-            lines.append(f"  - target: {f['name']}")
-            lines.append(f"    source: {f['source']}{comment}")
-        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        written.append(path)
-    return written
+    return [
+        _write_phase_yaml_from_catalog(out_dir, phase_id, phase)
+        for phase_id, phase in phase_catalog["phases"].items()
+    ]
+
+
+def _apply_official_aurora(export_dir: Path) -> bool:
+    """若存在正式样本，解析 Aurora 并更新 phase-field-catalog。"""
+    vuln_xml = export_dir / "系统漏洞扫描结果.xml"
+    weak_xml = export_dir / "弱口令扫描结果.xml"
+    if not vuln_xml.is_file() or not weak_xml.is_file():
+        return False
+    import subprocess
+
+    script = Path(__file__).resolve().parent / "parse_export_xml_samples.py"
+    rc = subprocess.call([sys.executable, str(script), "-d", str(export_dir)])
+    return rc == 0
 
 
 def main() -> int:
@@ -454,6 +508,11 @@ def main() -> int:
     )
     parser.add_argument("-o", "--out-dir", type=Path, default=Path("export-templates"))
     parser.add_argument("--no-samples", action="store_true")
+    parser.add_argument(
+        "--skip-official-xml",
+        action="store_true",
+        help="不解析 export-templates 下正式 Aurora 样本",
+    )
     args = parser.parse_args()
 
     if not args.catalog_path.is_file():
@@ -470,6 +529,13 @@ def main() -> int:
         json.dumps(phase_catalog, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     print(f"已写入 {phase_path}")
+
+    if not args.skip_official_xml:
+        if _apply_official_aurora(args.out_dir):
+            phase_catalog = json.loads(phase_path.read_text(encoding="utf-8"))
+            print("已合并正式样本（Aurora）至 phase-field-catalog")
+        else:
+            print("提示: 未找到正式 系统漏洞/弱口令 XML，使用 HTML 推导结构")
 
     if not args.no_samples:
         write_samples(args.out_dir)

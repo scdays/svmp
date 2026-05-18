@@ -369,7 +369,11 @@ def main() -> int:
     if args.xml_phases:
         import subprocess
 
-        script = Path(__file__).resolve().parent / "build_export_xml_phases.py"
+        tools_dir = Path(__file__).resolve().parent
+        aurora = tools_dir / "parse_export_xml_samples.py"
+        if aurora.is_file():
+            subprocess.call([sys.executable, str(aurora), "-d", str(args.out_dir)])
+        script = tools_dir / "build_export_xml_phases.py"
         rc = subprocess.call(
             [sys.executable, str(script), str(catalog_path), "-o", str(args.out_dir)],
         )

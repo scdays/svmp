@@ -15,9 +15,10 @@
 
 **整包模板**：`tpl-svmp-xml-scan-bundle.yaml`（`tar.gz` 内含上述 XML，按任务 `capabilities` 选择性生成）。
 
-- 字段映射：`phase-field-catalog.json`
+- **正式引擎样本**（绿盟 Aurora）：`系统漏洞扫描结果.xml`、`弱口令扫描结果.xml`（与本目录同级）
+- 字段映射：`phase-field-catalog.json`、`xml-schemas/aurora-report.schema.json`
 - 结构说明：`xml-schemas/README.md`
-- 样例：`samples/*.xml`
+- 存活/端口推导样例：`samples/`（漏洞/弱口令请以正式样本为准）
 
 ```bash
 # 自 field-catalog 生成 XML 阶段目录与模板

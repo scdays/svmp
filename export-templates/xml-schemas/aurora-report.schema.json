@@ -1,0 +1,423 @@
+{
+  "format": "aurora",
+  "vendor": "绿盟科技",
+  "description": "正式引擎外发 XML（系统漏洞 / 弱口令扫描结果）",
+  "officialSamples": {
+    "vuln": "系统漏洞扫描结果.xml",
+    "weakpwd": "弱口令扫描结果.xml"
+  },
+  "phases": {
+    "vuln": {
+      "phase": "vuln",
+      "officialSample": "系统漏洞扫描结果.xml",
+      "format": "aurora",
+      "rootElement": "aurora",
+      "encoding": "utf-8",
+      "summary": {
+        "task_type": "1",
+        "target_count": 1,
+        "elements_scanned": 81233
+      },
+      "uniqueTags": [
+        "appendix_info",
+        "aurora",
+        "bugtraq_id",
+        "cncve",
+        "cnnvd",
+        "config_score",
+        "cve_id",
+        "data",
+        "date_found",
+        "description",
+        "failed_hosts",
+        "has_result",
+        "host_score",
+        "id",
+        "info",
+        "info_name",
+        "ip",
+        "mess_string",
+        "name",
+        "nsfocus_id",
+        "page",
+        "page_size",
+        "page_total",
+        "password",
+        "password_result",
+        "password_results",
+        "plugin_id",
+        "port",
+        "product",
+        "protocol",
+        "record_result_name",
+        "record_results",
+        "report",
+        "result",
+        "ret_code",
+        "ret_msg",
+        "risk_points",
+        "scanned_ip_count",
+        "service",
+        "solution",
+        "sysvul_version",
+        "target",
+        "target_total",
+        "targets",
+        "task",
+        "task_type",
+        "threat_category",
+        "time_end_scan",
+        "time_start_scan",
+        "type",
+        "username",
+        "value",
+        "vendor",
+        "version",
+        "vul_confirmed",
+        "vul_id",
+        "vul_score",
+        "vuln",
+        "vuln_detail",
+        "vuln_scanned",
+        "vuln_template",
+        "vultpl_version"
+      ],
+      "pathPrefixes": [
+        "aurora/aurora",
+        "aurora/aurora/data",
+        "aurora/aurora/data/page",
+        "aurora/aurora/data/page_size",
+        "aurora/aurora/data/page_total",
+        "aurora/aurora/data/report",
+        "aurora/aurora/data/report/failed_hosts",
+        "aurora/aurora/data/report/product",
+        "aurora/aurora/data/report/scanned_ip_count",
+        "aurora/aurora/data/report/sysvul_version",
+        "aurora/aurora/data/report/targets",
+        "aurora/aurora/data/report/targets/target",
+        "aurora/aurora/data/report/targets/target/appendix_info",
+        "aurora/aurora/data/report/targets/target/appendix_info/info",
+        "aurora/aurora/data/report/targets/target/config_score",
+        "aurora/aurora/data/report/targets/target/host_score",
+        "aurora/aurora/data/report/targets/target/ip",
+        "aurora/aurora/data/report/targets/target/password_results",
+        "aurora/aurora/data/report/targets/target/password_results/password_result",
+        "aurora/aurora/data/report/targets/target/vul_score",
+        "aurora/aurora/data/report/targets/target/vuln_detail",
+        "aurora/aurora/data/report/targets/target/vuln_detail/vuln",
+        "aurora/aurora/data/report/targets/target/vuln_scanned",
+        "aurora/aurora/data/report/targets/target/vuln_scanned/vuln",
+        "aurora/aurora/data/report/task",
+        "aurora/aurora/data/report/task/id",
+        "aurora/aurora/data/report/task/name",
+        "aurora/aurora/data/report/task/task_type",
+        "aurora/aurora/data/report/task/time_end_scan",
+        "aurora/aurora/data/report/task/time_start_scan",
+        "aurora/aurora/data/report/task/vuln_template",
+        "aurora/aurora/data/report/vendor",
+        "aurora/aurora/data/report/version",
+        "aurora/aurora/data/report/vultpl_version",
+        "aurora/aurora/data/target_total",
+        "aurora/aurora/ret_code",
+        "aurora/aurora/ret_msg"
+      ],
+      "fieldMappings": [
+        {
+          "auroraPath": "aurora/report/scanned_ip_count",
+          "source": "hostCount",
+          "xmlPath": "report/scanned_ip_count"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/host_score",
+          "source": "riskValue",
+          "xmlPath": "report/targets/target/host_score"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/ip",
+          "source": "assetKey",
+          "xmlPath": "report/targets/target/ip"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vul_score",
+          "source": "riskValue",
+          "xmlPath": "report/targets/target/vul_score"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/cncve",
+          "source": "cnvd",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/cncve"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/cnnvd",
+          "source": "cnvd",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/cnnvd"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/cve_id",
+          "source": "cve",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/cve_id"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/date_found",
+          "source": "syncTime",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/date_found"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/description",
+          "source": "others",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/description"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/name",
+          "source": "name",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/name"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/plugin_id",
+          "source": "vulLocalId",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/plugin_id"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/risk_points",
+          "source": "cvss",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/risk_points"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/solution",
+          "source": "others",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/solution"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/threat_category",
+          "source": "others",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/threat_category"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/vul_id",
+          "source": "vulLocalId",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/vul_id"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/mess_string",
+          "source": "others",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/mess_string"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/port",
+          "source": "port",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/port"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/protocol",
+          "source": "protocol",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/protocol"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/service",
+          "source": "service",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/service"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/vul_confirmed",
+          "source": "status",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/vul_confirmed"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/vul_id",
+          "source": "vulLocalId",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/vul_id"
+        },
+        {
+          "auroraPath": "aurora/report/task/id",
+          "source": "id",
+          "xmlPath": "report/task/id"
+        },
+        {
+          "auroraPath": "aurora/report/task/name",
+          "source": "baseInfo",
+          "xmlPath": "report/task/name"
+        },
+        {
+          "auroraPath": "aurora/report/task/task_type",
+          "source": "taskType",
+          "xmlPath": "report/task/task_type"
+        },
+        {
+          "auroraPath": "aurora/report/task/time_end_scan",
+          "source": "syncTime",
+          "xmlPath": "report/task/time_end_scan"
+        },
+        {
+          "auroraPath": "aurora/report/task/time_start_scan",
+          "source": "scanTimes",
+          "xmlPath": "report/task/time_start_scan"
+        }
+      ]
+    },
+    "weakpwd": {
+      "phase": "weakpwd",
+      "officialSample": "弱口令扫描结果.xml",
+      "format": "aurora",
+      "rootElement": "aurora",
+      "encoding": "utf-8",
+      "summary": {
+        "task_type": "4",
+        "target_count": 1,
+        "elements_scanned": 1298
+      },
+      "uniqueTags": [
+        "appendix_info",
+        "aurora",
+        "bugtraq_id",
+        "cncve",
+        "cnnvd",
+        "config_score",
+        "cve_id",
+        "data",
+        "date_found",
+        "description",
+        "failed_hosts",
+        "has_result",
+        "host_score",
+        "id",
+        "info",
+        "info_name",
+        "ip",
+        "mess_string",
+        "name",
+        "nsfocus_id",
+        "page",
+        "page_size",
+        "page_total",
+        "password",
+        "password_result",
+        "password_results",
+        "plugin_id",
+        "port",
+        "product",
+        "protocol",
+        "record_result_name",
+        "record_results",
+        "report",
+        "result",
+        "ret_code",
+        "ret_msg",
+        "risk_points",
+        "scanned_ip_count",
+        "service",
+        "solution",
+        "sysvul_version",
+        "target",
+        "target_total",
+        "targets",
+        "task",
+        "task_type",
+        "threat_category",
+        "time_end_scan",
+        "time_start_scan",
+        "type",
+        "username",
+        "value",
+        "vendor",
+        "version",
+        "vul_confirmed",
+        "vul_id",
+        "vul_score",
+        "vuln",
+        "vuln_detail",
+        "vuln_scanned",
+        "vultpl_version"
+      ],
+      "pathPrefixes": [
+        "aurora/aurora",
+        "aurora/aurora/data",
+        "aurora/aurora/data/page",
+        "aurora/aurora/data/page_size",
+        "aurora/aurora/data/page_total",
+        "aurora/aurora/data/report",
+        "aurora/aurora/data/report/failed_hosts",
+        "aurora/aurora/data/report/product",
+        "aurora/aurora/data/report/scanned_ip_count",
+        "aurora/aurora/data/report/sysvul_version",
+        "aurora/aurora/data/report/targets",
+        "aurora/aurora/data/report/targets/target",
+        "aurora/aurora/data/report/targets/target/appendix_info",
+        "aurora/aurora/data/report/targets/target/appendix_info/info",
+        "aurora/aurora/data/report/targets/target/config_score",
+        "aurora/aurora/data/report/targets/target/host_score",
+        "aurora/aurora/data/report/targets/target/ip",
+        "aurora/aurora/data/report/targets/target/password_results",
+        "aurora/aurora/data/report/targets/target/password_results/password_result",
+        "aurora/aurora/data/report/targets/target/vul_score",
+        "aurora/aurora/data/report/targets/target/vuln_detail",
+        "aurora/aurora/data/report/targets/target/vuln_detail/vuln",
+        "aurora/aurora/data/report/targets/target/vuln_scanned",
+        "aurora/aurora/data/report/targets/target/vuln_scanned/vuln",
+        "aurora/aurora/data/report/task",
+        "aurora/aurora/data/report/task/id",
+        "aurora/aurora/data/report/task/name",
+        "aurora/aurora/data/report/task/task_type",
+        "aurora/aurora/data/report/task/time_end_scan",
+        "aurora/aurora/data/report/task/time_start_scan",
+        "aurora/aurora/data/report/vendor",
+        "aurora/aurora/data/report/version",
+        "aurora/aurora/data/report/vultpl_version",
+        "aurora/aurora/data/target_total",
+        "aurora/aurora/ret_code",
+        "aurora/aurora/ret_msg"
+      ],
+      "fieldMappings": [
+        {
+          "auroraPath": "aurora/report/targets/target/ip",
+          "source": "assetKey",
+          "xmlPath": "report/targets/target/ip"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/password_results/password_result/password",
+          "source": "password",
+          "xmlPath": "report/targets/target/password_results/password_result/password"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/password_results/password_result/type",
+          "source": "service",
+          "xmlPath": "report/targets/target/password_results/password_result/type"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/password_results/password_result/username",
+          "source": "userName",
+          "xmlPath": "report/targets/target/password_results/password_result/username"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/name",
+          "source": "name",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/name"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/mess_string",
+          "source": "weakAccountInfo",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/mess_string"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/port",
+          "source": "port",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/port"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/vul_id",
+          "source": "vulLocalId",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/vul_id"
+        },
+        {
+          "auroraPath": "aurora/report/task/id",
+          "source": "id",
+          "xmlPath": "report/task/id"
+        },
+        {
+          "auroraPath": "aurora/report/task/task_type",
+          "source": "taskType",
+          "xmlPath": "report/task/task_type"
+        }
+      ]
+    }
+  }
+}

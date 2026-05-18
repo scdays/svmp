@@ -1,4 +1,4 @@
-# 单阶段：主机存活探测 → 主机存活探测结果.xml
+# 主机存活探测 → 主机存活探测结果.xml
 exportTemplateId: tpl-svmp-phase-live
 displayName: 主机存活探测
 match:
@@ -12,56 +12,56 @@ trigger:
   on: TASK_COMPLETED
 fields:
   - target: assetKey
-    source: assetKey  # 扫描目标对应资产 库资产 IP
+    source: assetKey
   - target: assetName
-    source: assetName  # 对应的 TVM 资产管 理中的资产 名称
+    source: assetName
   - target: baseInfo
-    source: baseInfo  # 任务基础信息
+    source: baseInfo
   - target: device
-    source: device  # 任务设备信息 {
+    source: device
   - target: execType
-    source: execType  # 执行方式
+    source: execType
   - target: hostCount
-    source: hostCount  # 任务存活目标 数
+    source: hostCount
   - target: icmp
-    source: icmp  # 是否开启 ICM P PING
+    source: icmp
   - target: id
-    source: id  # 任务策略 ID
+    source: id
   - target: ipType
-    source: ipType  # IP 类型（ IPv4/IPv6 /URL ）
+    source: ipType
   - target: live
-    source: live  # 是否开启主机 存活测试
+    source: live
   - target: liveArp
-    source: liveArp  # 口令猜测配置
+    source: liveArp
   - target: liveCheck
-    source: liveCheck  # 存活探测配置
+    source: liveCheck
   - target: os
-    source: os  # 操作系统
+    source: os
   - target: ports
-    source: ports  # TCP PING 端口范围
+    source: ports
   - target: product
-    source: product  # 任务涉及设备 型号
+    source: product
   - target: scanInfo
     source: scanInfo
   - target: scanTimes
-    source: scanTimes  # 扫描次数
+    source: scanTimes
   - target: source
-    source: source  # 数据来源
+    source: source
   - target: status
-    source: status  # 当前风险同步状态
+    source: status
   - target: summary
-    source: summary  # 综述信息
+    source: summary
   - target: target
-    source: target  # 扫描目标信息
+    source: target
   - target: taskCount
-    source: taskCount  # 策略已执行任 务数量
+    source: taskCount
   - target: taskSource
     source: taskSource
   - target: taskStatus
     source: taskStatus
   - target: taskType
-    source: taskType  # 任务类型
+    source: taskType
   - target: taskUuid
-    source: taskUuid  # 扫描目标所在子任 务 UUID
+    source: taskUuid
   - target: tcp
-    source: tcp  # 是否开启 TCP PING
+    source: tcp

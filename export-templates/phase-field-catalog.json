@@ -432,7 +432,7 @@
     },
     "vuln": {
       "fileName": "系统漏洞扫描结果.xml",
-      "rootElement": "SystemVulnScanResult",
+      "rootElement": "aurora",
       "displayName": "系统漏洞扫描",
       "capability": "vulnScan",
       "legacyTxt": [
@@ -440,281 +440,303 @@
         "asset_vuls.txt"
       ],
       "phaseId": "vuln",
-      "fieldCount": 42,
+      "fieldCount": 26,
       "fields": [
-        {
-          "name": "alertMsg",
-          "source": "alertMsg",
-          "description": "",
-          "fromSection": "口令猜测 任务"
-        },
-        {
-          "name": "assetKey",
-          "source": "assetKey",
-          "description": "扫描目标对应资产 库资产 IP",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "assetName",
-          "source": "assetName",
-          "description": "对应的 TVM 资产管 理中的资产 名称",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "baseInfo",
-          "source": "baseInfo",
-          "description": "任务基础信息",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "cnvd",
-          "source": "cnvd",
-          "description": "漏洞 cn vd",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "cve",
-          "source": "cve",
-          "description": "漏洞 cve",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "cvss",
-          "source": "cvss",
-          "description": "漏洞 CVSS",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "debug",
-          "source": "debug",
-          "description": "调试模式",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "device",
-          "source": "device",
-          "description": "任务设备信息 {",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "encoding",
-          "source": "encoding",
-          "description": "",
-          "fromSection": "口令猜测 任务"
-        },
-        {
-          "name": "execType",
-          "source": "execType",
-          "description": "执行方式",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
         {
           "name": "hostCount",
           "source": "hostCount",
-          "description": "任务存活目标 数",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "id",
-          "source": "id",
-          "description": "任务策略 ID",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "ipType",
-          "source": "ipType",
-          "description": "IP 类型（ IPv4/IPv6 /URL ）",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "name",
-          "source": "name",
-          "description": "漏洞 名称",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "oracle",
-          "source": "oracle",
-          "description": "是否启用 Ora cle 漏洞深度扫描",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "others",
-          "source": "others",
-          "description": "漏洞描述",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "product",
-          "source": "product",
-          "description": "任务涉及设备 型号",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "riskLevel",
-          "source": "riskLevel",
-          "description": "风险等级",
-          "fromSection": "主机扫描"
+          "auroraPath": "aurora/report/scanned_ip_count",
+          "xmlPath": "report/scanned_ip_count"
         },
         {
           "name": "riskValue",
           "source": "riskValue",
-          "description": "风险值",
-          "fromSection": "主机扫描"
+          "auroraPath": "aurora/report/targets/target/host_score",
+          "xmlPath": "report/targets/target/host_score"
         },
         {
-          "name": "scanInfo",
-          "source": "scanInfo",
-          "description": "",
-          "fromSection": "口令猜测 任务",
-          "scope": "taskMeta"
+          "name": "assetKey",
+          "source": "assetKey",
+          "auroraPath": "aurora/report/targets/target/ip",
+          "xmlPath": "report/targets/target/ip"
         },
         {
-          "name": "scanTimes",
-          "source": "scanTimes",
-          "description": "扫描次数",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
+          "name": "riskValue",
+          "source": "riskValue",
+          "auroraPath": "aurora/report/targets/target/vul_score",
+          "xmlPath": "report/targets/target/vul_score"
         },
         {
-          "name": "scanpri",
-          "source": "scanpri",
-          "description": "",
-          "fromSection": "口令猜测 任务"
+          "name": "cnvd",
+          "source": "cnvd",
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/cncve",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/cncve"
         },
         {
-          "name": "source",
-          "source": "source",
-          "description": "数据来源",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
+          "name": "cnvd",
+          "source": "cnvd",
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/cnnvd",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/cnnvd"
         },
         {
-          "name": "status",
-          "source": "status",
-          "description": "当前风险同步状态",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "summary",
-          "source": "summary",
-          "description": "综述信息",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
+          "name": "cve",
+          "source": "cve",
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/cve_id",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/cve_id"
         },
         {
           "name": "syncTime",
           "source": "syncTime",
-          "description": "风险同步时间",
-          "fromSection": "主机扫描"
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/date_found",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/date_found"
         },
         {
-          "name": "sysScan",
-          "source": "sysScan",
-          "description": "系统配置",
-          "fromSection": "主机扫描"
+          "name": "others",
+          "source": "others",
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/description",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/description"
         },
         {
-          "name": "target",
-          "source": "target",
-          "description": "扫描目标信息",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "taskCount",
-          "source": "taskCount",
-          "description": "策略已执行任 务数量",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "taskSource",
-          "source": "taskSource",
-          "description": "",
-          "fromSection": "口令猜测 任务",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "taskStatus",
-          "source": "taskStatus",
-          "description": "",
-          "fromSection": "口令猜测 任务",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "taskType",
-          "source": "taskType",
-          "description": "任务类型",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "taskUuid",
-          "source": "taskUuid",
-          "description": "扫描目标所在子任 务 UUID",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "times",
-          "source": "times",
-          "description": "漏洞出现次数 } 4.asset_ vuls.txt 任务扫描目标与漏洞关联信息 也就是 处置单 / 系统漏洞信息 文件内容及含义 {",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "urls",
-          "source": "urls",
-          "description": "漏洞发 现的 url {",
-          "fromSection": "网站扫描任务"
-        },
-        {
-          "name": "vUrl",
-          "source": "vUrl",
-          "description": "请求 url",
-          "fromSection": "网站扫描任务"
-        },
-        {
-          "name": "vendor",
-          "source": "vendor",
-          "description": "漏洞厂商",
-          "fromSection": "网站扫描任务"
+          "name": "name",
+          "source": "name",
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/name",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/name"
         },
         {
           "name": "vulLocalId",
           "source": "vulLocalId",
-          "description": "漏洞 名称",
-          "fromSection": "主机扫描"
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/plugin_id",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/plugin_id"
         },
         {
-          "name": "vulTarget",
-          "source": "vulTarget",
-          "description": "主机漏洞影响端口 / 网站漏洞影响目 标 URL",
-          "fromSection": "数据外发处置单 ( 系统漏洞 )"
+          "name": "cvss",
+          "source": "cvss",
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/risk_points",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/risk_points"
         },
         {
-          "name": "vulnId",
-          "source": "vulnId",
-          "description": "漏洞 ID",
-          "fromSection": "网站扫描任务"
+          "name": "others",
+          "source": "others",
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/solution",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/solution"
         },
         {
-          "name": "workflow",
-          "source": "workflow",
-          "description": "处置单 ID",
-          "fromSection": "数据外发处置单 ( 系统漏洞 )"
+          "name": "others",
+          "source": "others",
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/threat_category",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/threat_category"
+        },
+        {
+          "name": "vulLocalId",
+          "source": "vulLocalId",
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/vul_id",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/vul_id"
+        },
+        {
+          "name": "others",
+          "source": "others",
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/mess_string",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/mess_string"
+        },
+        {
+          "name": "port",
+          "source": "port",
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/port",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/port"
+        },
+        {
+          "name": "protocol",
+          "source": "protocol",
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/protocol",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/protocol"
+        },
+        {
+          "name": "service",
+          "source": "service",
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/service",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/service"
+        },
+        {
+          "name": "status",
+          "source": "status",
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/vul_confirmed",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/vul_confirmed"
+        },
+        {
+          "name": "vulLocalId",
+          "source": "vulLocalId",
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/vul_id",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/vul_id"
+        },
+        {
+          "name": "id",
+          "source": "id",
+          "auroraPath": "aurora/report/task/id",
+          "xmlPath": "report/task/id"
+        },
+        {
+          "name": "baseInfo",
+          "source": "baseInfo",
+          "auroraPath": "aurora/report/task/name",
+          "xmlPath": "report/task/name"
+        },
+        {
+          "name": "taskType",
+          "source": "taskType",
+          "auroraPath": "aurora/report/task/task_type",
+          "xmlPath": "report/task/task_type"
+        },
+        {
+          "name": "syncTime",
+          "source": "syncTime",
+          "auroraPath": "aurora/report/task/time_end_scan",
+          "xmlPath": "report/task/time_end_scan"
+        },
+        {
+          "name": "scanTimes",
+          "source": "scanTimes",
+          "auroraPath": "aurora/report/task/time_start_scan",
+          "xmlPath": "report/task/time_start_scan"
+        }
+      ],
+      "format": "aurora",
+      "officialSample": "系统漏洞扫描结果.xml",
+      "fieldMappings": [
+        {
+          "auroraPath": "aurora/report/scanned_ip_count",
+          "source": "hostCount",
+          "xmlPath": "report/scanned_ip_count"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/host_score",
+          "source": "riskValue",
+          "xmlPath": "report/targets/target/host_score"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/ip",
+          "source": "assetKey",
+          "xmlPath": "report/targets/target/ip"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vul_score",
+          "source": "riskValue",
+          "xmlPath": "report/targets/target/vul_score"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/cncve",
+          "source": "cnvd",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/cncve"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/cnnvd",
+          "source": "cnvd",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/cnnvd"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/cve_id",
+          "source": "cve",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/cve_id"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/date_found",
+          "source": "syncTime",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/date_found"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/description",
+          "source": "others",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/description"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/name",
+          "source": "name",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/name"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/plugin_id",
+          "source": "vulLocalId",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/plugin_id"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/risk_points",
+          "source": "cvss",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/risk_points"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/solution",
+          "source": "others",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/solution"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/threat_category",
+          "source": "others",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/threat_category"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/vul_id",
+          "source": "vulLocalId",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/vul_id"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/mess_string",
+          "source": "others",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/mess_string"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/port",
+          "source": "port",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/port"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/protocol",
+          "source": "protocol",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/protocol"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/service",
+          "source": "service",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/service"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/vul_confirmed",
+          "source": "status",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/vul_confirmed"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/vul_id",
+          "source": "vulLocalId",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/vul_id"
+        },
+        {
+          "auroraPath": "aurora/report/task/id",
+          "source": "id",
+          "xmlPath": "report/task/id"
+        },
+        {
+          "auroraPath": "aurora/report/task/name",
+          "source": "baseInfo",
+          "xmlPath": "report/task/name"
+        },
+        {
+          "auroraPath": "aurora/report/task/task_type",
+          "source": "taskType",
+          "xmlPath": "report/task/task_type"
+        },
+        {
+          "auroraPath": "aurora/report/task/time_end_scan",
+          "source": "syncTime",
+          "xmlPath": "report/task/time_end_scan"
+        },
+        {
+          "auroraPath": "aurora/report/task/time_start_scan",
+          "source": "scanTimes",
+          "xmlPath": "report/task/time_start_scan"
         }
       ]
     },
     "weakpwd": {
       "fileName": "弱口令扫描结果.xml",
-      "rootElement": "WeakPasswordScanResult",
+      "rootElement": "aurora",
       "displayName": "弱口令扫描",
       "capability": "weakPasswordScan",
       "legacyTxt": [
@@ -723,215 +745,121 @@
         "asset_info.txt"
       ],
       "phaseId": "weakpwd",
-      "fieldCount": 32,
+      "fieldCount": 10,
       "fields": [
         {
           "name": "assetKey",
           "source": "assetKey",
-          "description": "扫描目标对应资产 库资产 IP",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "assetName",
-          "source": "assetName",
-          "description": "对应的 TVM 资产管 理中的资产 名称",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "asset_pwds",
-          "source": "asset_pwds",
-          "description": "弱口令信息 {",
-          "fromSection": "口令猜测 任务"
-        },
-        {
-          "name": "baseInfo",
-          "source": "baseInfo",
-          "description": "任务基础信息",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "count",
-          "source": "count",
-          "description": "猜测次数",
-          "fromSection": "口令猜测 任务"
-        },
-        {
-          "name": "device",
-          "source": "device",
-          "description": "任务设备信息 {",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "execType",
-          "source": "execType",
-          "description": "执行方式",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "hostCount",
-          "source": "hostCount",
-          "description": "任务存活目标 数",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "id",
-          "source": "id",
-          "description": "任务策略 ID",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "interval",
-          "source": "interval",
-          "description": "口令猜测频率 （秒）",
-          "fromSection": "口令猜测 任务"
-        },
-        {
-          "name": "ipType",
-          "source": "ipType",
-          "description": "IP 类型（ IPv4/IPv6 /URL ）",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "isSystem",
-          "source": "isSystem",
-          "description": "是否系统弱口令 }],",
-          "fromSection": "数据外发处置单 ( 系统漏洞 )"
-        },
-        {
-          "name": "os",
-          "source": "os",
-          "description": "操作系统",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "other_info",
-          "source": "other_info",
-          "description": "",
-          "fromSection": "口令猜测 任务"
+          "auroraPath": "aurora/report/targets/target/ip",
+          "xmlPath": "report/targets/target/ip"
         },
         {
           "name": "password",
           "source": "password",
-          "description": "弱口令密码",
-          "fromSection": "数据外发处置单 ( 系统漏洞 )"
+          "auroraPath": "aurora/report/targets/target/password_results/password_result/password",
+          "xmlPath": "report/targets/target/password_results/password_result/password"
         },
         {
-          "name": "product",
-          "source": "product",
-          "description": "任务涉及设备 型号",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "pswdGuess",
-          "source": "pswdGuess",
-          "description": "口令猜测配置",
-          "fromSection": "口令猜测 任务"
-        },
-        {
-          "name": "scanInfo",
-          "source": "scanInfo",
-          "description": "",
-          "fromSection": "口令猜测 任务",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "scanTimes",
-          "source": "scanTimes",
-          "description": "扫描次数",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "source",
-          "source": "source",
-          "description": "数据来源",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "status",
-          "source": "status",
-          "description": "当前风险同步状态",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "summary",
-          "source": "summary",
-          "description": "综述信息",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "target",
-          "source": "target",
-          "description": "扫描目标信息",
-          "fromSection": "主机扫描"
-        },
-        {
-          "name": "taskCount",
-          "source": "taskCount",
-          "description": "策略已执行任 务数量",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "taskSource",
-          "source": "taskSource",
-          "description": "",
-          "fromSection": "口令猜测 任务",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "taskStatus",
-          "source": "taskStatus",
-          "description": "",
-          "fromSection": "口令猜测 任务",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "taskType",
-          "source": "taskType",
-          "description": "任务类型",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "taskUuid",
-          "source": "taskUuid",
-          "description": "扫描目标所在子任 务 UUID",
-          "fromSection": "主机扫描",
-          "scope": "taskMeta"
-        },
-        {
-          "name": "thread",
-          "source": "thread",
-          "description": "最大并发线程 数",
-          "fromSection": "口令猜测 任务"
-        },
-        {
-          "name": "timeout",
-          "source": "timeout",
-          "description": "口令猜测时间 （分钟）",
-          "fromSection": "口令猜测 任务"
+          "name": "service",
+          "source": "service",
+          "auroraPath": "aurora/report/targets/target/password_results/password_result/type",
+          "xmlPath": "report/targets/target/password_results/password_result/type"
         },
         {
           "name": "userName",
           "source": "userName",
-          "description": "弱口令用户名",
-          "fromSection": "数据外发处置单 ( 系统漏洞 )"
+          "auroraPath": "aurora/report/targets/target/password_results/password_result/username",
+          "xmlPath": "report/targets/target/password_results/password_result/username"
+        },
+        {
+          "name": "name",
+          "source": "name",
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/name",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/name"
         },
         {
           "name": "weakAccountInfo",
           "source": "weakAccountInfo",
-          "description": "弱口令信息 {",
-          "fromSection": "数据外发处置单 ( 系统漏洞 )"
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/mess_string",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/mess_string"
+        },
+        {
+          "name": "port",
+          "source": "port",
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/port",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/port"
+        },
+        {
+          "name": "vulLocalId",
+          "source": "vulLocalId",
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/vul_id",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/vul_id"
+        },
+        {
+          "name": "id",
+          "source": "id",
+          "auroraPath": "aurora/report/task/id",
+          "xmlPath": "report/task/id"
+        },
+        {
+          "name": "taskType",
+          "source": "taskType",
+          "auroraPath": "aurora/report/task/task_type",
+          "xmlPath": "report/task/task_type"
+        }
+      ],
+      "format": "aurora",
+      "officialSample": "弱口令扫描结果.xml",
+      "fieldMappings": [
+        {
+          "auroraPath": "aurora/report/targets/target/ip",
+          "source": "assetKey",
+          "xmlPath": "report/targets/target/ip"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/password_results/password_result/password",
+          "source": "password",
+          "xmlPath": "report/targets/target/password_results/password_result/password"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/password_results/password_result/type",
+          "source": "service",
+          "xmlPath": "report/targets/target/password_results/password_result/type"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/password_results/password_result/username",
+          "source": "userName",
+          "xmlPath": "report/targets/target/password_results/password_result/username"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_detail/vuln/name",
+          "source": "name",
+          "xmlPath": "report/targets/target/vuln_detail/vuln/name"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/mess_string",
+          "source": "weakAccountInfo",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/mess_string"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/port",
+          "source": "port",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/port"
+        },
+        {
+          "auroraPath": "aurora/report/targets/target/vuln_scanned/vuln/vul_id",
+          "source": "vulLocalId",
+          "xmlPath": "report/targets/target/vuln_scanned/vuln/vul_id"
+        },
+        {
+          "auroraPath": "aurora/report/task/id",
+          "source": "id",
+          "xmlPath": "report/task/id"
+        },
+        {
+          "auroraPath": "aurora/report/task/task_type",
+          "source": "taskType",
+          "xmlPath": "report/task/task_type"
         }
       ]
     }

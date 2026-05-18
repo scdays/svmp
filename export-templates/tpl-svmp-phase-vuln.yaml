@@ -1,97 +1,68 @@
-# 单阶段：系统漏洞扫描 → 系统漏洞扫描结果.xml
+# 系统漏洞扫描 → 系统漏洞扫描结果.xml
 exportTemplateId: tpl-svmp-phase-vuln
 displayName: 系统漏洞扫描
 match:
   capability: vulnScan
+  engineXmlFormat: aurora
+  officialSample: 系统漏洞扫描结果.xml
 output:
   format: SVMP-XML
   encoding: UTF-8
   fileName: 系统漏洞扫描结果.xml
-  rootElement: SystemVulnScanResult
+  rootElement: aurora
+  # 绿盟 Aurora：aurora/data/report/targets/...
 trigger:
   on: TASK_COMPLETED
 fields:
-  - target: alertMsg
-    source: alertMsg
-  - target: assetKey
-    source: assetKey  # 扫描目标对应资产 库资产 IP
-  - target: assetName
-    source: assetName  # 对应的 TVM 资产管 理中的资产 名称
-  - target: baseInfo
-    source: baseInfo  # 任务基础信息
-  - target: cnvd
-    source: cnvd  # 漏洞 cn vd
-  - target: cve
-    source: cve  # 漏洞 cve
-  - target: cvss
-    source: cvss  # 漏洞 CVSS
-  - target: debug
-    source: debug  # 调试模式
-  - target: device
-    source: device  # 任务设备信息 {
-  - target: encoding
-    source: encoding
-  - target: execType
-    source: execType  # 执行方式
   - target: hostCount
-    source: hostCount  # 任务存活目标 数
-  - target: id
-    source: id  # 任务策略 ID
-  - target: ipType
-    source: ipType  # IP 类型（ IPv4/IPv6 /URL ）
-  - target: name
-    source: name  # 漏洞 名称
-  - target: oracle
-    source: oracle  # 是否启用 Ora cle 漏洞深度扫描
-  - target: others
-    source: others  # 漏洞描述
-  - target: product
-    source: product  # 任务涉及设备 型号
-  - target: riskLevel
-    source: riskLevel  # 风险等级
+    source: hostCount  # aurora/report/scanned_ip_count
   - target: riskValue
-    source: riskValue  # 风险值
-  - target: scanInfo
-    source: scanInfo
-  - target: scanTimes
-    source: scanTimes  # 扫描次数
-  - target: scanpri
-    source: scanpri
-  - target: source
-    source: source  # 数据来源
-  - target: status
-    source: status  # 当前风险同步状态
-  - target: summary
-    source: summary  # 综述信息
+    source: riskValue  # aurora/report/targets/target/host_score
+  - target: assetKey
+    source: assetKey  # aurora/report/targets/target/ip
+  - target: riskValue
+    source: riskValue  # aurora/report/targets/target/vul_score
+  - target: cnvd
+    source: cnvd  # aurora/report/targets/target/vuln_detail/vuln/cncve
+  - target: cnvd
+    source: cnvd  # aurora/report/targets/target/vuln_detail/vuln/cnnvd
+  - target: cve
+    source: cve  # aurora/report/targets/target/vuln_detail/vuln/cve_id
   - target: syncTime
-    source: syncTime  # 风险同步时间
-  - target: sysScan
-    source: sysScan  # 系统配置
-  - target: target
-    source: target  # 扫描目标信息
-  - target: taskCount
-    source: taskCount  # 策略已执行任 务数量
-  - target: taskSource
-    source: taskSource
-  - target: taskStatus
-    source: taskStatus
-  - target: taskType
-    source: taskType  # 任务类型
-  - target: taskUuid
-    source: taskUuid  # 扫描目标所在子任 务 UUID
-  - target: times
-    source: times  # 漏洞出现次数 } 4.asset_ vuls.txt 任务扫描目标与漏洞关联信息 也就是 处置单 / 系统漏洞信息 文件内容及含义 {
-  - target: urls
-    source: urls  # 漏洞发 现的 url {
-  - target: vUrl
-    source: vUrl  # 请求 url
-  - target: vendor
-    source: vendor  # 漏洞厂商
+    source: syncTime  # aurora/report/targets/target/vuln_detail/vuln/date_found
+  - target: others
+    source: others  # aurora/report/targets/target/vuln_detail/vuln/description
+  - target: name
+    source: name  # aurora/report/targets/target/vuln_detail/vuln/name
   - target: vulLocalId
-    source: vulLocalId  # 漏洞 名称
-  - target: vulTarget
-    source: vulTarget  # 主机漏洞影响端口 / 网站漏洞影响目 标 URL
-  - target: vulnId
-    source: vulnId  # 漏洞 ID
-  - target: workflow
-    source: workflow  # 处置单 ID
+    source: vulLocalId  # aurora/report/targets/target/vuln_detail/vuln/plugin_id
+  - target: cvss
+    source: cvss  # aurora/report/targets/target/vuln_detail/vuln/risk_points
+  - target: others
+    source: others  # aurora/report/targets/target/vuln_detail/vuln/solution
+  - target: others
+    source: others  # aurora/report/targets/target/vuln_detail/vuln/threat_category
+  - target: vulLocalId
+    source: vulLocalId  # aurora/report/targets/target/vuln_detail/vuln/vul_id
+  - target: others
+    source: others  # aurora/report/targets/target/vuln_scanned/vuln/mess_string
+  - target: port
+    source: port  # aurora/report/targets/target/vuln_scanned/vuln/port
+  - target: protocol
+    source: protocol  # aurora/report/targets/target/vuln_scanned/vuln/protocol
+  - target: service
+    source: service  # aurora/report/targets/target/vuln_scanned/vuln/service
+  - target: status
+    source: status  # aurora/report/targets/target/vuln_scanned/vuln/vul_confirmed
+  - target: vulLocalId
+    source: vulLocalId  # aurora/report/targets/target/vuln_scanned/vuln/vul_id
+  - target: id
+    source: id  # aurora/report/task/id
+  - target: baseInfo
+    source: baseInfo  # aurora/report/task/name
+  - target: taskType
+    source: taskType  # aurora/report/task/task_type
+  - target: syncTime
+    source: syncTime  # aurora/report/task/time_end_scan
+  - target: scanTimes
+    source: scanTimes  # aurora/report/task/time_start_scan
