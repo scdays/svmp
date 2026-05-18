@@ -2,11 +2,17 @@
 
 本仓库存放漏洞管理平台与外部系统对接的设计文档（草稿）。
 
+## 第三方接口文档
+
+| 文件 | 说明 |
+|------|------|
+| [**docs/第三方开放平台接口文档.md**](./docs/第三方开放平台接口文档.md) | **提供给第三方的接口说明**（REST、Webhook、四阶段 XML 外发） |
+
 ## OpenAPI
 
 | 文件 | 说明 |
 |------|------|
-| [openapi/v1/openapi.yaml](./openapi/v1/openapi.yaml) | 开放平台 API **3.1**（V2.2.9：含 `verify-fix` / `verify-fix:batch`） |
+| [openapi/v1/openapi.yaml](./openapi/v1/openapi.yaml) | 开放平台 API **3.1**（V2.3.3：含外发下载、`verify-fix`） |
 
 本地预览（需安装 [Swagger UI](https://github.com/swagger-api/swagger-ui) 或 Redoc）：
 
@@ -24,7 +30,7 @@ python3 tools/parse_export_fields_html.py export-templates/数据外发字段说
 
 | 文档 | 版本 | 说明 |
 |------|------|------|
-| [漏洞管理平台对外集成能力设计方案-V2.0.md](./漏洞管理平台对外集成能力设计方案-V2.0.md) | **V2.3.0（当前）** | §十二 **任务结束数据外发**（按 scanTemplate 多格式） |
+| [漏洞管理平台对外集成能力设计方案-V2.0.md](./漏洞管理平台对外集成能力设计方案-V2.0.md) | **V2.3.3（当前）** | 内部设计；第三方请阅 `docs/第三方开放平台接口文档.md` |
 | [export-templates/](./export-templates/) | — | 外发模板 YAML + HTML 字段解析说明 |
 | [基础电信企业安全漏洞管理平台接口示例2025-V2.2.docx](./基础电信企业安全漏洞管理平台接口示例2025-V2.2.docx) | V2.2 | 部侧接口示例原文（**接口3 说明**为工单入站设计依据） |
 

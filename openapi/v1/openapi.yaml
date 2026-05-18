@@ -1,11 +1,12 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 2.2.9
+  version: 2.3.3
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
-    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.2.9（§5.9 修复核验 verify-fix）
+    - 第三方可读文档：[`docs/第三方开放平台接口文档.md`](../docs/第三方开放平台接口文档.md)
+    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.3.3
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
     - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
@@ -43,6 +44,8 @@ tags:
     description: 扫描/排查任务
   - name: instances
     description: 漏洞实例查询与生命周期
+  - name: exports
+    description: 任务结束数据外发查询与下载
   - name: webhooks
     description: 平台 → Partner 回调（由 Partner 实现接收端）
 
@@ -711,6 +714,112 @@ paths:
                       data:
                         $ref: '#/components/schemas/VerifyFixInstanceBatchResult'
 
+  /exports/{exportId}:
+    get:
+      tags: [exports]
+      operationId: getExport
+      summary: 查询外发包元数据
+      description: 需能力 `EXPORT_READ`。任务结束后由 Export Orchestrator 生成。
+      parameters:
+        - name: exportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ExportRecord'
+              examples:
+                ready:
+                  summary: 外发就绪
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260518-e001
+                    data:
+                      exportId: EXP-20260518-7f3a
+                      taskId: TASK-7f3a2b1c
+                      extTaskId: EXT-TASK-2026-0001
+                      exportTemplateId: tpl-svmp-xml-scan-bundle
+                      format: SVMP-TAR-GZ-XML
+                      status: READY
+                      recordCount: 128
+                      expiresAt: '2026-05-25T14:05:00Z'
+                      createdAt: '2026-05-18T14:05:00Z'
+
+  /exports/{exportId}/download:
+    get:
+      tags: [exports]
+      operationId: downloadExport
+      summary: 下载外发文件
+      description: |
+        需能力 `EXPORT_READ`。返回 tar.gz / json 等，Content-Type 依 format 而定。
+        亦可使用 Webhook `EXPORT_READY` 中的短期 `downloadUrl`。
+      parameters:
+        - name: exportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 外发文件流
+          content:
+            application/gzip:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /tasks/{taskId}/exports:
+    get:
+      tags: [exports]
+      operationId: listTaskExports
+      summary: 查询任务下的外发记录
+      description: 需能力 `EXPORT_READ`。
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          page:
+                            type: integer
+                          size:
+                            type: integer
+                          total:
+                            type: integer
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ExportRecord'
+
   /instances/{vulInfoID}/unfixable-records:
     post:
       tags: [instances]
@@ -807,6 +916,21 @@ webhooks:
                     vulInfoID: VI-20260517-0002
                     vulInfoStat: 6
                     previousVulInfoStat: 5
+              exportReady:
+                summary: 外发包就绪
+                value:
+                  eventId: evt-20260518-0002
+                  eventType: EXPORT_READY
+                  occurredAt: '2026-05-18T14:05:00Z'
+                  partnerId: partner-demo-01
+                  payload:
+                    exportId: EXP-20260518-7f3a
+                    taskId: TASK-7f3a2b1c
+                    extTaskId: EXT-TASK-2026-0001
+                    exportTemplateId: tpl-svmp-xml-scan-bundle
+                    format: SVMP-TAR-GZ-XML
+                    recordCount: 128
+                    downloadUrl: https://vuln-platform.example.com/download/EXP-20260518-7f3a
       responses:
         '200':
           description: Partner 接收成功（建议 body `{"received":true}`）
@@ -1026,6 +1150,11 @@ components:
         scanTemplateId:
           type: integer
           description: 引擎扫描模板 ID
+        exportTemplateId:
+          type: string
+          description: |
+            任务结束外发模板 ID（如 tpl-svmp-xml-scan-bundle）。
+            缺省按 scanTemplateId 与能力匹配规则选择。
         priority:
           $ref: '#/components/schemas/TaskPriority'
         scheduleTime:
@@ -1487,6 +1616,62 @@ components:
         previousVulInfoStat:
           $ref: '#/components/schemas/VulInfoStat'
 
+    ExportReadyPayload:
+      type: object
+      required: [exportId, taskId, format]
+      properties:
+        exportId:
+          type: string
+        taskId:
+          type: string
+        extTaskId:
+          type: string
+        exportTemplateId:
+          type: string
+        format:
+          type: string
+          enum:
+            - JSON
+            - CSV
+            - SVMP-TAR-GZ-XML
+            - SVMP-TAR-GZ
+            - MIIT-2025-VULINFOLST
+        recordCount:
+          type: integer
+        downloadUrl:
+          type: string
+          format: uri
+          description: 可选预签名下载 URL（短期有效）
+
+    ExportRecord:
+      type: object
+      required: [exportId, taskId, format, status]
+      properties:
+        exportId:
+          type: string
+        taskId:
+          type: string
+        extTaskId:
+          type: string
+        exportTemplateId:
+          type: string
+        format:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, READY, EXPIRED, FAILED]
+        recordCount:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        downloadUrl:
+          type: string
+          format: uri
+
     PlatformWebhookEvent:
       type: object
       required: [eventId, eventType, occurredAt, partnerId, payload]
@@ -1504,4 +1689,5 @@ components:
           oneOf:
             - $ref: '#/components/schemas/TaskCompletedPayload'
             - $ref: '#/components/schemas/InstanceEventPayload'
+            - $ref: '#/components/schemas/ExportReadyPayload'
           description: 结构随 eventType 变化
