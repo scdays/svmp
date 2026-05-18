@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 2.2.6
+  version: 2.2.7
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
-    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.2.3
+    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.2.7（§五含各接口请求/响应示例）
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
     - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
@@ -69,13 +69,21 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateTaskRequest'
             examples:
-              minimal:
+              createTask:
+                summary: 创建扫描任务（完整参数）
                 value:
-                  extTaskId: EXT-2026-0001
-                  taskName: 季度系统漏洞排查
-                  targets: ['10.0.0.1', '10.0.0.2']
+                  extTaskId: EXT-TASK-2026-0001
+                  taskName: 2026Q2-核心业务系统排查
+                  targets: ['10.10.1.1', '10.10.1.2']
                   targetType: IPV4
                   vulnType: 1
+                  callbackUrl: https://partner.example.com/hooks/vuln
+                  scanTemplateId: 10086
+                  priority: HIGH
+                  options:
+                    portScope: '1-65535'
+                    isLiveProbe: true
+                    pswdGuessEnabled: false
       responses:
         '200':
           description: 业务响应（检查 body.code）
@@ -88,6 +96,29 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/CreateTaskResponse'
+              examples:
+                success:
+                  summary: 创建成功
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-t001
+                    data:
+                      extTaskId: EXT-TASK-2026-0001
+                      taskId: TASK-7f3a2b1c
+                      status: ACCEPTED
+                      createdAt: '2026-05-17T08:00:00Z'
+                idempotentConflict:
+                  summary: extTaskId 幂等重复（40901，仍返回已有 taskId）
+                  value:
+                    code: 40901
+                    message: extTaskId 已存在
+                    requestId: req-20260517-t002
+                    data:
+                      extTaskId: EXT-TASK-2026-0001
+                      taskId: TASK-7f3a2b1c
+                      status: ACCEPTED
+                      createdAt: '2026-05-17T08:00:00Z'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -135,6 +166,27 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/TaskListPage'
+              examples:
+                success:
+                  summary: 任务列表（items 必含 taskId）
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-t020
+                    data:
+                      page: 1
+                      size: 20
+                      total: 1
+                      items:
+                        - taskId: TASK-7f3a2b1c
+                          extTaskId: EXT-TASK-2026-0001
+                          taskName: 2026Q2-核心业务系统排查
+                          status: FINISHED
+                          progress: 100
+                          startedAt: '2026-05-17T08:00:05Z'
+                          finishedAt: '2026-05-17T10:30:00Z'
+                          errorMessage: null
+                          createdAt: '2026-05-17T08:00:00Z'
 
   /tasks/{taskId}:
     get:
@@ -158,6 +210,21 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/TaskProgress'
+              examples:
+                running:
+                  summary: 任务执行中
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-t010
+                    data:
+                      extTaskId: EXT-TASK-2026-0001
+                      taskId: TASK-7f3a2b1c
+                      status: RUNNING
+                      progress: 65
+                      startedAt: '2026-05-17T08:00:05Z'
+                      finishedAt: null
+                      errorMessage: null
 
   /instances/search:
     post:
@@ -179,6 +246,15 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/InstanceSearchRequest'
+            examples:
+              byTaskId:
+                summary: 按 taskId 检索实例
+                value:
+                  taskId: TASK-7f3a2b1c
+                  vulInfoStatList: [1, 2]
+                  vulLevelList: [3, 4]
+                  page: 1
+                  size: 50
       responses:
         '200':
           description: 业务响应
@@ -191,6 +267,46 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/InstanceListPage'
+              examples:
+                success:
+                  summary: 实例列表
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-i001
+                    data:
+                      page: 1
+                      size: 50
+                      total: 2
+                      items:
+                        - vulInfoID: VI-20260517-0001
+                          vulID: MVM-2019-1696145560773468160
+                          vulInfoStat: 1
+                          lvRsn: null
+                          vulName: OpenSSL 心脏出血漏洞
+                          vulLevel: 4
+                          orgVulId: CVE-2014-0160
+                          vulNetAddr: 10.10.1.1
+                          vulPort: 443
+                          vulSvc: https
+                          isAccess: 0
+                          transferTime: '1747468800'
+                          vulnDisposalId: DISP-90001
+                          extVulnRef: null
+                        - vulInfoID: VI-20260517-0002
+                          vulID: MVM-2019-1696145560773468161
+                          vulInfoStat: 2
+                          lvRsn: null
+                          vulName: 弱口令
+                          vulLevel: 3
+                          orgVulId: null
+                          vulNetAddr: 10.10.1.2
+                          vulPort: 22
+                          vulSvc: ssh
+                          isAccess: 0
+                          transferTime: '1747472400'
+                          vulnDisposalId: DISP-90002
+                          extVulnRef: null
 
   /instances/{vulInfoID}:
     get:
@@ -200,11 +316,6 @@ paths:
       description: 返回表34 相关字段（`vulName`、`vulNetAddr`、`remedDesc` 等）及备案扩展字段。
       parameters:
         - $ref: '#/components/parameters/VulInstanceId'
-        - name: extTaskId
-          in: query
-          schema:
-            type: string
-          description: 可选，关联任务过滤上下文
       responses:
         '200':
           description: 业务响应
@@ -217,6 +328,35 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/VulInfoDetail'
+              examples:
+                success:
+                  summary: 实例详情
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-i010
+                    data:
+                      vulInfoID: VI-20260517-0002
+                      vulID: MVM-2019-1696145560773468161
+                      vulInfoStat: 2
+                      lvRsn: null
+                      vulName: 弱口令
+                      vulLevel: 3
+                      orgVulId: null
+                      vulNetAddr: 10.10.1.2
+                      vulPort: 22
+                      vulSvc: ssh
+                      isAccess: 0
+                      transferTime: '1747472400'
+                      vulnDisposalId: DISP-90002
+                      assetID: AST-10002
+                      assetName: 核心跳板机
+                      vulInstCpe: 'cpe:2.3:a:openssh:openssh:8.0:*:*:*:*:*:*:*'
+                      remedDesc: null
+                      fixLnk: null
+                      srcMethod: null
+                      archiveReason: null
+                      provincialFields: null
 
   /instances/{vulInfoID}/verify:
     post:
@@ -236,6 +376,21 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/VerifyInstanceRequest'
+            examples:
+              valid:
+                summary: 验证有效（需 srcMethod）
+                value:
+                  verifyResult: VALID
+                  srcMethod: 1021
+                  operator: sec-analyst@corp.com
+                  transferTime: '1747476000'
+                  remark: POC 复核通过
+              falsePositive:
+                summary: 验证误报
+                value:
+                  verifyResult: FALSE_POSITIVE
+                  operator: sec-analyst@corp.com
+                  remark: 扫描策略误报
       responses:
         '200':
           description: 业务响应
@@ -248,6 +403,31 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/InstanceTransitionResult'
+              examples:
+                validSuccess:
+                  summary: vulInfoStat→2
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-v001
+                    data:
+                      vulInfoID: VI-20260517-0001
+                      vulInfoStat: 2
+                      lvRsn: null
+                      transferTime: '1747476000'
+                      srcMethod: 1021
+                falsePositiveSuccess:
+                  summary: vulInfoStat→3
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-v002
+                    data:
+                      vulInfoID: VI-20260517-0099
+                      vulInfoStat: 3
+                      lvRsn: null
+                      transferTime: '1747476100'
+                      srcMethod: null
 
   /instances/verify:batch:
     post:
@@ -264,6 +444,21 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/VerifyInstanceBatchRequest'
+            examples:
+              batch:
+                summary: 批量验证（部分成功）
+                value:
+                  operator: sec-analyst@corp.com
+                  items:
+                    - vulInfoID: VI-20260517-0001
+                      verifyResult: VALID
+                      srcMethod: 1021
+                    - vulInfoID: VI-20260517-0002
+                      verifyResult: VALID
+                      srcMethod: 1026
+                    - vulInfoID: VI-NOT-EXIST
+                      verifyResult: VALID
+                      srcMethod: 1021
       responses:
         '200':
           description: 业务响应
@@ -276,6 +471,29 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/VerifyInstanceBatchResult'
+              examples:
+                partialSuccess:
+                  summary: success / failed 分离
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-v010
+                    data:
+                      success:
+                        - vulInfoID: VI-20260517-0001
+                          vulInfoStat: 2
+                          lvRsn: null
+                          transferTime: '1747476200'
+                          srcMethod: 1021
+                        - vulInfoID: VI-20260517-0002
+                          vulInfoStat: 2
+                          lvRsn: null
+                          transferTime: '1747476201'
+                          srcMethod: 1026
+                      failed:
+                        - vulInfoID: VI-NOT-EXIST
+                          code: 40003
+                          message: vulInfoID 不存在
 
   /instances/{vulInfoID}/remediate:
     post:
@@ -295,6 +513,16 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/RemediateInstanceRequest'
+            examples:
+              patchUpgrade:
+                summary: 补丁升级修复（srcMethod=1050）
+                value:
+                  srcMethod: 1050
+                  remedDesc: 升级 OpenSSH 至 9.6p1 并重启 sshd
+                  fixLnk: https://www.openssh.com/releasenotes.html
+                  remedTime: 3日
+                  operator: ops@corp.com
+                  transferTime: '1747480000'
       responses:
         '200':
           description: 业务响应
@@ -307,6 +535,27 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/InstanceTransitionResult'
+              examples:
+                success:
+                  summary: vulInfoStat→5
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-r001
+                    data:
+                      vulInfoID: VI-20260517-0002
+                      vulInfoStat: 5
+                      lvRsn: null
+                      transferTime: '1747480000'
+                      remedDesc: 升级 OpenSSH 至 9.6p1 并重启 sshd
+                      srcMethod: 1050
+                stateMachineDenied:
+                  summary: 误报实例不可修复（40002）
+                  value:
+                    code: 40002
+                    message: 状态机不允许：vulInfoStat=3 禁止 remediate
+                    requestId: req-20260517-r099
+                    data: null
 
   /instances/{vulInfoID}/archive:
     post:
@@ -316,7 +565,7 @@ paths:
       description: |
         处置阶段分支之一，与 `remediate` 互斥。需能力 `INSTANCE_ARCHIVE`。
         后置：`vulInfoStat=9`，必填 `lvRsn`。
-        `archiveExtension.provincialFields` 为省侧扩展预留。
+        备案扩展字段 `archiveReason`、`provincialFields` 等见 ArchiveInstanceRequest。
       parameters:
         - $ref: '#/components/parameters/VulInstanceId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -328,13 +577,15 @@ paths:
               $ref: '#/components/schemas/ArchiveInstanceRequest'
             examples:
               acceptRisk:
+                summary: 接受风险备案（lvRsn=109）
                 value:
                   lvRsn: 109
-                  archiveReason: 业务连续性限制，评估后接受风险
+                  archiveReason: 业务连续性限制，经评估接受风险
                   operator: owner@corp.com
                   approvedBy: manager@corp.com
-                  recordAt: '2026-05-16T11:00:00Z'
-                  provincialFields: {}
+                  recordAt: '2026-05-17T12:00:00Z'
+                  provincialFields:
+                    riskAcceptanceFormId: RA-2026-088
       responses:
         '200':
           description: 业务响应
@@ -347,6 +598,19 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/InstanceTransitionResult'
+              examples:
+                success:
+                  summary: vulInfoStat→9
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-a001
+                    data:
+                      vulInfoID: VI-20260517-0003
+                      vulInfoStat: 9
+                      lvRsn: 109
+                      transferTime: '1747483600'
+                      archiveReason: 业务连续性限制，经评估接受风险
 
   /instances/{vulInfoID}/unfixable-records:
     post:
@@ -406,9 +670,47 @@ webhooks:
           application/json:
             schema:
               $ref: '#/components/schemas/PlatformWebhookEvent'
+            examples:
+              taskCompleted:
+                summary: 任务完成回调
+                value:
+                  eventId: evt-20260517-0001
+                  eventType: TASK_COMPLETED
+                  occurredAt: '2026-05-17T14:00:00Z'
+                  partnerId: partner-soc-01
+                  payload:
+                    extTaskId: EXT-TASK-2026-0001
+                    taskId: TASK-7f3a2b1c
+                    status: FINISHED
+                    summary:
+                      totalInstances: 25
+                      verifiedValid: 18
+                      falsePositive: 5
+              instanceRemediated:
+                summary: 实例修复完成回调
+                value:
+                  eventId: evt-20260517-0002
+                  eventType: INSTANCE_REMEDIATED
+                  occurredAt: '2026-05-17T14:05:00Z'
+                  partnerId: partner-soc-01
+                  payload:
+                    vulInfoID: VI-20260517-0002
+                    vulInfoStat: 5
+                    previousVulInfoStat: 2
       responses:
         '200':
-          description: Partner 接收成功
+          description: Partner 接收成功（建议 body `{"received":true}`）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+              examples:
+                ack:
+                  value:
+                    received: true
         '4XX':
           description: Partner 拒绝；平台将按策略重试
 
@@ -625,6 +927,9 @@ components:
         createdAt:
           type: string
           format: date-time
+        message:
+          type: string
+          description: status=REJECTED 时的原因说明
 
     TaskProgress:
       type: object
@@ -813,16 +1118,17 @@ components:
 
     VerifyInstanceRequest:
       type: object
-      required: [vulnType, verifyResult, operator]
+      required: [verifyResult, operator]
       properties:
         vulnType:
           $ref: '#/components/schemas/VulnType'
+          description: 可选，默认取自实例存储值
         verifyResult:
           $ref: '#/components/schemas/VerifyResult'
           description: VALID→vulInfoStat=2；FALSE_POSITIVE→vulInfoStat=3
         srcMethod:
           type: integer
-          description: 部侧 A.10 处置方式码（如 1021、1026）
+          description: verifyResult=VALID 时必填（A.10，如 1021、1026）
         transferTime:
           type: string
         operator:
@@ -842,7 +1148,7 @@ components:
           maxItems: 500
           items:
             type: object
-            required: [vulInfoID, vulnType, verifyResult]
+            required: [vulInfoID, verifyResult]
             properties:
               vulInfoID:
                 type: string
@@ -852,6 +1158,9 @@ components:
                 $ref: '#/components/schemas/VerifyResult'
               srcMethod:
                 type: integer
+                description: VALID 时必填
+              transferTime:
+                type: string
               remark:
                 type: string
 
