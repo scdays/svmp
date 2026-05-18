@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 2.2.3
+  version: 2.2.6
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
@@ -936,6 +936,12 @@ components:
           $ref: '#/components/schemas/LvRsnCode'
           nullable: true
         transferTime:
+          type: string
+        srcMethod:
+          type: integer
+        remedDesc:
+          type: string
+        archiveReason:
           type: string
 
     PlatformWebhookEventType:
