@@ -1680,6 +1680,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TaskExportTarget'
+        liveProbeResults:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskExportLiveProbeResult'
+        portScanResults:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskExportPortScanResult'
         vulnerabilities:
           type: array
           items:
@@ -1720,6 +1728,62 @@ components:
           type: number
         riskLevel:
           type: integer
+
+    TaskExportLiveProbeResult:
+      type: object
+      required: [liveProbeId, targetId, address, alive]
+      properties:
+        liveProbeId:
+          type: string
+        targetId:
+          type: string
+        address:
+          type: string
+        alive:
+          type: boolean
+        probeMethod:
+          type: string
+          description: 探测方式，如 ICMP / TCP / ARP。
+        latencyMs:
+          type: integer
+          description: 响应耗时，单位毫秒。
+        mac:
+          type: string
+        osGuess:
+          type: string
+        detectedAt:
+          type: string
+          format: date-time
+
+    TaskExportPortScanResult:
+      type: object
+      required: [portScanId, targetId, address, port, protocol, state]
+      properties:
+        portScanId:
+          type: string
+        targetId:
+          type: string
+        address:
+          type: string
+        port:
+          type: integer
+          minimum: 0
+          maximum: 65535
+        protocol:
+          type: string
+          description: TCP / UDP 等。
+        state:
+          type: string
+          description: open / closed / filtered 等。
+        service:
+          type: string
+        banner:
+          type: string
+        version:
+          type: string
+        detectedAt:
+          type: string
+          format: date-time
 
     TaskExportVulnerability:
       type: object
