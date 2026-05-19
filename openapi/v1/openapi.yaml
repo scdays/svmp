@@ -719,7 +719,7 @@ paths:
       tags: [exports]
       operationId: getExport
       summary: 查询外发包元数据
-      description: 需能力 `EXPORT_READ`。任务结束后由 Export Orchestrator 生成。
+      description: 需能力 `EXPORT_READ`。任务结束、验证扫描完成、修复核验扫描完成后由 Export Orchestrator 生成。
       parameters:
         - name: exportId
           in: path
@@ -751,6 +751,8 @@ paths:
                       extTaskId: EXT-TASK-2026-0001
                       exportTemplateId: tpl-svmp-xml-scan-bundle
                       format: xml
+                      exportStage: TASK_COMPLETED
+                      dataType: MIXED
                       status: READY
                       recordCount: 128
                       expiresAt: '2026-05-25T14:05:00Z'
@@ -930,6 +932,8 @@ webhooks:
                     extTaskId: EXT-TASK-2026-0001
                     exportTemplateId: tpl-svmp-xml-scan-bundle
                     format: xml
+                    exportStage: TASK_COMPLETED
+                    dataType: MIXED
                     recordCount: 128
                     downloadUrl: https://vuln-platform.example.com/download/EXP-20260518-7f3a
       responses:
@@ -1154,7 +1158,7 @@ components:
         exportTemplateId:
           type: string
           description: |
-            任务结束外发模板 ID（如 tpl-svmp-xml-scan-bundle）。
+            扫描结果外发模板 ID（如 tpl-svmp-xml-scan-bundle）。
             缺省按 scanTemplateId 与能力匹配规则选择。
         priority:
           $ref: '#/components/schemas/TaskPriority'
@@ -1626,12 +1630,12 @@ components:
 
     TaskExportDocument:
       type: object
-      description: 任务结束外发规范化文档；XML 根元素为 TaskExport，JSON 顶层 key 为 taskExport。
+      description: 扫描结果外发规范化文档；XML 根元素为 TaskExport，JSON 顶层 key 为 taskExport。
       required: [export, task]
       properties:
         export:
           type: object
-          required: [exportId, format, generatedAt, recordCount]
+          required: [exportId, format, exportStage, dataType, generatedAt, recordCount]
           properties:
             exportId:
               type: string
@@ -1640,6 +1644,10 @@ components:
               enum: [xml, json]
             exportTemplateId:
               type: string
+            exportStage:
+              $ref: '#/components/schemas/ExportStage'
+            dataType:
+              $ref: '#/components/schemas/ExportDataType'
             generatedAt:
               type: string
               format: date-time
@@ -1676,6 +1684,8 @@ components:
         summary:
           type: object
           additionalProperties: true
+        relatedInstance:
+          $ref: '#/components/schemas/TaskExportRelatedInstance'
         targets:
           type: array
           items:
@@ -1704,6 +1714,37 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TaskExportAppendix'
+
+    ExportStage:
+      type: string
+      description: 外发触发阶段。
+      enum:
+        - TASK_COMPLETED
+        - VERIFY_SCAN
+        - VERIFY_FIX_SCAN
+
+    ExportDataType:
+      type: string
+      description: 外发数据类型；验证扫描和修复核验扫描固定为 SYSTEM_VULNERABILITY。
+      enum:
+        - MIXED
+        - SYSTEM_VULNERABILITY
+        - LIVE_PROBE
+        - PORT_SCAN
+
+    TaskExportRelatedInstance:
+      type: object
+      description: 验证 / 修复核验扫描外发时的关联漏洞实例。
+      properties:
+        vulInfoID:
+          type: string
+        vulInfoStat:
+          $ref: '#/components/schemas/VulInfoStat'
+        verifyFixJobId:
+          type: string
+        sourceAction:
+          type: string
+          enum: [verify, verifyFix]
 
     TaskExportTarget:
       type: object
@@ -1893,7 +1934,7 @@ components:
 
     ExportReadyPayload:
       type: object
-      required: [exportId, taskId, format]
+      required: [exportId, taskId, format, exportStage, dataType]
       properties:
         exportId:
           type: string
@@ -1905,10 +1946,17 @@ components:
           type: string
         format:
           type: string
-          description: 任务结束外发输出物格式；xml 与 json 使用相同规范化字段。
+          description: 扫描结果外发输出物格式；xml 与 json 使用相同规范化字段。
           enum:
             - xml
             - json
+        exportStage:
+          $ref: '#/components/schemas/ExportStage'
+        dataType:
+          $ref: '#/components/schemas/ExportDataType'
+        relatedVulInfoID:
+          type: string
+          description: 验证 / 修复核验扫描外发关联漏洞实例 ID。
         recordCount:
           type: integer
         downloadUrl:
@@ -1918,7 +1966,7 @@ components:
 
     ExportRecord:
       type: object
-      required: [exportId, taskId, format, status]
+      required: [exportId, taskId, format, exportStage, dataType, status]
       properties:
         exportId:
           type: string
@@ -1930,10 +1978,17 @@ components:
           type: string
         format:
           type: string
-          description: 任务结束外发输出物格式；取值为 xml 或 json。
+          description: 扫描结果外发输出物格式；取值为 xml 或 json。
           enum:
             - xml
             - json
+        exportStage:
+          $ref: '#/components/schemas/ExportStage'
+        dataType:
+          $ref: '#/components/schemas/ExportDataType'
+        relatedVulInfoID:
+          type: string
+          description: 验证 / 修复核验扫描外发关联漏洞实例 ID。
         status:
           type: string
           enum: [PENDING, READY, EXPIRED, FAILED]
