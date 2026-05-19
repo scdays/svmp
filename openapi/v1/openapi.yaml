@@ -750,7 +750,7 @@ paths:
                       taskId: TASK-7f3a2b1c
                       extTaskId: EXT-TASK-2026-0001
                       exportTemplateId: tpl-svmp-xml-scan-bundle
-                      format: XML
+                      format: xml
                       status: READY
                       recordCount: 128
                       expiresAt: '2026-05-25T14:05:00Z'
@@ -762,8 +762,8 @@ paths:
       operationId: downloadExport
       summary: 下载外发文件
       description: |
-        需能力 `EXPORT_READ`。`format=XML` 返回 tar.gz（内含 report_by_*.xml）；
-        `format=JSON` 返回与 XML 同构的 JSON，Content-Type 依 format 而定。
+        需能力 `EXPORT_READ`。`format=xml` 返回单个规范化 XML 文档；
+        `format=json` 返回与 XML 同构的 JSON 文档，Content-Type 依 format 而定。
         亦可使用 Webhook `EXPORT_READY` 中的短期 `downloadUrl`。
       parameters:
         - name: exportId
@@ -775,13 +775,13 @@ paths:
         '200':
           description: 外发文件流
           content:
-            application/gzip:
+            application/xml:
               schema:
                 type: string
-                format: binary
+                description: 根元素为 TaskExport 的规范化 XML 文档
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/TaskExportEnvelope'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -929,7 +929,7 @@ webhooks:
                     taskId: TASK-7f3a2b1c
                     extTaskId: EXT-TASK-2026-0001
                     exportTemplateId: tpl-svmp-xml-scan-bundle
-                    format: XML
+                    format: xml
                     recordCount: 128
                     downloadUrl: https://vuln-platform.example.com/download/EXP-20260518-7f3a
       responses:
@@ -1617,6 +1617,216 @@ components:
         previousVulInfoStat:
           $ref: '#/components/schemas/VulInfoStat'
 
+    TaskExportEnvelope:
+      type: object
+      required: [taskExport]
+      properties:
+        taskExport:
+          $ref: '#/components/schemas/TaskExportDocument'
+
+    TaskExportDocument:
+      type: object
+      description: 任务结束外发规范化文档；XML 根元素为 TaskExport，JSON 顶层 key 为 taskExport。
+      required: [export, task]
+      properties:
+        export:
+          type: object
+          required: [exportId, format, generatedAt, recordCount]
+          properties:
+            exportId:
+              type: string
+            format:
+              type: string
+              enum: [xml, json]
+            exportTemplateId:
+              type: string
+            generatedAt:
+              type: string
+              format: date-time
+            expiresAt:
+              type: string
+              format: date-time
+            recordCount:
+              type: integer
+        task:
+          type: object
+          required: [taskId, taskName, targetType, vulnType, status]
+          properties:
+            taskId:
+              type: string
+            extTaskId:
+              type: string
+            taskName:
+              type: string
+            targetType:
+              type: string
+              enum: [IPV4, IPV6, URL]
+            vulnType:
+              $ref: '#/components/schemas/VulnType'
+            scanTemplateId:
+              type: integer
+            status:
+              type: string
+            startedAt:
+              type: string
+              format: date-time
+            finishedAt:
+              type: string
+              format: date-time
+        summary:
+          type: object
+          additionalProperties: true
+        targets:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskExportTarget'
+        vulnerabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskExportVulnerability'
+        weakPasswords:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskExportWeakPassword'
+        baselineResults:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskExportBaselineResult'
+        appendices:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskExportAppendix'
+
+    TaskExportTarget:
+      type: object
+      required: [targetId, target, targetType]
+      properties:
+        targetId:
+          type: string
+        target:
+          type: string
+        targetType:
+          type: string
+          enum: [IPV4, IPV6, URL]
+        assetID:
+          type: string
+        assetName:
+          type: string
+        site:
+          type: string
+        os:
+          type: string
+        riskValue:
+          type: number
+        riskLevel:
+          type: integer
+
+    TaskExportVulnerability:
+      type: object
+      required: [vulInfoID, targetId, vulInfoStat, vulName, transferTime]
+      properties:
+        vulInfoID:
+          type: string
+        vulID:
+          type: string
+        targetId:
+          type: string
+        vulInfoStat:
+          $ref: '#/components/schemas/VulInfoStat'
+        lvRsn:
+          type: integer
+        vulName:
+          type: string
+        vulLevel:
+          type: integer
+        orgVulId:
+          type: string
+        vulNetAddr:
+          type: string
+        vulPort:
+          type: integer
+        vulSvc:
+          type: string
+        isAccess:
+          type: integer
+          enum: [0, 1]
+        transferTime:
+          type: string
+        srcMethod:
+          type: integer
+        extVulnRef:
+          type: string
+        evidence:
+          type: object
+          additionalProperties: true
+        remediation:
+          type: object
+          additionalProperties: true
+
+    TaskExportWeakPassword:
+      type: object
+      required: [weakPasswordId, targetId, service, username]
+      properties:
+        weakPasswordId:
+          type: string
+        targetId:
+          type: string
+        vulInfoID:
+          type: string
+        service:
+          type: string
+        port:
+          type: integer
+        protocol:
+          type: string
+        username:
+          type: string
+        passwordMasked:
+          type: string
+          description: 脱敏后的口令，不输出明文。
+
+    TaskExportBaselineResult:
+      type: object
+      required: [baselineResultId, targetId, checkName, result]
+      properties:
+        baselineResultId:
+          type: string
+        targetId:
+          type: string
+        templateName:
+          type: string
+        checkName:
+          type: string
+        groupName:
+          type: string
+        riskValue:
+          type: number
+        result:
+          type: string
+        solution:
+          type: string
+
+    TaskExportAppendix:
+      type: object
+      required: [appendixId, name, columns, rows]
+      properties:
+        appendixId:
+          type: string
+        targetId:
+          type: string
+        name:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+
     ExportReadyPayload:
       type: object
       required: [exportId, taskId, format]
@@ -1631,10 +1841,10 @@ components:
           type: string
         format:
           type: string
-          description: 任务结束外发输出物格式；XML 为 tar.gz 内含 report_by_*.xml，JSON 与 XML 同构。
+          description: 任务结束外发输出物格式；xml 与 json 使用相同规范化字段。
           enum:
-            - XML
-            - JSON
+            - xml
+            - json
         recordCount:
           type: integer
         downloadUrl:
@@ -1656,10 +1866,10 @@ components:
           type: string
         format:
           type: string
-          description: 任务结束外发输出物格式；取值为 XML 或 JSON。
+          description: 任务结束外发输出物格式；取值为 xml 或 json。
           enum:
-            - XML
-            - JSON
+            - xml
+            - json
         status:
           type: string
           enum: [PENDING, READY, EXPIRED, FAILED]
