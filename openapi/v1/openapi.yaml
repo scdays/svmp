@@ -750,7 +750,7 @@ paths:
                       taskId: TASK-7f3a2b1c
                       extTaskId: EXT-TASK-2026-0001
                       exportTemplateId: tpl-svmp-xml-scan-bundle
-                      format: SVMP-TAR-GZ-XML
+                      format: XML
                       status: READY
                       recordCount: 128
                       expiresAt: '2026-05-25T14:05:00Z'
@@ -762,7 +762,8 @@ paths:
       operationId: downloadExport
       summary: 下载外发文件
       description: |
-        需能力 `EXPORT_READ`。返回 tar.gz / json 等，Content-Type 依 format 而定。
+        需能力 `EXPORT_READ`。`format=XML` 返回 tar.gz（内含 report_by_*.xml）；
+        `format=JSON` 返回与 XML 同构的 JSON，Content-Type 依 format 而定。
         亦可使用 Webhook `EXPORT_READY` 中的短期 `downloadUrl`。
       parameters:
         - name: exportId
@@ -928,7 +929,7 @@ webhooks:
                     taskId: TASK-7f3a2b1c
                     extTaskId: EXT-TASK-2026-0001
                     exportTemplateId: tpl-svmp-xml-scan-bundle
-                    format: SVMP-TAR-GZ-XML
+                    format: XML
                     recordCount: 128
                     downloadUrl: https://vuln-platform.example.com/download/EXP-20260518-7f3a
       responses:
@@ -1630,12 +1631,10 @@ components:
           type: string
         format:
           type: string
+          description: 任务结束外发输出物格式；XML 为 tar.gz 内含 report_by_*.xml，JSON 与 XML 同构。
           enum:
+            - XML
             - JSON
-            - CSV
-            - SVMP-TAR-GZ-XML
-            - SVMP-TAR-GZ
-            - MIIT-2025-VULINFOLST
         recordCount:
           type: integer
         downloadUrl:
@@ -1657,6 +1656,10 @@ components:
           type: string
         format:
           type: string
+          description: 任务结束外发输出物格式；取值为 XML 或 JSON。
+          enum:
+            - XML
+            - JSON
         status:
           type: string
           enum: [PENDING, READY, EXPIRED, FAILED]
