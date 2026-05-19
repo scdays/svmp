@@ -1684,8 +1684,6 @@ components:
         summary:
           type: object
           additionalProperties: true
-        relatedInstance:
-          $ref: '#/components/schemas/TaskExportRelatedInstance'
         targets:
           type: array
           items:
@@ -1731,20 +1729,6 @@ components:
         - SYSTEM_VULNERABILITY
         - LIVE_PROBE
         - PORT_SCAN
-
-    TaskExportRelatedInstance:
-      type: object
-      description: 验证 / 修复核验扫描外发时的关联漏洞实例。
-      properties:
-        vulInfoID:
-          type: string
-        vulInfoStat:
-          $ref: '#/components/schemas/VulInfoStat'
-        verifyFixJobId:
-          type: string
-        sourceAction:
-          type: string
-          enum: [verify, verifyFix]
 
     TaskExportTarget:
       type: object
@@ -1954,9 +1938,6 @@ components:
           $ref: '#/components/schemas/ExportStage'
         dataType:
           $ref: '#/components/schemas/ExportDataType'
-        relatedVulInfoID:
-          type: string
-          description: 验证 / 修复核验扫描外发关联漏洞实例 ID。
         recordCount:
           type: integer
         downloadUrl:
@@ -1986,9 +1967,6 @@ components:
           $ref: '#/components/schemas/ExportStage'
         dataType:
           $ref: '#/components/schemas/ExportDataType'
-        relatedVulInfoID:
-          type: string
-          description: 验证 / 修复核验扫描外发关联漏洞实例 ID。
         status:
           type: string
           enum: [PENDING, READY, EXPIRED, FAILED]
