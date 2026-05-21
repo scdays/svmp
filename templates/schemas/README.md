@@ -38,8 +38,8 @@ aurora
 
 | 文件 | 根元素 | 状态 |
 |------|--------|------|
-| `主机存活探测结果.xml` | `LiveProbeResult` | 由 HTML 字段推导，见 `samples/` |
-| `端口扫描结果.xml` | `PortScanResult` | 由 HTML 字段推导，见 `samples/` |
+| `主机存活探测结果.xml` | `LiveProbeResult` | 由 HTML 字段推导；`build_export_xml_phases.py` 可生成占位 |
+| `端口扫描结果.xml` | `PortScanResult` | 由 HTML 字段推导；`build_export_xml_phases.py` 可生成占位 |
 
 ## 生成命令
 

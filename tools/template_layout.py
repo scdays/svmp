@@ -14,7 +14,6 @@ def paths(root: Path | None = None) -> dict[str, Path]:
         "yaml": root / "yaml",
         "engine": root / "engine",
         "samples": root / "samples",
-        "reference": root / "reference",
         "schemas": root / "schemas",
     }
 
@@ -25,6 +24,6 @@ def default_catalog_path() -> Path:
 
 def ensure_dirs(root: Path | None = None) -> dict[str, Path]:
     p = paths(root)
-    for key in ("catalogs", "yaml", "engine", "samples", "reference", "schemas"):
+    for key in ("catalogs", "yaml", "engine", "samples", "schemas"):
         p[key].mkdir(parents=True, exist_ok=True)
     return p
