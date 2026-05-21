@@ -1,12 +1,11 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 2.3.3
+  version: 1.0.0
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
-    - 第三方可读文档：[`docs/第三方开放平台接口文档.md`](../docs/第三方开放平台接口文档.md)
-    - 设计依据：《漏洞管理平台对外集成能力设计方案》V2.3.3
+    - 接口规范：[`docs/开放平台API接口规范.md`](../docs/开放平台API接口规范.md)
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
     - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
