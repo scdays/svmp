@@ -48,6 +48,7 @@
 |------|------|
 | [漏洞管理平台对外集成能力设计方案-V2.0.md](./internal/漏洞管理平台对外集成能力设计方案-V2.0.md) | 集成架构、规范域模型、部侧合规（接口 3/4）、实施路线 |
 | [开放平台Partner鉴权与隔离-落地方案.md](./internal/开放平台Partner鉴权与隔离-落地方案.md) | Token 在登录服务签发、网关只校验；`partnerId` 隔离、capabilities、数据表 |
+| [组件职责与接口映射.md](./internal/组件职责与接口映射.md) | **完整接口清单**：morningglory / clover / open-api-service / SVMP 职责与路径对照 |
 
 ### 总体架构
 
@@ -113,7 +114,7 @@ clover（Partner 身份：注册、凭证、Token 签发 / 吊销）← 机机 T
 | 角色 | 建议阅读顺序 |
 |------|--------------|
 | **第三方开发者** | [external/开放平台API接口规范.md](./external/开放平台API接口规范.md) → [openapi/v1/openapi.yaml](../openapi/v1/openapi.yaml) |
-| **平台研发** | [internal/漏洞管理平台...V2.0.md](./internal/漏洞管理平台对外集成能力设计方案-V2.0.md) → [Partner 鉴权落地方案](./internal/开放平台Partner鉴权与隔离-落地方案.md) → 上表组件映射 |
+| **平台研发** | [internal/漏洞管理平台...V2.0.md](./internal/漏洞管理平台对外集成能力设计方案-V2.0.md) → [Partner 鉴权落地方案](./internal/开放平台Partner鉴权与隔离-落地方案.md) → [组件职责与接口映射](./internal/组件职责与接口映射.md) |
 | **合规 / 测试** | [standards/](./standards/) → 对照 internal 设计方案中的 MIIT-2025 Profile |
 | **外发模板开发** | [../README.md](../README.md) 工具脚本 → [../templates/](../templates/) |
 
