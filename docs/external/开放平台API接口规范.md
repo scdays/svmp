@@ -1318,6 +1318,6 @@ TaskExport / taskExport
 |------|------|
 | OpenAPI 3.1 | [`openapi/v1/openapi.yaml`](../../openapi/v1/openapi.yaml) |
 
-**本地预览**：`npx @redocly/cli preview-docs openapi/v1/openapi.yaml` 需要 **Node.js ≥ 20.19**。若报错 `Unexpected token '??='`，请升级 Node 后重试，或使用 https://editor.swagger.io 导入该 YAML 文件。
+**本地预览**（Redocly CLI 2.x）：`npx @redocly/cli build-docs openapi/v1/openapi.yaml -o openapi/v1/api-docs.html`，用浏览器打开生成的 HTML。需要 **Node.js ≥ 20.19**。亦可使用 https://editor.swagger.io 导入该 YAML。
 
 文档问题请联系平台集成对接人（`partnerId` 对应运营渠道）。
