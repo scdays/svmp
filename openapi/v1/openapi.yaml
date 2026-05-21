@@ -5,7 +5,7 @@ info:
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
-    - 接口规范：[`docs/开放平台API接口规范.md`](../docs/开放平台API接口规范.md)
+    - 接口规范：[`docs/external/开放平台API接口规范.md`](../docs/external/开放平台API接口规范.md)
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
     - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）

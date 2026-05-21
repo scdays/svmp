@@ -4,12 +4,12 @@
 
 ## 正式样本（绿盟 Aurora）
 
-仓库根目录 **`export-templates/`** 下已提供引擎正式外发文件（请勿与 `samples/` 下推导占位混淆）：
+**`templates/engine/`** 下为引擎正式外发文件（请勿与 `samples/` 下推导占位混淆）：
 
 | 文件 | task_type | 根元素 | 说明 |
 |------|-----------|--------|------|
-| `系统漏洞扫描结果.xml` | `1` | `<aurora>` | `vuln_scanned` + `vuln_detail`（CVE/CNNVD 等） |
-| `弱口令扫描结果.xml` | `4` | `<aurora>` | `password_results` + 弱口令类 `vuln_detail` |
+| `engine/系统漏洞扫描结果.xml` | `1` | `<aurora>` | `vuln_scanned` + `vuln_detail`（CVE/CNNVD 等） |
+| `engine/弱口令扫描结果.xml` | `4` | `<aurora>` | `password_results` + 弱口令类 `vuln_detail` |
 
 结构概要：
 
@@ -32,7 +32,7 @@ aurora
 解析产物：
 
 - **`aurora-report.schema.json`**：`python3 tools/parse_export_xml_samples.py`
-- **平台字段映射**：`phase-field-catalog.json` 中 `vuln` / `weakpwd` 阶段的 `auroraPath` → `source`
+- **平台字段映射**：`catalogs/phase-field-catalog.json` 中 `vuln` / `weakpwd` 阶段的 `auroraPath` → `source`
 
 ## 存活 / 端口（推导结构，待引擎样本）
 
@@ -45,5 +45,5 @@ aurora
 
 ```bash
 python3 tools/parse_export_xml_samples.py
-python3 tools/build_export_xml_phases.py export-templates/field-catalog.json -o export-templates
+python3 tools/build_export_xml_phases.py templates/catalogs/field-catalog.json -o templates
 ```

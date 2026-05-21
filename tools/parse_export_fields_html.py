@@ -7,7 +7,7 @@
 2. **pdf-html**（默认）：pdf2htmlEX 导出的绝对定位 <motion>/<div> + JSON 示例
 
 用法:
-  python3 tools/parse_export_fields_html.py export-templates/数据外发字段说明.html
+  python3 tools/parse_export_fields_html.py templates/engine/数据外发字段说明.html
   python3 tools/parse_export_fields_html.py ... --write-drafts
 """
 from __future__ import annotations
@@ -330,7 +330,7 @@ def parse_html_file(path: Path) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="解析数据外发字段说明 HTML")
     parser.add_argument("html_path", type=Path)
-    parser.add_argument("-o", "--out-dir", type=Path, default=Path("export-templates"))
+    parser.add_argument("-o", "--out-dir", type=Path, default=Path("templates"))
     parser.add_argument("--write-drafts", action="store_true")
     parser.add_argument(
         "--xml-phases",
@@ -343,9 +343,11 @@ def main() -> int:
         print(f"文件不存在: {args.html_path}", file=sys.stderr)
         return 1
 
+    from template_layout import ensure_dirs
+
     catalog = parse_html_file(args.html_path)
-    args.out_dir.mkdir(parents=True, exist_ok=True)
-    catalog_path = args.out_dir / "field-catalog.json"
+    layout = ensure_dirs(args.out_dir)
+    catalog_path = layout["catalogs"] / "field-catalog.json"
     catalog_path.write_text(
         json.dumps(catalog, ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -362,7 +364,7 @@ def main() -> int:
             if not fields and not sec.get("exportFiles"):
                 continue
             tid = _template_id_for_section(sec)
-            draft = args.out_dir / f"{tid}.yaml"
+            draft = layout["yaml"] / f"{tid}.yaml"
             draft.write_text(_to_yaml(sec, fields), encoding="utf-8")
             print(f"  模板: {draft} ({len(fields)} 字段)")
 
@@ -372,10 +374,10 @@ def main() -> int:
         tools_dir = Path(__file__).resolve().parent
         aurora = tools_dir / "parse_export_xml_samples.py"
         if aurora.is_file():
-            subprocess.call([sys.executable, str(aurora), "-d", str(args.out_dir)])
+            subprocess.call([sys.executable, str(aurora), "-d", str(layout["engine"])])
         script = tools_dir / "build_export_xml_phases.py"
         rc = subprocess.call(
-            [sys.executable, str(script), str(catalog_path), "-o", str(args.out_dir)],
+            [sys.executable, str(script), str(catalog_path), "-o", str(layout["root"])],
         )
         if rc != 0:
             return rc

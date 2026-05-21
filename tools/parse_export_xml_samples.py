@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-解析 export-templates 下正式的「系统漏洞扫描结果.xml」「弱口令扫描结果.xml」
+解析 templates/engine 下正式的「系统漏洞扫描结果.xml」「弱口令扫描结果.xml」
 （绿盟 Aurora 报告格式），生成 schema 与平台字段映射。
 
 用法:
-  python3 tools/parse_export_xml_samples.py -o export-templates/xml-schemas
+  python3 tools/parse_export_xml_samples.py -d templates/engine
 """
 from __future__ import annotations
 
@@ -160,9 +160,9 @@ def parse_official_samples(export_dir: Path) -> dict[str, Any]:
     }
 
 
-def apply_to_phase_catalog(export_dir: Path, aurora_doc: dict[str, Any]) -> None:
+def apply_to_phase_catalog(catalogs_dir: Path, aurora_doc: dict[str, Any]) -> None:
     """用 Aurora 正式结构覆盖 phase-field-catalog 中 vuln / weakpwd 阶段。"""
-    phase_path = export_dir / "phase-field-catalog.json"
+    phase_path = catalogs_dir / "phase-field-catalog.json"
     if not phase_path.is_file():
         print(f"跳过 phase-field-catalog（不存在）: {phase_path}", file=sys.stderr)
         return
@@ -198,13 +198,20 @@ def main() -> int:
         "-d",
         "--export-dir",
         type=Path,
-        default=Path("export-templates"),
+        default=Path("templates/engine"),
+        help="正式 Aurora XML 样本目录",
     )
     parser.add_argument(
         "-o",
         "--out-dir",
         type=Path,
-        default=Path("export-templates/xml-schemas"),
+        default=Path("templates/schemas"),
+    )
+    parser.add_argument(
+        "--catalogs-dir",
+        type=Path,
+        default=Path("templates/catalogs"),
+        help="phase-field-catalog.json 所在目录",
     )
     parser.add_argument("--update-phase-catalog", action="store_true", default=True)
     args = parser.parse_args()
@@ -226,7 +233,7 @@ def main() -> int:
         )
 
     if args.update_phase_catalog:
-        apply_to_phase_catalog(args.export_dir, doc)
+        apply_to_phase_catalog(args.catalogs_dir, doc)
     return 0
 
 

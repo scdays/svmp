@@ -6,7 +6,7 @@
 本工具不解析真实引擎 XML 样本，而是依据 HTML 已解析字段做分 phase 映射并产出模板与样例。
 
 用法:
-  python3 tools/build_export_xml_phases.py export-templates/field-catalog.json -o export-templates
+  python3 tools/build_export_xml_phases.py templates/catalogs/field-catalog.json -o templates
 """
 from __future__ import annotations
 
@@ -16,6 +16,8 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
+
+from template_layout import default_catalog_path, ensure_dirs, paths
 
 PHASES: dict[str, dict[str, Any]] = {
     "live": {
@@ -349,19 +351,19 @@ OFFICIAL_SAMPLE_NAMES = {
 }
 
 
-def write_samples(out_dir: Path) -> None:
-    samples_dir = out_dir / "samples"
+def write_samples(layout: dict[str, Path]) -> None:
+    samples_dir = layout["samples"]
     samples_dir.mkdir(parents=True, exist_ok=True)
     readme = samples_dir / "README.md"
     readme.write_text(
         "# XML 样例\n\n"
-        "- **系统漏洞 / 弱口令**：正式引擎样本在上一级目录 "
+        "- **系统漏洞 / 弱口令**：正式引擎样本见 `templates/engine/` "
         "`系统漏洞扫描结果.xml`、`弱口令扫描结果.xml`（绿盟 Aurora 格式）。\n"
         "- **存活 / 端口**：本目录下为平台推导的占位结构（待引擎样本补齐）。\n",
         encoding="utf-8",
     )
     for phase_id, meta in PHASES.items():
-        official = out_dir / OFFICIAL_SAMPLE_NAMES.get(phase_id, "")
+        official = layout["engine"] / OFFICIAL_SAMPLE_NAMES.get(phase_id, "")
         if official.is_file():
             print(f"  正式样本（未复制）: {official}")
             continue
@@ -376,10 +378,10 @@ def write_samples(out_dir: Path) -> None:
 
 
 def _write_phase_yaml_from_catalog(
-    out_dir: Path, phase_id: str, phase: dict[str, Any]
+    yaml_dir: Path, phase_id: str, phase: dict[str, Any]
 ) -> Path:
     tid = f"tpl-svmp-phase-{phase_id}"
-    path = out_dir / f"{tid}.yaml"
+    path = yaml_dir / f"{tid}.yaml"
     fmt = phase.get("format", "")
     root = phase.get("rootElement", "")
     lines = [
@@ -419,8 +421,8 @@ def _write_phase_yaml_from_catalog(
     return path
 
 
-def write_bundle_template(out_dir: Path, phase_catalog: dict[str, Any]) -> Path:
-    path = out_dir / "tpl-svmp-xml-scan-bundle.yaml"
+def write_bundle_template(yaml_dir: Path, phase_catalog: dict[str, Any]) -> Path:
+    path = yaml_dir / "tpl-svmp-xml-scan-bundle.yaml"
     lines = [
         "# 四阶段 XML 外发包（推荐）；legacy txt 见 deprecatedLegacyFiles",
         "exportTemplateId: tpl-svmp-xml-scan-bundle",
@@ -478,23 +480,24 @@ def write_bundle_template(out_dir: Path, phase_catalog: dict[str, Any]) -> Path:
     return path
 
 
-def write_phase_templates(out_dir: Path, phase_catalog: dict[str, Any]) -> list[Path]:
+def write_phase_templates(yaml_dir: Path, phase_catalog: dict[str, Any]) -> list[Path]:
     return [
-        _write_phase_yaml_from_catalog(out_dir, phase_id, phase)
+        _write_phase_yaml_from_catalog(yaml_dir, phase_id, phase)
         for phase_id, phase in phase_catalog["phases"].items()
     ]
 
 
-def _apply_official_aurora(export_dir: Path) -> bool:
+def _apply_official_aurora(layout: dict[str, Path]) -> bool:
     """若存在正式样本，解析 Aurora 并更新 phase-field-catalog。"""
-    vuln_xml = export_dir / "系统漏洞扫描结果.xml"
-    weak_xml = export_dir / "弱口令扫描结果.xml"
+    engine = layout["engine"]
+    vuln_xml = engine / "系统漏洞扫描结果.xml"
+    weak_xml = engine / "弱口令扫描结果.xml"
     if not vuln_xml.is_file() or not weak_xml.is_file():
         return False
     import subprocess
 
     script = Path(__file__).resolve().parent / "parse_export_xml_samples.py"
-    rc = subprocess.call([sys.executable, str(script), "-d", str(export_dir)])
+    rc = subprocess.call([sys.executable, str(script), "-d", str(engine)])
     return rc == 0
 
 
@@ -504,46 +507,47 @@ def main() -> int:
         "catalog_path",
         type=Path,
         nargs="?",
-        default=Path("export-templates/field-catalog.json"),
+        default=None,
     )
-    parser.add_argument("-o", "--out-dir", type=Path, default=Path("export-templates"))
+    parser.add_argument("-o", "--out-dir", type=Path, default=paths()["root"])
     parser.add_argument("--no-samples", action="store_true")
     parser.add_argument(
         "--skip-official-xml",
         action="store_true",
-        help="不解析 export-templates 下正式 Aurora 样本",
+        help="不解析 templates/engine 下正式 Aurora 样本",
     )
     args = parser.parse_args()
+    catalog_path = args.catalog_path or default_catalog_path()
+    layout = ensure_dirs(args.out_dir)
 
-    if not args.catalog_path.is_file():
-        print(f"缺少 field-catalog: {args.catalog_path}", file=sys.stderr)
+    if not catalog_path.is_file():
+        print(f"缺少 field-catalog: {catalog_path}", file=sys.stderr)
         print("请先运行: python3 tools/parse_export_fields_html.py ...", file=sys.stderr)
         return 1
 
-    catalog = json.loads(args.catalog_path.read_text(encoding="utf-8"))
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     phase_catalog = build_phase_catalog(catalog)
-    args.out_dir.mkdir(parents=True, exist_ok=True)
 
-    phase_path = args.out_dir / "phase-field-catalog.json"
+    phase_path = layout["catalogs"] / "phase-field-catalog.json"
     phase_path.write_text(
         json.dumps(phase_catalog, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     print(f"已写入 {phase_path}")
 
     if not args.skip_official_xml:
-        if _apply_official_aurora(args.out_dir):
+        if _apply_official_aurora(layout):
             phase_catalog = json.loads(phase_path.read_text(encoding="utf-8"))
             print("已合并正式样本（Aurora）至 phase-field-catalog")
         else:
             print("提示: 未找到正式 系统漏洞/弱口令 XML，使用 HTML 推导结构")
 
     if not args.no_samples:
-        write_samples(args.out_dir)
+        write_samples(layout)
 
-    bundle = write_bundle_template(args.out_dir, phase_catalog)
+    bundle = write_bundle_template(layout["yaml"], phase_catalog)
     print(f"  模板: {bundle}")
 
-    for p in write_phase_templates(args.out_dir, phase_catalog):
+    for p in write_phase_templates(layout["yaml"], phase_catalog):
         print(f"  模板: {p}")
 
     if phase_catalog["unassignedFieldNames"]:
