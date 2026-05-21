@@ -33,22 +33,42 @@
 |------|------|
 | [openapi/v1/openapi.yaml](./openapi/v1/openapi.yaml) | 开放平台 API **1.0.0**（OpenAPI 3.1） |
 
-本地预览（任选其一）：
+本地预览 OpenAPI（任选其一）：
 
-**Redocly CLI**（需 **Node.js ≥ 20.19**）：
+**方式 A · 生成 HTML（推荐，适配 Redocly CLI 2.x）**
+
+Redocly CLI **2.x 已移除** `preview-docs`，请改用 `build-docs` 生成静态页后用浏览器打开：
 
 ```bash
 node -v
-npx @redocly/cli preview-docs openapi/v1/openapi.yaml
+npx @redocly/cli build-docs openapi/v1/openapi.yaml -o openapi/v1/api-docs.html
 ```
 
-**在线 Swagger Editor**：https://editor.swagger.io → 导入 `openapi/v1/openapi.yaml`
+Windows CMD 生成后打开：
 
-**Docker Swagger UI**：
+```cmd
+start openapi\v1\api-docs.html
+```
+
+**方式 B · 在线 Swagger Editor（无需 Node）**
+
+https://editor.swagger.io → **File → Import file** → 选择 `openapi/v1/openapi.yaml`
+
+**方式 C · Docker Swagger UI**
 
 ```bash
 docker run --rm -p 8080:8080 -e SWAGGER_JSON=/spec/openapi.yaml -v "%CD%/openapi/v1:/spec" swaggerapi/swagger-ui
 ```
+
+**方式 D · 旧版实时预览（可选）**
+
+若必须使用已废弃的 `preview-docs`，可固定 CLI 1.x：
+
+```bash
+npx @redocly/cli@1.34.4 preview-docs openapi/v1/openapi.yaml
+```
+
+环境要求：**Node.js ≥ 20.19**（或 22.x LTS）。若出现 `Unexpected token '??='`，请先升级 Node。
 
 ## 工具脚本
 
