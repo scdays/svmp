@@ -24,7 +24,7 @@
 
 | 域 | Base Path / 协议 | 说明 |
 |----|------------------|------|
-| 鉴权 | `POST /oauth/token`（或等价端点） | `client_credentials` → Bearer Token |
+| 鉴权 | `POST /oauth/token`（或等价端点） | `client_credentials` → Bearer Token（见 [external 规范 §2.3](./external/开放平台API接口规范.md#23-获取访问令牌)） |
 | REST API | `/api/open/v1/*` | 任务、实例生命周期、外发查询 |
 | Webhook | Partner 提供 `callbackUrl` | 平台推送任务/实例/外发就绪事件 |
 | 数据外发 | `GET /exports/*` | 任务结束后下载 XML / JSON 结构化结果 |

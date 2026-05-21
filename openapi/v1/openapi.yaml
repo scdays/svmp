@@ -8,7 +8,7 @@ info:
     - 接口规范：[`docs/external/开放平台API接口规范.md`](../docs/external/开放平台API接口规范.md)
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
-    - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
+    - 鉴权：先 `POST /oauth/token` 换取 `accessToken`，再 `Authorization: Bearer` 调用业务 API；或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
     - 响应包装：除特别说明外，HTTP 200 仍使用业务 `code` 区分成功/失败
     - 幂等：`extTaskId` **仅创建任务**必填；查询任务只需 `taskId`
     - 调 SVMP：`extTaskId` 不下发；查询进度仅 SVMP `taskId`
@@ -39,6 +39,8 @@ servers:
         default: vuln-platform-test.example.com
 
 tags:
+  - name: auth
+    description: Partner 访问令牌（client_credentials）
   - name: tasks
     description: 扫描/排查任务
   - name: instances
@@ -53,6 +55,72 @@ security:
   - apiKeyAuth: []
 
 paths:
+  /oauth/token:
+    servers:
+      - url: https://{host}
+        description: Token 端点（根路径）
+        variables:
+          host:
+            default: vuln-platform.example.com
+    post:
+      tags: [auth]
+      operationId: issuePartnerToken
+      summary: 获取 Partner 访问令牌
+      description: |
+        使用运营交付的 `clientId` / `clientSecret` 换取 `accessToken`。
+        本接口**不需要** Bearer 鉴权。
+
+        别名路径：`POST /api/open/v1/oauth/token`（与本文路径等价，以环境配置为准）。
+
+        详见 [`docs/external/开放平台API接口规范.md`](../docs/external/开放平台API接口规范.md) §2.3。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerTokenRequest'
+            examples:
+              clientCredentials:
+                summary: client_credentials
+                value:
+                  grantType: client_credentials
+                  clientId: cli_abc123
+                  clientSecret: your-secret
+      responses:
+        '200':
+          description: 业务响应（检查 body.code）
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PartnerTokenResponse'
+              examples:
+                success:
+                  summary: 换 Token 成功
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-token-001
+                    data:
+                      accessToken: eyJhbGciOiJIUzI1NiIs...
+                      tokenType: Bearer
+                      expiresIn: 86400
+                      partnerId: partner-siem-01
+                invalidCredentials:
+                  summary: 凭证错误
+                  value:
+                    code: 40101
+                    message: Invalid client credentials
+                    requestId: req-token-002
+                    data: null
+        '4XX':
+          description: 请求格式错误等
+
   /tasks:
     post:
       tags: [tasks]
@@ -958,7 +1026,9 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Partner 访问令牌
+      description: |
+        Partner 访问令牌。须先调用 `POST /oauth/token`（`grantType=client_credentials`）换取 `accessToken`，
+        再在 `/api/open/v1/*` 请求头携带 `Authorization: Bearer {accessToken}`。
     apiKeyAuth:
       type: apiKey
       in: header
@@ -1032,6 +1102,43 @@ components:
             $ref: '#/components/schemas/ApiResponse'
 
   schemas:
+    PartnerTokenRequest:
+      type: object
+      required: [grantType, clientId, clientSecret]
+      properties:
+        grantType:
+          type: string
+          const: client_credentials
+          description: 固定为 `client_credentials`
+        clientId:
+          type: string
+          description: 运营交付的客户端 ID
+        clientSecret:
+          type: string
+          description: 运营交付的客户端密钥（仅用于本接口，勿传入业务 API）
+      examples:
+        - grantType: client_credentials
+          clientId: cli_abc123
+          clientSecret: your-secret
+
+    PartnerTokenResponse:
+      type: object
+      required: [accessToken, tokenType, expiresIn, partnerId]
+      properties:
+        accessToken:
+          type: string
+          description: 访问令牌，用于 `Authorization: Bearer`
+        tokenType:
+          type: string
+          const: Bearer
+        expiresIn:
+          type: integer
+          description: 有效秒数
+          examples: [86400]
+        partnerId:
+          type: string
+          description: 接入方 ID
+
     ApiResponse:
       type: object
       required: [code, message, requestId]

@@ -12,6 +12,9 @@
 
 - [1. 概述](#1-概述)
 - [2. 接入准备](#2-接入准备)
+  - [2.1 开通材料](#21-开通材料)
+  - [2.2 环境地址](#22-环境地址)
+  - [2.3 获取访问令牌](#23-获取访问令牌)
 - [3. 鉴权与安全](#3-鉴权与安全)
 - [4. 通用约定](#4-通用约定)
 - [5. REST API](#5-rest-api)
@@ -69,24 +72,133 @@
 
 ### 2.1 开通材料
 
-接入前由平台运营分配：
+接入前由**平台运营**在管理后台完成 Partner 登记（Partner **无需**也**无法**自行注册）。登记完成后，运营向您交付下列材料：
 
 | 配置项 | 说明 |
 |--------|------|
 | `partnerId` | 接入方唯一标识 |
-| 鉴权凭证 | Bearer Token，或 `X-Api-Key` + HMAC 密钥 |
+| `clientId` / `clientSecret` | **推荐**：机机凭证，用于换取 `accessToken`（见 §2.3）；`clientSecret` 仅交付一次，请安全保存 |
+| 或：长期 `accessToken` | **可选简化模式**：运营直接交付 Bearer Token，可跳过 §2.3 换 Token 步骤（须在交付说明中注明有效期） |
+| 或：`X-Api-Key` + HMAC 密钥 | **可选**（P2）：见 §3.2，每次请求签名，不使用 Bearer |
 | `capabilities` | 已开通的能力码列表（见 §8） |
 | 回调地址 | 默认 `callbackUrl`（可在创建任务时覆盖） |
 | IP 白名单 / mTLS | 按安全要求可选 |
 
+> **注意**：门户用户名/密码**不能**用于调用开放平台 API。请使用运营交付的 Partner 专用凭证。
+
 ### 2.2 环境地址
 
-| 环境 | Base URL 示例 |
-|------|----------------|
-| 测试 | `https://{测试域名}/api/open/v1` |
-| 生产 | `https://{生产域名}/api/open/v1` |
+| 环境 | 业务 API Base URL | Token 端点（推荐） |
+|------|-------------------|-------------------|
+| 测试 | `https://{测试域名}/api/open/v1` | `https://{测试域名}/oauth/token` |
+| 生产 | `https://{生产域名}/api/open/v1` | `https://{生产域名}/oauth/token` |
 
-实际域名以平台运营提供为准。
+实际域名以平台运营提供为准。部分环境亦支持别名路径 `POST /api/open/v1/oauth/token`（与 `/oauth/token` 等价，以运营说明为准）。
+
+### 2.3 获取访问令牌
+
+在调用 §5 任意业务接口前，Partner 须先取得 `accessToken`，并在后续请求中使用：
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+#### 2.3.1 适用场景
+
+| 开通方式 | Partner 是否需要本步骤 |
+|----------|------------------------|
+| 运营交付 `clientId` + `clientSecret` | **需要**（推荐） |
+| 运营直接交付长期 `accessToken` | **不需要**，直接用于 §3.1 |
+| `X-Api-Key` + HMAC | **不需要**，见 §3.2 |
+
+#### 2.3.2 请求
+
+| 项 | 值 |
+|----|-----|
+| 方法 | `POST` |
+| 路径 | `/oauth/token`（或 `/api/open/v1/oauth/token`） |
+| Content-Type | `application/json` |
+| 鉴权 | **无需** Bearer（本接口用于获取 Token） |
+
+**请求体**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| grantType | string | ✓ | 固定 `client_credentials` |
+| clientId | string | ✓ | 运营交付的客户端 ID |
+| clientSecret | string | ✓ | 运营交付的客户端密钥 |
+
+**请求示例**
+
+```http
+POST /oauth/token HTTP/1.1
+Host: vuln-platform.example.com
+Content-Type: application/json
+
+{
+  "grantType": "client_credentials",
+  "clientId": "cli_abc123",
+  "clientSecret": "your-secret"
+}
+```
+
+#### 2.3.3 响应
+
+HTTP **200**，body 使用 §4.1 包装；`code=0` 时 `data` 字段如下：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| accessToken | string | 访问令牌，用于 `Authorization: Bearer` |
+| tokenType | string | 固定 `Bearer` |
+| expiresIn | integer | 有效秒数；到期前请重新调用本接口 |
+| partnerId | string | 接入方 ID（与运营登记一致） |
+
+**成功示例**
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "requestId": "req-token-001",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+    "tokenType": "Bearer",
+    "expiresIn": 86400,
+    "partnerId": "partner-siem-01"
+  }
+}
+```
+
+**失败示例**（凭证错误）
+
+```json
+{
+  "code": 40101,
+  "message": "Invalid client credentials",
+  "requestId": "req-token-002",
+  "data": null
+}
+```
+
+#### 2.3.4 Partner 侧实现建议
+
+1. **缓存** `accessToken`，在 `expiresIn` 到期前复用，避免每次业务请求都换 Token。
+2. 业务 API 返回 **`40101`** 时，丢弃缓存并**重新调用** `POST /oauth/token`。
+3. **`clientSecret` 仅用于换 Token**，不要放入 `/api/open/v1/*` 业务请求头或 body。
+4. Token 与门户用户登录态**相互独立**；不要用运维账号密码代替 Partner 凭证。
+5. 机器可读定义见 OpenAPI：`oauth/token`（[`openapi/v1/openapi.yaml`](../../openapi/v1/openapi.yaml)）。
+
+#### 2.3.5 接入时序（概览）
+
+```text
+平台运营登记 Partner → 交付 clientId / clientSecret
+        ↓
+Partner POST /oauth/token → 获得 accessToken
+        ↓
+Partner 调用 /api/open/v1/*，Header: Authorization: Bearer {accessToken}
+        ↓
+（可选）平台 POST callbackUrl 推送 Webhook
+```
 
 ---
 
@@ -94,10 +206,15 @@
 
 ### 3.1 方式一：Bearer Token（推荐）
 
+业务接口（`/api/open/v1/*`）使用运营交付凭证换取的访问令牌：
+
 ```http
 Authorization: Bearer <accessToken>
 Content-Type: application/json
 ```
+
+**如何获取 `accessToken`**：见 [§2.3 获取访问令牌](#23-获取访问令牌)（`POST /oauth/token`，`grantType=client_credentials`）。  
+若运营已直接交付长期 Token，可跳过换 Token 步骤，但仍须使用上述 Header 格式。
 
 ### 3.2 方式二：API Key + 签名
 
@@ -172,7 +289,8 @@ Content-Type: application/json
 ## 5. REST API
 
 > 路径均相对于 Base Path `/api/open/v1`。  
-> 下文「—」表示该项无参数。
+> 下文「—」表示该项无参数。  
+> **调用前**须按 [§2.3](#23-获取访问令牌) 取得 `accessToken` 并设置 `Authorization: Bearer`（Token 接口本身除外）。
 
 ### 5.0 接口一览
 
@@ -1281,7 +1399,8 @@ TaskExport / taskExport
 ## 10. 典型集成流程
 
 ```text
-1. POST /tasks（extTaskId 幂等）→ 保存 taskId
+0. （首次 / Token 过期）POST /oauth/token → 缓存 accessToken
+1. POST /tasks（extTaskId 幂等，Header: Bearer）→ 保存 taskId
 2. 轮询 GET /tasks/{taskId} 或等待 Webhook TASK_COMPLETED
 3. 收到 EXPORT_READY → GET /exports/{exportId}/download → 按 `format` 解析 XML 或 JSON
 4. POST /instances/search?taskId=... → 入库漏洞实例
@@ -1291,6 +1410,7 @@ TaskExport / taskExport
    - POST .../verify-fix
 6. 若 verify / verify-fix 触发扫描，继续接收 EXPORT_READY，按 `exportStage` 识别验证扫描或修复核验扫描外发
 7. 可选：订阅 INSTANCE_* 事件驱动 ITSM 工单
+8. accessToken 将过期或收到 40101 → 回到步骤 0
 ```
 
 ---
