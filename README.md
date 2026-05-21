@@ -15,11 +15,31 @@
 |------|------|
 | [openapi/v1/openapi.yaml](./openapi/v1/openapi.yaml) | 开放平台 API **1.0.0**（OpenAPI 3.1，与接口规范对齐） |
 
-本地预览（需安装 [Swagger UI](https://github.com/swagger-api/swagger-ui) 或 Redoc）：
+本地预览 OpenAPI（任选其一）：
+
+**方式 A · Redocly CLI（推荐）**
+
+环境要求：**Node.js ≥ 20.19**（或 22.12+）。若出现 `SyntaxError: Unexpected token '??='`，说明当前 Node 过旧，请先升级再执行：
 
 ```bash
+node -v
 npx @redocly/cli preview-docs openapi/v1/openapi.yaml
 ```
+
+Windows 可先安装 [Node.js LTS](https://nodejs.org/)（22.x），或使用 [nvm-windows](https://github.com/coreybutler/nvm-windows)：`nvm install 22` → `nvm use 22`。
+
+**方式 B · 在线 Swagger Editor（无需本地 Node）**
+
+1. 打开 https://editor.swagger.io  
+2. **File → Import file**，选择仓库内 `openapi/v1/openapi.yaml`
+
+**方式 C · Docker 运行 Swagger UI**
+
+```bash
+docker run --rm -p 8080:8080 -e SWAGGER_JSON=/spec/openapi.yaml -v "%CD%/openapi/v1:/spec" swaggerapi/swagger-ui
+```
+
+浏览器访问 http://localhost:8080
 
 解析《数据外发字段说明》HTML（需先将文件放到 `export-templates/`）：
 
