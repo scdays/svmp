@@ -20,8 +20,11 @@
 - [8. 能力码（Capability）](#8-能力码capability)
 - [9. 业务错误码](#9-业务错误码)
 - [10. 典型集成流程](#10-典型集成流程)
-- [附录 A · 漏洞实例状态](#附录-a--漏洞实例状态-vulinfostat)
+- [附录 A · 漏洞实例状态 `vulInfoStat`](#附录-a--漏洞实例状态-vulinfostat)
 - [附录 B · 相关资源](#附录-b--相关资源)
+- [附录 C · 平台用户角色](#附录-c--平台用户角色-srctktrole--dsttktrole)
+- [附录 D · 漏洞管理处置方式](#附录-d--漏洞管理处置方式-srcmethod)
+- [附录 E · 未修复原因](#附录-e--未修复原因-lvrsn)
 
 ---
 
@@ -239,7 +242,7 @@ Content-Type: application/json
 | vulnType | int | ✓ | **1**=系统漏洞，**2**=Web 漏洞 |
 | callbackUrl | string | ○ | 覆盖 Partner 默认回调 URL |
 | scanTemplateId | int | ○ | 扫描模板 ID；支持 **漏洞扫描**、**存活探测**、**端口扫描** 及组合（由模板定义） |
-| srcMethod | int | ○ | 资产扫描/处置方式，码表见《接口规范(2025)》**A.10**；若传入则**覆盖** `scanTemplateId` 默认处置方式 |
+| srcMethod | int | ○ | 资产扫描/处置方式，见 [附录 D](#附录-d--漏洞管理处置方式-srcmethod)；若传入则**覆盖** `scanTemplateId` 默认处置方式 |
 | exportTemplateId | string | ○ | 扫描结果外发模板（如 `tpl-svmp-xml-scan-bundle`） |
 | priority | enum | ○ | `LOW` / `MEDIUM` / `HIGH` |
 | options.portScope | string | ○ | 端口范围，如 `1-65535` |
@@ -431,7 +434,7 @@ Authorization: Bearer <accessToken>
 | vulInfoID | string | ✓ | 系统漏洞实例 ID |
 | vulID | string | ○ | 产品漏洞编号 |
 | vulInfoStat | int | ✓ | 状态（A.8） |
-| lvRsn | int | ○ | 未修复原因（A.23） |
+| lvRsn | int | ○ | 未修复原因，见 [附录 E](#附录-e--未修复原因-lvrsn) |
 | vulName | string | ✓ | 漏洞名称 |
 | vulLevel | int | ○ | 危害等级 |
 | orgVulId | string | ○ | 原始编号（如 CVE） |
@@ -494,7 +497,7 @@ Authorization: Bearer <accessToken>
 |------|------|:---:|------|
 | vulnType | int | ○ | 1/2；默认取自实例 |
 | verifyResult | enum | ✓ | `VALID`→**2**；`FALSE_POSITIVE`→**3** |
-| srcMethod | int | 条件 | **`VALID` 时必填**（如 1021、1026） |
+| srcMethod | int | 条件 | **`VALID` 时必填**，见 [附录 D](#附录-d--漏洞管理处置方式-srcmethod)（如 **1021**、**1026**） |
 | transferTime | string | ○ | 缺省服务端生成 |
 | operator | string | ✓ | 操作人（审计） |
 | remark | string | ○ | 备注 |
@@ -561,57 +564,50 @@ Authorization: Bearer <accessToken>
 
 ---
 
-### 5.4 处置阶段说明
-
-验证有效（`vulInfoStat = 2`）或核验未修复（`vulInfoStat = 7`）后，调用 **§5.5** `POST .../remediate` 提交处置结果：
-
-| 结果 | `vulInfoStat` | 说明 |
-|------|---------------|------|
-| 已修复 | **5** | `srcMethod` 为可修复类（A.10，如 1050–1052） |
-| 修复失败 / 备案 | **9** | `srcMethod` 为不可修复类；须传 `lvRsn`（A.23）、`archiveReason` |
-
-**状态约束**：
-
-| 类型 | 规则 |
-|------|------|
-| 前置 | `vulInfoStat ∈ {2, 7}`，且 `≠ 3` |
-| 终态 | 单次调用推进至 **5** 或 **9**；已终态不可重复处置（**40005**） |
-
-> 原独立 `POST .../archive` 已合并入 `remediate`；`archive` 路径不再提供。
-
----
-
-### 5.5 处置 · 修复（含修复失败/备案）
-
-#### 5.5.1 `POST /instances/{vulInfoID}/remediate` — 单条处置
+### 5.5 处置 · 修复
 
 | 项 | 值 |
 |----|-----|
 | 能力 | `INSTANCE_REMEDIATE` |
+| 前置状态 | `vulInfoStat ∈ {2, 7}`（否则 **40002**）；误报（**3**）不可处置 |
+| 接口 | `POST /instances/{vulInfoID}/remediate`、`POST /instances/remediate:batch` |
+
+验证有效或核验未修复后，回写**已修复**或**修复失败（备案）**。由请求体字段组合决定终态：
+
+| 处置结果 | 终态 `vulInfoStat` | 条件必填 |
+|----------|-------------------|----------|
+| 已修复 | **5** | `srcMethod` 为 **1050–1053**（[附录 D](#附录-d--漏洞管理处置方式-srcmethod)）；`remedDesc`、`remedTime`；**1050** 另需 `fixLnk`；**1051/1052** 另需 `defDev` |
+| 修复失败 / 备案 | **9** | `lvRsn`（[附录 E](#附录-e--未修复原因-lvrsn)）、`archiveReason` |
+
+**工单字段（可选）**：对应部侧表56「系统漏洞修复类型日志」。`srcTktRole`、`dstTktRole` 见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole)；派单人/处置人联系方式以 `assignerDept/Email/Phone`、`handlerDept/Email/Phone` 分别传递（部侧 `srcTktPrsn`/`dstTktPrsn` 为「部门,邮箱,电话」合并串，开放平台**不提供**该合并字段）。
+
+同一实例仅可成功处置一次；重复调用返回 **40005**。
+
+#### 5.5.1 `POST /instances/{vulInfoID}/remediate` — 单条处置
 
 **请求体**：
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
-| srcMethod | int | ✓ | 漏洞管理处置方式，码表 **A.10**（如 1050 补丁、1051 防护、1052 关停；不可修复类 → 终态 9） |
-| remedDesc | string | 条件 | 已修复（→5）时必填 |
-| fixLnk | string | 条件 | `srcMethod=1050` 时必填 |
-| defDev | string | 条件 | `srcMethod=1051` 或 `1052` 时必填 |
-| remedTime | string | 条件 | 已修复时必填，如 `3日` |
-| lvRsn | int | 条件 | 修复失败（→9）时必填，码表 **A.23**（101–109 / 999） |
-| archiveReason | string | 条件 | 修复失败（→9）时必填 |
-| approvedBy | string | ○ | 修复失败审批人 |
+| srcMethod | int | ✓ | 处置方式，见 [附录 D](#附录-d--漏洞管理处置方式-srcmethod) |
+| remedDesc | string | 条件 | →**5** 时必填：修复方案说明 |
+| fixLnk | string | 条件 | `srcMethod=1050` 时必填：补丁链接 |
+| defDev | string | 条件 | `srcMethod=1051` 或 `1052` 时必填：防护/阻断设备 |
+| remedTime | string | 条件 | →**5** 时必填，格式 `数值+单位`（如 `3日`、`2周`） |
+| lvRsn | int | 条件 | →**9** 时必填，见 [附录 E](#附录-e--未修复原因-lvrsn) |
+| archiveReason | string | 条件 | →**9** 时必填：企业内部备案说明 |
+| approvedBy | string | ○ | 备案审批人 |
 | recordAt | string | ○ | 备案时间 |
 | provincialFields | object | ○ | 省侧扩展 JSON |
-| srcTktRole | int | ○ | 派单角色，码表 **A.9**（表56 `srcTktRole`） |
-| dstTktRole | int | ○ | 处置角色，码表 **A.9**（表56 `dstTktRole`） |
-| assignerDept | string | ○ | 派单人部门（表56 拆分 `srcTktPrsn`，**勿**直接传 `srcTktPrsn`） |
+| srcTktRole | int | ○ | 派单角色，见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole) |
+| dstTktRole | int | ○ | 处置角色，见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole) |
+| assignerDept | string | ○ | 派单人部门 |
 | assignerEmail | string | ○ | 派单人邮箱 |
 | assignerPhone | string | ○ | 派单人电话 |
-| handlerDept | string | ○ | 处置人部门（表56 拆分 `dstTktPrsn`，**勿**直接传 `dstTktPrsn`） |
+| handlerDept | string | ○ | 处置人部门 |
 | handlerEmail | string | ○ | 处置人邮箱 |
 | handlerPhone | string | ○ | 处置人电话 |
-| transferTime | string | ○ | 缺省服务端生成 |
+| transferTime | string | ○ | 状态变更时间（Unix 秒字符串）；缺省由服务端生成 |
 | remark | string | ○ | 备注 |
 
 **响应 data**：`vulInfoID`、`vulInfoStat`（**5** 或 **9**）、`lvRsn`、`transferTime`、`remedDesc` 或 `archiveReason`、`srcMethod`。
@@ -640,7 +636,7 @@ Authorization: Bearer <accessToken>
 
 ```json
 {
-  "srcMethod": 1099,
+  "srcMethod": 999,
   "lvRsn": 101,
   "archiveReason": "业务连续性限制，经评估接受风险",
   "approvedBy": "risk-committee@corp.com",
@@ -1489,17 +1485,19 @@ TaskExport / taskExport
 
 ## 附录 A · 漏洞实例状态 `vulInfoStat`
 
+摘自《基础电信企业网络安全漏洞管理平台接口规范(2025年版)》**A.8 系统漏洞状态码表**。
+
 | 值 | 说明 | 阶段 |
 |----|------|------|
 | 0 | 潜在预警 | 预警 |
 | 1 | 初始发现 | 识别 |
 | 2 | 已验证有效 | 识别 |
-| 3 | 已验证误报 | 终态 |
+| 3 | 已验证误报 | 修复 |
 | 5 | 已修复 | 修复 |
 | 6 | 核验修复 | 修复 |
 | 7 | 核验未修复 | 识别 |
 | 8 | 验证失败 | 识别 |
-| 9 | 修复失败（备案） | 识别 |
+| 9 | 修复失败 | 识别 |
 | 10 | 核验失败 | 识别 |
 
 ---
@@ -1509,7 +1507,99 @@ TaskExport / taskExport
 | 资源 | 路径 |
 |------|------|
 | OpenAPI 3.1 | [`openapi/v1/openapi.yaml`](../../openapi/v1/openapi.yaml) |
+| 部侧接口规范原文 | [`docs/standards/基础电信企业网络安全漏洞管理平台接口规范(2025年版).docx`](../standards/基础电信企业网络安全漏洞管理平台接口规范(2025年版).docx) |
 
 **本地预览**（Redocly CLI 2.x）：`npx @redocly/cli build-docs openapi/v1/openapi.yaml -o openapi/v1/api-docs.html`，用浏览器打开生成的 HTML。需要 **Node.js ≥ 20.19**。亦可使用 https://editor.swagger.io 导入该 YAML。
 
 文档问题请联系平台集成对接人（`partnerId` 对应运营渠道）。
+
+---
+
+## 附录 C · 平台用户角色 `srcTktRole` / `dstTktRole`
+
+摘自部侧规范 **A.9 平台用户角色表**，用于 §5.5 处置工单字段及部侧表56 日志。
+
+| 角色代码 | 说明 |
+|----------|------|
+| 0 | 超级管理员 |
+| 1 | 安全审计管理员 |
+| 2 | 操作员 |
+| 3 | 审核员 |
+| 4 | 技术员 |
+| 5 | 检查员 |
+| 6 | 系统配置管理员 |
+| 7 | 授权（用户）管理员 |
+| 8 | 外部系统-资产责任人 |
+| 9 | 外部系统-业务系统责任人 |
+| 10 | 外部-其他 |
+
+---
+
+## 附录 D · 漏洞管理处置方式 `srcMethod`
+
+摘自部侧规范 **A.10 漏洞管理处置方式码表**。开放平台在创建任务（§5.1.1）、验证（§5.3）、处置（§5.5）等接口中以 `srcMethod` 传递**处置代码**列取值。
+
+| 处置代码 | 技术处置方式 | 漏洞管理类型 | 台账类别 |
+|----------|--------------|--------------|----------|
+| 1080 | 关联分析 | 产品漏洞预警 | 108 |
+| 1020 | 指纹插件（远程版本扫描） | 系统漏洞排查 | 102 |
+| 1021 | POC 插件 | 系统漏洞排查 | 102 |
+| 1022 | 漏洞扫描（混合） | 系统漏洞排查 | 102 |
+| 1023 | （人工）线下导入 | 系统漏洞排查 | 102 |
+| 1024 | （人工）本地发现 | 系统漏洞排查 | 102 |
+| 1026 | 交叉扫描验证 | 系统漏洞排查 | 102 |
+| 1027 | 登录扫描 | 系统漏洞排查 | 102 |
+| 1028 | 连通性检测 | 系统漏洞排查 | 102 |
+| 1030 | 字典组合暴破 | 弱口令扫描 | 103 |
+| 1031 | 规则猜测暴破 | 弱口令扫描 | 103 |
+| 1032 | 配置文件分析 | 弱口令扫描 | 103 |
+| 1040 | EXP 漏洞利用 | 系统漏洞利用 | 104 |
+| 1050 | 补丁修复 | 系统漏洞修复 | 105 |
+| 1051 | 等效防护修复 | 系统漏洞修复 | 105 |
+| 1052 | 连通性阻断（离线使用） | 系统漏洞修复 | 105 |
+| 1053 | 资产下线 | 系统漏洞修复 | 105 |
+| 1060 | 修复核验自适应扫描 | 漏洞安全验证 | 106 |
+| 1061 | 攻击模拟漏洞扫描 | 漏洞安全验证 | 106 |
+| 1070 | 本地动态核验 | 产品漏洞验证（分类定级） | 107 |
+| 1071 | 静态代码审计 | 产品漏洞验证（分类定级） | 107 |
+| 1090 | 社工 | 网络渗透测试 | 109 |
+| 1091 | 钓鱼 | 网络渗透测试 | 109 |
+| 1092 | 实例型漏洞利用 | 网络渗透测试 | 109 |
+| 1093 | 弱口令提权 | 网络渗透测试 | 109 |
+| 1094 | 线下导入 | 网络渗透测试 | 109 |
+| 1100 | 模糊测试 | 产品漏洞挖掘 | 110 |
+| 1101 | 源码逻辑审计 | 产品漏洞挖掘 | 110 |
+| 1102 | 符号执行 | 产品漏洞挖掘 | 110 |
+| 1103 | 污点分析 | 产品漏洞挖掘 | 110 |
+| 1110 | 崩溃路径复现 | POC 开发验证 | 111 |
+| 1111 | 代码插桩 | POC 开发验证 | 111 |
+| 1112 | 可利用条件约束 | POC 开发验证 | 111 |
+| 1113 | CoreDump 分析 | POC 开发验证 | 111 |
+| 1114 | 补丁比对 | POC 开发验证 | 111 |
+| 1010 | 登录管理 | 漏管平台维护 | 101 |
+| 1000 | 时钟同步 | 漏管平台系统日志 | 100 |
+| 990 | 方式不限 | 通用 | 99 |
+| 999 | 其他方式 | — | — |
+| 2990 | 保留扩展 | 其他类型 | 299 |
+
+**§5.5 处置常用代码**：已修复 → **1050–1053**；验证有效 → **1021**、**1026** 等排查/验证类；修复失败/备案 → 结合 `lvRsn` 使用 **999** 或其他符合业务场景的代码。
+
+---
+
+## 附录 E · 未修复原因 `lvRsn`
+
+摘自部侧规范 **A.23 未修复原因**。§5.5 处置进入终态 **9（修复失败）** 时必填。
+
+| 编码 | 原因说明 |
+|------|----------|
+| 101 | 无修复方案 |
+| 102 | 修复方案无效 |
+| 103 | 修复成本过高 |
+| 104 | 优先级未达基线 |
+| 105 | 白名单 |
+| 107 | 非对外暴露资产 |
+| 108 | VPT 无危害 |
+| 109 | 接受风险 |
+| 999 | 其他 |
+
+---
