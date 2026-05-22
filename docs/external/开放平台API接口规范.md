@@ -623,7 +623,7 @@ Authorization: Bearer <accessToken>
 | 已修复 | **5** | `srcMethod` 为 **1050–1053**（[附录 D](#附录-d--漏洞管理处置方式-srcmethod)）；`remedDesc`、`remedTime`；**1050** 另需 `fixLnk`；**1051/1052** 另需 `defDev` |
 | 修复失败 / 备案 | **9** | `lvRsn`（[附录 E](#附录-e--未修复原因-lvrsn)）、`archiveReason` |
 
-**工单字段（可选）**：对应部侧表56「系统漏洞修复类型日志」。`srcTktRole`、`dstTktRole` 见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole)；派单人/处置人联系方式以 `assignerDept/Email/Phone`、`handlerDept/Email/Phone` 分别传递（部侧 `srcTktPrsn`/`dstTktPrsn` 为「部门,邮箱,电话」合并串，开放平台**不提供**该合并字段）。
+**工单字段（必填）**：对应部侧表56「系统漏洞修复类型日志」。`srcTktRole`、`dstTktRole` 见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole)；`assignerDept`、`handlerDept` **必填**；派单人 `assignerEmail` / `assignerPhone`、处置人 `handlerEmail` / `handlerPhone` **至少填一项**（部侧 `srcTktPrsn`/`dstTktPrsn` 为「部门,邮箱,电话」合并串，开放平台**不提供**该合并字段）。
 
 同一实例仅可成功处置一次；重复调用返回 **40005**。
 
@@ -643,14 +643,14 @@ Authorization: Bearer <accessToken>
 | approvedBy | string | ○ | 备案审批人 |
 | recordAt | string | ○ | 备案时间 |
 | provincialFields | object | ○ | 省侧扩展 JSON |
-| srcTktRole | int | ○ | 派单角色，见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole) |
-| dstTktRole | int | ○ | 处置角色，见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole) |
-| assignerDept | string | ○ | 派单人部门 |
-| assignerEmail | string | ○ | 派单人邮箱 |
-| assignerPhone | string | ○ | 派单人电话 |
-| handlerDept | string | ○ | 处置人部门 |
-| handlerEmail | string | ○ | 处置人邮箱 |
-| handlerPhone | string | ○ | 处置人电话 |
+| srcTktRole | int | ✓ | 派单角色，见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole) |
+| dstTktRole | int | ✓ | 处置角色，见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole) |
+| assignerDept | string | ✓ | 派单人部门 |
+| assignerEmail | string | 条件 | 派单人邮箱；与 `assignerPhone` **至少填一项** |
+| assignerPhone | string | 条件 | 派单人电话；与 `assignerEmail` **至少填一项** |
+| handlerDept | string | ✓ | 处置人部门 |
+| handlerEmail | string | 条件 | 处置人邮箱；与 `handlerPhone` **至少填一项** |
+| handlerPhone | string | 条件 | 处置人电话；与 `handlerEmail` **至少填一项** |
 | transferTime | string | ○ | 状态变更时间（Unix 秒字符串）；缺省由服务端生成 |
 | remark | string | ○ | 备注 |
 
@@ -728,14 +728,14 @@ Authorization: Bearer <accessToken>
 | approvedBy | string | ○ | 备案审批人 |
 | recordAt | string | ○ | 备案时间 |
 | provincialFields | object | ○ | 省侧扩展 JSON |
-| srcTktRole | int | ○ | 派单角色，见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole) |
-| dstTktRole | int | ○ | 处置角色，见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole) |
-| assignerDept | string | ○ | 派单人部门 |
-| assignerEmail | string | ○ | 派单人邮箱 |
-| assignerPhone | string | ○ | 派单人电话 |
-| handlerDept | string | ○ | 处置人部门 |
-| handlerEmail | string | ○ | 处置人邮箱 |
-| handlerPhone | string | ○ | 处置人电话 |
+| srcTktRole | int | ✓ | 派单角色，见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole) |
+| dstTktRole | int | ✓ | 处置角色，见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole) |
+| assignerDept | string | ✓ | 派单人部门 |
+| assignerEmail | string | 条件 | 派单人邮箱；与 `assignerPhone` **至少填一项** |
+| assignerPhone | string | 条件 | 派单人电话；与 `assignerEmail` **至少填一项** |
+| handlerDept | string | ✓ | 处置人部门 |
+| handlerEmail | string | 条件 | 处置人邮箱；与 `handlerPhone` **至少填一项** |
+| handlerPhone | string | 条件 | 处置人电话；与 `handlerEmail` **至少填一项** |
 | transferTime | string | ○ | 本条状态变更时间（Unix 秒字符串）；缺省由服务端生成 |
 | remark | string | ○ | 备注 |
 
@@ -774,7 +774,7 @@ Authorization: Bearer <accessToken>
 | transferTime | string | ○ | 缺省服务端生成 |
 | remark | string | ○ | 备注 |
 
-**平台行为**：受理后异步执行核验扫描；`vulInfoStat` 暂保持 **5**，完成后通过 Webhook `INSTANCE_VERIFY_FIX_COMPLETED` 通知终态 **6 / 7 / 10**，并可产生 `EXPORT_READY`（`exportStage=VERIFY_FIX_SCAN`）。外发须含 `targets[]`、`liveProbeResults[]`、`vulnerabilities[]`（§5.6.3）。
+**平台行为**：受理后异步执行核验扫描；`vulInfoStat` 暂保持 **5**，完成后通过 Webhook `INSTANCE_VERIFY_FIX_COMPLETED` 通知终态 **6 / 7 / 10**，并可产生 `EXPORT_READY`（`exportStage=VERIFY_FIX_SCAN`）。外发须含 `targets[]`、`liveProbeResults[]`、`portScanResults[]`、`vulnerabilities[]`（§5.6.3）。
 
 **响应 data（受理）**：
 
@@ -879,7 +879,7 @@ Authorization: Bearer <accessToken>
 |---------------|----------|------------|----------|
 | `TASK_COMPLETED` | 普通扫描 / 排查任务结束 | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` | 按任务启用能力输出；漏洞扫描见 §5.6.3「漏洞扫描」行 |
 | `VERIFY_SCAN` | 漏洞验证阶段触发复扫 / POC 扫描完成 | `SYSTEM_VULNERABILITY` | `targets[]` + `liveProbeResults[]` + `vulnerabilities[]`（§5.6.6 聚合） |
-| `VERIFY_FIX_SCAN` | 修复核验阶段触发复扫完成 | `SYSTEM_VULNERABILITY` | `targets[]` + `liveProbeResults[]` + `vulnerabilities[]`（§5.6.6 聚合） |
+| `VERIFY_FIX_SCAN` | 修复核验阶段触发复扫完成 | `SYSTEM_VULNERABILITY` | `targets[]` + `liveProbeResults[]` + `portScanResults[]` + `vulnerabilities[]`（§5.6.6 聚合） |
 
 `VERIFY_SCAN` / `VERIFY_FIX_SCAN` 与任务结束外发使用同一下载接口和同一 `xml` / `json` 序列化规则；区别在 `export.exportStage`。阶段扫描外发**须**包含目标与存活探测结果，漏洞实例按 §5.6.6 聚合于 `vulnerabilities[].instances[]`。
 
@@ -909,8 +909,7 @@ TaskExport / taskExport
 | 主机存活探测 | `targets[]` + `liveProbeResults[]` | `targets[]` 保存目标主数据，`liveProbeResults[]` 保存探测方式、存活状态、时延等结果 |
 | 端口扫描 | `targets[]` + `portScanResults[]` | 端口、协议、状态、服务、Banner 等作为正式端口扫描结果输出 |
 | 漏洞扫描 | `targets[]` + `liveProbeResults[]` + `vulnerabilities[]` | 目标与存活结果与漏洞结果同包输出；漏洞按 **产品漏洞 `vulID`** 聚合，实例在 `instances[]` |
-| 验证扫描 | `targets[]` + `liveProbeResults[]` + `vulnerabilities[]` | `exportStage=VERIFY_SCAN`；结构同漏洞扫描 |
-| 修复核验 | `targets[]` + `liveProbeResults[]` + `vulnerabilities[]` | `exportStage=VERIFY_FIX_SCAN`；结构同漏洞扫描 |
+| 修复核验 | `targets[]` + `liveProbeResults[]` + `portScanResults[]` + `vulnerabilities[]` | `exportStage=VERIFY_FIX_SCAN` |
 
 其他引擎结果参考结构的落点：
 
@@ -1505,7 +1504,7 @@ TaskExport / taskExport
 
 字段说明以 §5.6.4–§5.6.7 为准。
 
-**修复核验外发**（`exportStage=VERIFY_FIX_SCAN`，`dataType=SYSTEM_VULNERABILITY`；须含 `targets[]`、`liveProbeResults[]`、`vulnerabilities[]`）：
+**修复核验外发**（`exportStage=VERIFY_FIX_SCAN`，`dataType=SYSTEM_VULNERABILITY`；须含 `targets[]`、`liveProbeResults[]`、`portScanResults[]`、`vulnerabilities[]`）：
 
 ```json
 {
@@ -1534,6 +1533,18 @@ TaskExport / taskExport
         "alive": true,
         "probeMethod": "ICMP",
         "latencyMs": 10
+      }
+    ],
+    "portScanResults": [
+      {
+        "portScanId": "PORT-VF-001",
+        "targetId": "TGT-001",
+        "address": "10.10.1.1",
+        "port": 22,
+        "protocol": "TCP",
+        "state": "open",
+        "service": "ssh",
+        "banner": "OpenSSH/9.6"
       }
     ],
     "vulnerabilities": [

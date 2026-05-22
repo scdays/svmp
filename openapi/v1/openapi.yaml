@@ -501,7 +501,7 @@ paths:
         需能力 `INSTANCE_REMEDIATE`。
         前置：`vulInfoStat ∈ {2, 7}`，且 `≠ 3`。
         可修复类 srcMethod（附录 D，1050–1053）→ `vulInfoStat=5`；修复失败/备案 → `vulInfoStat=9`，须传 `lvRsn`（附录 E）、`archiveReason`。
-        工单字段：`srcTktRole`/`dstTktRole`（附录 C）；派单人/处置人使用 assigner*/handler* 拆分。
+        工单字段（必填）：srcTktRole/dstTktRole、assignerDept/handlerDept；派单人/处置人邮箱与电话各至少填一项。
       parameters:
         - $ref: '#/components/parameters/VulInstanceId'
         - $ref: '#/components/parameters/IdempotencyKey'
