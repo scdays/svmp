@@ -10,7 +10,7 @@ info:
     - Base path：`/api/open/v1`
     - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
     - 响应包装：除特别说明外，HTTP 200 仍使用业务 `code` 区分成功/失败
-    - 幂等：`extTaskId` **仅创建任务**必填；查询任务只需 `taskId`
+    - 幂等：创建任务用 `extTaskId` 或 `Idempotency-Key`；实例写 `{动作}:{vulInfoID}:{clientRequestId}`；批量 `{动作}:batch:{clientBatchId}`（详见接口规范 §4.2，默认保留 24h）
     - 调 SVMP：`extTaskId` 不下发；查询进度仅 SVMP `taskId`
 
     ## 生命周期
@@ -1417,7 +1417,7 @@ components:
       properties:
         srcMethod:
           type: integer
-          description: A.10；可修复类→5，不可修复类→9
+          description: A.10；可修复类 1050–1053→5；修复失败/备案→9 须 lvRsn（附录 E）
         remedDesc:
           type: string
         fixLnk:
@@ -1444,10 +1444,10 @@ components:
           additionalProperties: true
         srcTktRole:
           type: integer
-          description: 派单角色（A.9）
+          description: 派单角色，见接口规范附录 C
         dstTktRole:
           type: integer
-          description: 处置角色（A.9）
+          description: 处置角色，见接口规范附录 C
         assignerDept:
           type: string
         assignerEmail:

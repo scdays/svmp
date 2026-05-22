@@ -152,11 +152,61 @@ Content-Type: application/json
 
 ### 4.2 幂等
 
+#### 创建任务
+
 | 场景 | 约定 |
 |------|------|
-| 创建任务 | **必填** `extTaskId`（Partner 侧唯一）；重复提交返回 `40901` 或 `200` 且返回已有 `taskId` |
-| 查询任务进度 | 仅使用平台返回的 **`taskId`**，不需传 `extTaskId` |
-| 实例写操作 | 建议请求头 `Idempotency-Key: {vulInfoID}-{动作}` |
+| 业务键 | **必填** `extTaskId`（Partner 侧唯一） |
+| 请求头 | 可选 `Idempotency-Key`；与 `extTaskId` **二选一** 即可（平台优先匹配 `extTaskId`） |
+| 重复提交 | 相同 `extTaskId` 或相同 `(partnerId, Idempotency-Key)` → **40901** 或 **200** 且返回已有 `taskId` |
+
+#### 实例写操作（verify / remediate / verify-fix）
+
+同一实例在生命周期内会**多次**合法写操作（验证 → 处置 → 修复核验；或核验未修复后再次处置）。幂等键标识的是**某一次具体写请求**，用于吸收网络重试，**不应**在 Partner 侧对「实例 + 动作」固定写死为永久唯一值。
+
+| 项 | 约定 |
+|----|------|
+| 推荐格式 | `Idempotency-Key: {动作}:{vulInfoID}:{clientRequestId}` |
+| `{动作}` | `verify` / `remediate` / `verify-fix` |
+| `{clientRequestId}` | Partner 为**本次**调用生成的 UUID 或单调递增序号；每次新意图须使用新 ID |
+| 平台去重 | 按 `(partnerId, Idempotency-Key)` 缓存首次响应，默认保留 **24 小时**（租户可配置） |
+| 相同 Key + 相同 body | 视为重试，返回首次 `code` 与 `data` |
+| 相同 Key + 不同 body | **40901** |
+| Key 过期后 | 按新业务请求处理；若状态机不允许则 **40002** / **40005** |
+
+**设计说明**：平台**不**以时间窗口代替状态机——幂等解决「重复提交同一请求」；「能否再次处置/核验」由 `vulInfoStat` 与 **40005** 等业务码约束。时间窗口仅控制幂等记录占用时长，避免 Partner 重试 ID 无限堆积。
+
+**示例**
+
+```http
+# 首次验证 VI-001（clientRequestId=req-001）
+Idempotency-Key: verify:VI-20260517-0001:req-001
+
+# 网络超时后重试（同一 req-001）→ 返回首次结果
+Idempotency-Key: verify:VI-20260517-0001:req-001
+
+# 核验未修复后再次处置（新意图，须新 ID）
+Idempotency-Key: remediate:VI-20260517-0001:req-002
+```
+
+#### 批量实例写
+
+批量接口的 `Idempotency-Key` 作用在**整批请求**上，而非每条 `items[]`。
+
+| 项 | 约定 |
+|----|------|
+| 推荐格式 | `{动作}:batch:{clientBatchId}`，如 `remediate:batch:550e8400-e29b-41d4-a716-446655440000` |
+| `{clientBatchId}` | Partner 为本批次生成的 UUID；批次重试时使用**同一** batchId 与 Key |
+| 平台行为 | 相同批次 Key 重放时返回**首次** `success` / `failed` 拆分结果 |
+| body 一致性 | 重放时 `items[]` 条数、顺序及每条字段须与首次一致；否则 **40901** |
+| 与单条互斥 | 单条路径接口与 `:batch` 接口**不可**共用同一 `Idempotency-Key` |
+
+```http
+POST /api/open/v1/instances/remediate:batch HTTP/1.1
+Idempotency-Key: remediate:batch:batch-20260518-001
+
+{ "items": [ { "vulInfoID": "VI-...", ... }, ... ] }
+```
 
 ### 4.3 分页与时间
 
@@ -209,7 +259,7 @@ Content-Type: application/json
 |------|------|:---:|------|
 | Authorization | string | ✓ | `Bearer <accessToken>`，或 `X-Api-Key` + `X-Signature` |
 | Content-Type | string | ✓ | `application/json` |
-| Idempotency-Key | string | ○ | 写操作幂等；创建任务可与 `extTaskId` 二选一；实例处置建议 `vulInfoID+动作` |
+| Idempotency-Key | string | ○ | 写操作幂等，见 §4.2；创建任务可与 `extTaskId` 二选一 |
 
 **重要约定**：
 
@@ -514,7 +564,7 @@ Authorization: Bearer <accessToken>
 
 **状态约束**：前置 `vulInfoStat ∈ {0,1}`；**3（误报）后禁止**修复/备案。
 
-**扫描外发**：若验证阶段触发复扫 / POC 扫描，完成后平台生成 `EXPORT_READY`（`exportStage=VERIFY_SCAN`）。外发结构按 §5.8.6 聚合；相关实例位于 `vulnerabilities[].instances[]`。
+**扫描外发**：若验证阶段触发复扫 / POC 扫描，完成后平台生成 `EXPORT_READY`（`exportStage=VERIFY_SCAN`）。外发结构按 §5.6.6 聚合；须含 `targets[]`、`liveProbeResults[]`、`vulnerabilities[]`。
 
 **请求示例（验证有效）**
 
@@ -564,7 +614,7 @@ Authorization: Bearer <accessToken>
 
 ---
 
-### 5.5 处置 · 修复
+### 5.4 处置 · 修复
 
 | 项 | 值 |
 |----|-----|
@@ -583,7 +633,7 @@ Authorization: Bearer <accessToken>
 
 同一实例仅可成功处置一次；重复调用返回 **40005**。
 
-#### 5.5.1 `POST /instances/{vulInfoID}/remediate` — 单条处置
+#### 5.4.1 `POST /instances/{vulInfoID}/remediate` — 单条处置
 
 **请求体**：
 
@@ -611,6 +661,8 @@ Authorization: Bearer <accessToken>
 | remark | string | ○ | 备注 |
 
 **响应 data**：`vulInfoID`、`vulInfoStat`（**5** 或 **9**）、`lvRsn`、`transferTime`、`remedDesc` 或 `archiveReason`、`srcMethod`。
+
+**幂等**：`Idempotency-Key: remediate:{vulInfoID}:{clientRequestId}`，见 §4.2。
 
 **请求示例（已修复）**
 
@@ -654,7 +706,7 @@ Authorization: Bearer <accessToken>
 
 ---
 
-#### 5.5.2 `POST /instances/remediate:batch` — 批量处置
+#### 5.4.2 `POST /instances/remediate:batch` — 批量处置
 
 | 项 | 值 |
 |----|-----|
@@ -667,20 +719,54 @@ Authorization: Bearer <accessToken>
 |------|------|:---:|------|
 | items | array | ✓ | 待处置列表 |
 
-**items[] 元素**：字段同 §5.5.1，且每条 **必填** `vulInfoID`（路径参数改为 body 字段）。
+**items[] 元素**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| vulInfoID | string | ✓ | 实例 ID |
+| srcMethod | int | ✓ | 处置方式，见 [附录 D](#附录-d--漏洞管理处置方式-srcmethod) |
+| remedDesc | string | 条件 | →**5** 时必填：修复方案说明 |
+| fixLnk | string | 条件 | `srcMethod=1050` 时必填：补丁链接 |
+| defDev | string | 条件 | `srcMethod=1051` 或 `1052` 时必填：防护/阻断设备 |
+| remedTime | string | 条件 | →**5** 时必填，格式 `数值+单位`（如 `3日`、`2周`） |
+| lvRsn | int | 条件 | →**9** 时必填，见 [附录 E](#附录-e--未修复原因-lvrsn) |
+| archiveReason | string | 条件 | →**9** 时必填：企业内部备案说明 |
+| approvedBy | string | ○ | 备案审批人 |
+| recordAt | string | ○ | 备案时间 |
+| provincialFields | object | ○ | 省侧扩展 JSON |
+| srcTktRole | int | ○ | 派单角色，见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole) |
+| dstTktRole | int | ○ | 处置角色，见 [附录 C](#附录-c--平台用户角色-srctktrole--dsttktrole) |
+| assignerDept | string | ○ | 派单人部门 |
+| assignerEmail | string | ○ | 派单人邮箱 |
+| assignerPhone | string | ○ | 派单人电话 |
+| handlerDept | string | ○ | 处置人部门 |
+| handlerEmail | string | ○ | 处置人邮箱 |
+| handlerPhone | string | ○ | 处置人电话 |
+| transferTime | string | ○ | 本条状态变更时间（Unix 秒字符串）；缺省由服务端生成 |
+| remark | string | ○ | 备注 |
 
 **响应 data**：
 
-| 参数 | 说明 |
-|------|------|
-| success | 成功项数组，元素结构同单条「响应 data」 |
-| failed | 失败项：`vulInfoID`、`code`、`message` |
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| success | array | ✓ | 成功项列表，元素结构同 §5.4.1「响应 data」 |
+| failed | array | ✓ | 失败项列表 |
+
+**failed[] 元素**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| vulInfoID | string | ✓ | 实例 ID |
+| code | int | ✓ | 业务错误码 |
+| message | string | ✓ | 错误描述 |
+
+**幂等**：请求头 `Idempotency-Key` 见 §4.2 批量约定，如 `remediate:batch:{clientBatchId}`。
 
 ---
 
-### 5.7 漏洞实例 · 修复核验
+### 5.5 漏洞实例 · 修复核验
 
-#### 5.7.1 `POST /instances/{vulInfoID}/verify-fix` — 单条
+#### 5.5.1 `POST /instances/{vulInfoID}/verify-fix` — 单条
 
 | 项 | 值 |
 |----|-----|
@@ -694,9 +780,19 @@ Authorization: Bearer <accessToken>
 | transferTime | string | ○ | 缺省服务端生成 |
 | remark | string | ○ | 备注 |
 
-**平台行为**：受理后异步执行核验扫描；`vulInfoStat` 暂保持 **5**，完成后通过 Webhook `INSTANCE_VERIFY_FIX_COMPLETED` 通知终态 **6 / 7 / 10**，并可产生 `EXPORT_READY`（`exportStage=VERIFY_FIX_SCAN`）。
+**平台行为**：受理后异步执行核验扫描；`vulInfoStat` 暂保持 **5**，完成后通过 Webhook `INSTANCE_VERIFY_FIX_COMPLETED` 通知终态 **6 / 7 / 10**，并可产生 `EXPORT_READY`（`exportStage=VERIFY_FIX_SCAN`）。外发须含 `targets[]`、`liveProbeResults[]`、`vulnerabilities[]`（§5.6.3）。
 
-**响应 data（受理）**：`vulInfoID`、`vulInfoStat`（5）、`verifyFixStatus`（`PENDING` / `RUNNING`）、`verifyFixJobId`、`message`。
+**响应 data（受理）**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| vulInfoID | string | ✓ | 实例 ID |
+| vulInfoStat | int | ✓ | 受理时通常为 **5** |
+| verifyFixStatus | enum | ✓ | `PENDING` / `RUNNING` |
+| verifyFixJobId | string | ○ | 核验任务 ID |
+| message | string | ○ | 受理说明 |
+
+**幂等**：`Idempotency-Key: verify-fix:{vulInfoID}:{clientRequestId}`，见 §4.2。
 
 **请求示例**
 
@@ -709,11 +805,12 @@ Authorization: Bearer <accessToken>
 
 ---
 
-#### 5.7.2 `POST /instances/verify-fix:batch` — 批量
+#### 5.5.2 `POST /instances/verify-fix:batch` — 批量
 
 | 项 | 值 |
 |----|-----|
 | 能力 | `INSTANCE_VERIFY_FIX` |
+| 说明 | 部分成功；**不使用** `extTaskId` |
 
 **请求体**：
 
@@ -726,18 +823,44 @@ Authorization: Bearer <accessToken>
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
 | vulInfoID | string | ✓ | 实例 ID |
-| transferTime | string | ○ | 本条时间 |
+| transferTime | string | ○ | 本条状态变更时间（Unix 秒字符串）；缺省由服务端生成 |
 | remark | string | ○ | 备注 |
 
-**响应 data**：`success` / `failed`，结构同 §5.5.2 批量处置。
+**响应 data**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| success | array | ✓ | 成功项列表，元素见下表「success[] 元素」 |
+| failed | array | ✓ | 失败项列表，元素见下表「failed[] 元素」 |
+
+**success[] 元素**（与 §5.5.1「响应 data」一致）：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| vulInfoID | string | ✓ | 实例 ID |
+| vulInfoStat | int | ✓ | 受理时通常为 **5**；异步完成后由 Webhook 通知终态 |
+| verifyFixStatus | enum | ○ | `PENDING` / `RUNNING` |
+| verifyFixJobId | string | ○ | 核验任务 ID |
+| transferTime | string | ○ | 变更时间 |
+| message | string | ○ | 受理说明 |
+
+**failed[] 元素**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| vulInfoID | string | ✓ | 实例 ID |
+| code | int | ✓ | 业务错误码 |
+| message | string | ✓ | 错误描述 |
+
+**幂等**：请求头 `Idempotency-Key` 见 §4.2 批量约定，如 `verify-fix:batch:{clientBatchId}`。
 
 ---
 
-### 5.8 扫描结果 · 数据外发
+### 5.6 扫描结果 · 数据外发
 
 任务扫描结束、验证阶段扫描完成、修复核验阶段扫描完成且外发组装完成后，平台推送 **`EXPORT_READY`**（§6），或通过下列接口拉取。
 
-#### 5.8.1 输出物格式
+#### 5.6.1 输出物格式
 
 扫描结果外发输出物由开放平台按当前接口领域模型重新组装，支持 **`xml`** 与 **`json`** 两种 `format`；根结构为 `<TaskExport>` / `taskExport`，不作为引擎原始 XML 透传。
 
@@ -756,17 +879,17 @@ Authorization: Bearer <accessToken>
 | 时间 | 与 §4.3 一致，平台字段使用 ISO 8601 UTC；需要保留引擎原始时间时放入 `evidence.engineTime` |
 | 弱口令 | 不输出明文密码；统一输出 `passwordMasked` 或空值 |
 
-#### 5.8.2 外发触发场景
+#### 5.6.2 外发触发场景
 
 | `exportStage` | 触发时机 | `dataType` | 输出约定 |
 |---------------|----------|------------|----------|
-| `TASK_COMPLETED` | 普通扫描 / 排查任务结束 | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` | 按任务启用能力输出 `liveProbeResults[]`、`portScanResults[]`、`vulnerabilities[]` 等 |
-| `VERIFY_SCAN` | 漏洞验证阶段触发复扫 / POC 扫描完成 | `SYSTEM_VULNERABILITY` | 按 §5.8.6 产品漏洞聚合；实例在 `instances[]` |
-| `VERIFY_FIX_SCAN` | 修复核验阶段触发复扫完成 | `SYSTEM_VULNERABILITY` | 同上 |
+| `TASK_COMPLETED` | 普通扫描 / 排查任务结束 | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` | 按任务启用能力输出；漏洞扫描见 §5.6.3「漏洞扫描」行 |
+| `VERIFY_SCAN` | 漏洞验证阶段触发复扫 / POC 扫描完成 | `SYSTEM_VULNERABILITY` | `targets[]` + `liveProbeResults[]` + `vulnerabilities[]`（§5.6.6 聚合） |
+| `VERIFY_FIX_SCAN` | 修复核验阶段触发复扫完成 | `SYSTEM_VULNERABILITY` | `targets[]` + `liveProbeResults[]` + `vulnerabilities[]`（§5.6.6 聚合） |
 
-`VERIFY_SCAN` / `VERIFY_FIX_SCAN` 产生的外发与任务结束外发使用同一下载接口和同一 `xml` / `json` 序列化规则；区别仅在 `export.exportStage`、`export.dataType`。阶段扫描外发按 §5.8.6 产品漏洞聚合结构输出，实例明细位于 `vulnerabilities[].instances[]`，以 `vulInfoID` 标识。
+`VERIFY_SCAN` / `VERIFY_FIX_SCAN` 与任务结束外发使用同一下载接口和同一 `xml` / `json` 序列化规则；区别在 `export.exportStage`。阶段扫描外发**须**包含目标与存活探测结果，漏洞实例按 §5.6.6 聚合于 `vulnerabilities[].instances[]`。
 
-#### 5.8.3 输出物逻辑结构
+#### 5.6.3 输出物逻辑结构
 
 ```text
 TaskExport / taskExport
@@ -791,8 +914,9 @@ TaskExport / taskExport
 |----------|------------|------|
 | 主机存活探测 | `targets[]` + `liveProbeResults[]` | `targets[]` 保存目标主数据，`liveProbeResults[]` 保存探测方式、存活状态、时延等结果 |
 | 端口扫描 | `targets[]` + `portScanResults[]` | 端口、协议、状态、服务、Banner 等作为正式端口扫描结果输出 |
-| 漏洞扫描 | `targets[]` + `vulnerabilities[]` | 按 **产品漏洞 `vulID`** 聚合；实例明细在 `instances[]` |
-| 验证 / 修复核验扫描 | `vulnerabilities[]` | `exportStage` 区分 `VERIFY_SCAN` / `VERIFY_FIX_SCAN`；实例在 `instances[]` |
+| 漏洞扫描 | `targets[]` + `liveProbeResults[]` + `vulnerabilities[]` | 目标与存活结果与漏洞结果同包输出；漏洞按 **产品漏洞 `vulID`** 聚合，实例在 `instances[]` |
+| 验证扫描 | `targets[]` + `liveProbeResults[]` + `vulnerabilities[]` | `exportStage=VERIFY_SCAN`；结构同漏洞扫描 |
+| 修复核验 | `targets[]` + `liveProbeResults[]` + `vulnerabilities[]` | `exportStage=VERIFY_FIX_SCAN`；结构同漏洞扫描 |
 
 其他引擎结果参考结构的落点：
 
@@ -802,7 +926,7 @@ TaskExport / taskExport
 | 系统综合结果 | `vulnerabilities[]` + `baselineResults[]` + `weakPasswords[]` + `appendices[]` | 漏洞、配置基线、弱口令、主机附录拆到独立集合 |
 | 口令猜测结果 | `weakPasswords[]` + `vulnerabilities[]` | 弱口令作为独立集合，同时可关联漏洞实例 `vulInfoID` |
 
-#### 5.8.4 输出参数（`export` / `task` / `summary`）
+#### 5.6.4 输出参数（`export` / `task` / `summary`）
 
 | JSON 路径 | XML 路径 | 类型 | 必填 | 说明 |
 |-----------|----------|------|:---:|------|
@@ -834,7 +958,7 @@ TaskExport / taskExport
 | `taskExport.summary.weakPasswordCount` | `/TaskExport/summary/weakPasswordCount` | int | ○ | 弱口令条数 |
 | `taskExport.summary.baselineIssueCount` | `/TaskExport/summary/baselineIssueCount` | int | ○ | 配置基线问题条数 |
 
-#### 5.8.5 输出参数（`targets[]` / `liveProbeResults[]` / `portScanResults[]`）
+#### 5.6.5 输出参数（`targets[]` / `liveProbeResults[]` / `portScanResults[]`）
 
 | JSON 路径 | XML 路径 | 类型 | 必填 | 说明 |
 |-----------|----------|------|:---:|------|
@@ -867,7 +991,7 @@ TaskExport / taskExport
 | `taskExport.portScanResults[].version` | `/TaskExport/portScanResults/portScanResult/version` | string | ○ | 服务版本 |
 | `taskExport.portScanResults[].detectedAt` | `/TaskExport/portScanResults/portScanResult/detectedAt` | datetime | ○ | 探测时间 |
 
-#### 5.8.6 输出参数（`vulnerabilities[]` · 产品漏洞聚合）
+#### 5.6.6 输出参数（`vulnerabilities[]` · 产品漏洞聚合）
 
 外发时 **`vulnerabilities[]` 按产品漏洞 `vulID` 聚合**，同一产品漏洞的多条实例归入 `instances[]`，以减少重复字段、缩小包体。
 
@@ -901,7 +1025,7 @@ TaskExport / taskExport
 | `…instances[].evidence.message` | `…/evidence/message` | string | ○ | 命中证据 |
 | `…instances[].remediation.*` | `…/remediation/*` | — | ○ | 修复 / 备案字段，结构同原扁平 `remediation` |
 
-#### 5.8.7 输出参数（弱口令、配置基线与附录）
+#### 5.6.7 输出参数（弱口令、配置基线与附录）
 
 | JSON 路径 | XML 路径 | 类型 | 必填 | 说明 |
 |-----------|----------|------|:---:|------|
@@ -927,7 +1051,7 @@ TaskExport / taskExport
 | `taskExport.appendices[].columns[]` | `/TaskExport/appendices/appendix/columns/column` | string[] | ✓ | 表头 |
 | `taskExport.appendices[].rows[][]` | `/TaskExport/appendices/appendix/rows/row/value` | string[][] | ✓ | 表格行值，按 `columns` 顺序排列 |
 
-#### 5.8.8 `GET /exports/{exportId}` — 外发元数据
+#### 5.6.8 `GET /exports/{exportId}` — 外发元数据
 
 | 项 | 值 |
 |----|-----|
@@ -952,7 +1076,7 @@ TaskExport / taskExport
 | createdAt | datetime | 生成时间 |
 | downloadUrl | string | 可选预签名 URL |
 
-#### 5.8.9 `GET /exports/{exportId}/download` — 下载文件
+#### 5.6.9 `GET /exports/{exportId}/download` — 下载文件
 
 | 项 | 值 |
 |----|-----|
@@ -960,7 +1084,7 @@ TaskExport / taskExport
 
 返回文件流；`format=xml` 时返回单个规范化 XML 文档，`format=json` 时返回同构 JSON 文档。弱口令相关字段不输出明文密码，Partner 存储与展示需符合本单位数据安全要求。
 
-#### 5.8.10 `GET /tasks/{taskId}/exports` — 任务外发历史
+#### 5.6.10 `GET /tasks/{taskId}/exports` — 任务外发历史
 
 | 项 | 值 |
 |----|-----|
@@ -1385,9 +1509,9 @@ TaskExport / taskExport
 </TaskExport>
 ```
 
-字段说明以 §5.8.4–§5.8.7 为准。
+字段说明以 §5.6.4–§5.6.7 为准。
 
-**修复核验扫描外发**（`exportStage=VERIFY_FIX_SCAN`，`dataType=SYSTEM_VULNERABILITY`）：
+**修复核验外发**（`exportStage=VERIFY_FIX_SCAN`，`dataType=SYSTEM_VULNERABILITY`；须含 `targets[]`、`liveProbeResults[]`、`vulnerabilities[]`）：
 
 ```json
 {
@@ -1400,6 +1524,24 @@ TaskExport / taskExport
       "generatedAt": "2026-05-18T15:05:00Z",
       "recordCount": 1
     },
+    "targets": [
+      {
+        "targetId": "TGT-001",
+        "target": "10.10.1.1",
+        "targetType": "IPV4",
+        "assetName": "core-host-01"
+      }
+    ],
+    "liveProbeResults": [
+      {
+        "liveProbeId": "LIVE-VF-001",
+        "targetId": "TGT-001",
+        "address": "10.10.1.1",
+        "alive": true,
+        "probeMethod": "ICMP",
+        "latencyMs": 10
+      }
+    ],
     "vulnerabilities": [
       {
         "vulID": "VUL-OPENSSH-BYPASS",
@@ -1459,7 +1601,7 @@ TaskExport / taskExport
 | 40005 | 修复与备案互斥 | 勿重复处置 |
 | 40101 | 鉴权失败 | 检查 Token/签名 |
 | 40301 | 能力未开通 | 联系运营开通 |
-| 40901 | 幂等冲突 | 使用已返回的 `taskId` |
+| 40901 | 幂等冲突 | 创建任务使用已返回的 `taskId`；实例写使用首次响应或更换 `clientRequestId` |
 | 42901 | 限流 | 退避重试 |
 | 50001 | 引擎调用失败 | 稍后重试或联系平台 |
 | 50002 | 回调投递失败 | 平台异步重试；检查 Partner 接收端 |
@@ -1477,7 +1619,7 @@ TaskExport / taskExport
    - POST .../verify（有效/误报）
    - POST .../remediate（含修复失败 →9）
    - POST .../verify-fix
-6. 若 verify / verify-fix 触发扫描，继续接收 EXPORT_READY，按 `exportStage` 识别验证扫描或修复核验扫描外发
+6. 若 verify / verify-fix 触发扫描，继续接收 EXPORT_READY，按 `exportStage` 识别验证扫描或修复核验外发
 7. 可选：订阅 `INSTANCE_VERIFY_FIX_COMPLETED` / `EXPORT_READY` 等事件驱动 ITSM 工单
 ```
 
@@ -1517,7 +1659,7 @@ TaskExport / taskExport
 
 ## 附录 C · 平台用户角色 `srcTktRole` / `dstTktRole`
 
-摘自部侧规范 **A.9 平台用户角色表**，用于 §5.5 处置工单字段及部侧表56 日志。
+摘自部侧规范 **A.9 平台用户角色表**，用于 §5.4 处置工单字段及部侧表56 日志。
 
 | 角色代码 | 说明 |
 |----------|------|
@@ -1537,7 +1679,7 @@ TaskExport / taskExport
 
 ## 附录 D · 漏洞管理处置方式 `srcMethod`
 
-摘自部侧规范 **A.10 漏洞管理处置方式码表**。开放平台在创建任务（§5.1.1）、验证（§5.3）、处置（§5.5）等接口中以 `srcMethod` 传递**处置代码**列取值。
+摘自部侧规范 **A.10 漏洞管理处置方式码表**。开放平台在创建任务（§5.1.1）、验证（§5.3）、处置（§5.4）等接口中以 `srcMethod` 传递**处置代码**列取值。
 
 | 处置代码 | 技术处置方式 | 漏洞管理类型 | 台账类别 |
 |----------|--------------|--------------|----------|
@@ -1582,13 +1724,13 @@ TaskExport / taskExport
 | 999 | 其他方式 | — | — |
 | 2990 | 保留扩展 | 其他类型 | 299 |
 
-**§5.5 处置常用代码**：已修复 → **1050–1053**；验证有效 → **1021**、**1026** 等排查/验证类；修复失败/备案 → 结合 `lvRsn` 使用 **999** 或其他符合业务场景的代码。
+**§5.4 处置常用代码**：已修复 → **1050–1053**；验证有效 → **1021**、**1026** 等排查/验证类；修复失败/备案 → 结合 `lvRsn` 使用 **999** 或其他符合业务场景的代码。
 
 ---
 
 ## 附录 E · 未修复原因 `lvRsn`
 
-摘自部侧规范 **A.23 未修复原因**。§5.5 处置进入终态 **9（修复失败）** 时必填。
+摘自部侧规范 **A.23 未修复原因**。§5.4 处置进入终态 **9（修复失败）** 时必填。
 
 | 编码 | 原因说明 |
 |------|----------|
