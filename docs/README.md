@@ -58,7 +58,8 @@
 | [组件职责与接口映射.md](./internal/组件职责与接口映射.md) | **完整接口清单**（零侵入）：partner-gateway / open-api-service / SVMP |
 | [partner-gateway与open-api-service-模块与接口清单.md](./internal/partner-gateway与open-api-service-模块与接口清单.md) | 双模块目录、接口对照、Nacos 样例 |
 | [开放平台API治理与调用生命周期.md](./internal/开放平台API治理与调用生命周期.md) | 执行平面 + 治理平面；InvocationPipeline、api_invocation |
-| [multi-agent-执行Prompts.md](./internal/multi-agent-执行Prompts.md) | 可复制 Agent 任务单（D/E/F/G） |
+| [开放平台集成管理后台-页面设计.md](./internal/开放平台集成管理后台-页面设计.md) | 运营后台页面 IA、字段、API 映射、P0/P1 分期 |
+| [multi-agent-执行Prompts.md](./internal/multi-agent-执行Prompts.md) | 可复制 Agent 任务单（D/E/F/G + H/I/J 页面） |
 
 
 ### 总体架构（零侵入 · 当前采用）

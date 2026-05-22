@@ -3,7 +3,9 @@
 > **用法**：每个 Prompt **单独开一个新对话**，整段复制发送。你本人只做集成验收，不要让一个 Agent 同时改 partner-gateway 与 open-api-service 的同一模块。  
 > **原则**：禁止提交「大量 TODO 却声称完成」的代码；未完成项写入 **P1 backlog**。
 
-**推荐顺序**：D → E → F → G（可选 Prompt 0 并行文档）
+**推荐顺序**：D → **I**（P0 页面，与 E 可并行）→ E → F → G → **J**（P1 页面，可选 Prompt H 仅文档）
+
+**页面设计**：[开放平台集成管理后台-页面设计.md](./开放平台集成管理后台-页面设计.md)
 
 **架构文档**：[组件职责与接口映射](./组件职责与接口映射.md) · [开放平台API治理与调用生命周期](./开放平台API治理与调用生命周期.md)
 
@@ -151,11 +153,88 @@ Partner → partner-gateway → open-api-service（执行+治理）→ SVMP
 
 ---
 
+## Prompt H · 页面设计细化（可选，仅文档）
+
+```markdown
+你是 **开放平台集成管理后台 · 页面设计** 负责人。只改 `svmp/docs/`，不写前端代码。
+
+## 必读
+- `svmp/docs/internal/开放平台集成管理后台-页面设计.md`
+- `svmp/docs/internal/组件职责与接口映射.md` § open-api-service 管理 API
+- `project_backend/svmp/open-api-service` 中 PartnerAdmin 相关 DTO/Controller
+
+## 任务
+1. 核对表单字段与 CreatePartnerRequest / UpdatePartnerRequest 一致
+2. 补充 clover-front 路由路径、菜单 JSON 配置示例（若项目内有 menu 配置样例则引用路径）
+3. 在页面设计文档中补充「错误码与前端提示」映射表（open-api ApiResponse）
+
+交付：修改文件列表 + 路由/菜单配置片段（markdown）。
+```
+
+---
+
+## Prompt I · clover-front · P0 集成管理页面（D 完成后）
+
+```markdown
+你是 **clover-front · 开放平台集成管理 P0** 负责人。
+严格只改 `project_backend/public/clover-front/`，禁止改 morningglory、clover 后端、partner-gateway、open-api-service。
+
+## 必读
+- `svmp/docs/internal/开放平台集成管理后台-页面设计.md` §4 P0、§7 工程结构
+- 参考现有列表/表单：`src/views/userManage/`（或同级用户管理模块）的表格、分页、Modal 写法
+- open-api 管理 API：`GET/POST/PUT /internal/admin/partners`、`POST/GET .../credentials`
+
+## 必须交付（禁止 TODO 冒充完成）
+1. `src/utils/openApiRequest.js`：独立 axios，`VUE_APP_OPEN_API_BASE_URL` + `X-Internal-Admin-Key`
+2. `src/api/openPlatform/partner.js`：list/get/create/update/listCredentials/createCredential
+3. `src/views/openPlatform/PartnerList.vue`、`PartnerForm.vue`、`PartnerDetail.vue`
+4. `CredentialCreateModal.vue`：secret 仅一次展示 + 复制 + 接入说明面板
+5. `src/config/openPlatformCapabilities.js`：能力码常量
+6. 路由注册 + 菜单占位（注释说明需在 clover 菜单库配置的权限码）
+
+## 约束
+- UI 组件：Ant Design Vue 1.x，与项目现有风格一致
+- defaultCallbackUrl 表单项 helper：说明为 Partner Webhook 地址
+- partnerId 创建后编辑页只读
+- API 响应统一解析 `{ code, data, message }`，code≠0 用 notification.error
+
+## 未完成写 P1 backlog
+- InvocationList、统计看板、Webhook 日志
+
+交付：文件列表 + `npm run lint` 无新增 error + 本地如何配置 `.env.development.local` 说明（写在 commit 消息或回复中，勿提交密钥）。
+```
+
+---
+
+## Prompt J · P1 治理页面 + 后端 invocation API（可选）
+
+```markdown
+你是 **开放平台治理观测** 负责人。可改 open-api-service（invocation 查询 API）+ clover-front（调用记录页）。
+
+## 必读
+- `开放平台API治理与调用生命周期.md` §5–§7
+- `开放平台集成管理后台-页面设计.md` §4.2
+
+## 后端（open-api-service）
+- `GET /internal/admin/invocations` 分页筛选
+- `GET /internal/admin/partners/{partnerId}/stats` 聚合
+
+## 前端（clover-front）
+- `InvocationList.vue`、`InvocationDetail.vue`（或详情 Drawer）
+- Partner 详情 Tab「调用统计」
+
+禁止 TODO 冒充完成；缺表或缺迁移则明确阻塞项。
+```
+
+---
+
 ## 验收总表（你本人）
 
 | 步骤 | 验证 |
 |------|------|
 | D | `/oauth/token` + Redis + introspect |
+| I | 界面可创建 Partner、生成凭证并复制 secret |
 | E | 40101 / 40301 + `X-Partner-Id` 注入 |
 | F | 两家 Partner 任务隔离 + `api_invocation` 有记录 |
 | G | 联调手册端到端通 |
+| J | 调用记录列表可查 requestId |

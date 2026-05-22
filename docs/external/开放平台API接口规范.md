@@ -355,16 +355,18 @@ Content-Type: application/json
 | extTaskId | string | ✓ | Partner 幂等键 |
 | taskName | string | ✓ | 任务名称 |
 | targets | string[] | ✓ | 扫描目标列表 |
-| targetType | enum | ✓ | `IPV4` / `IPV6` / `URL` |
+| ~~targetType~~ | ~~enum~~ | ○ | ~~`IPV4` / `IPV6` / `URL`~~ |
 | vulnType | int | ✓ | **1**=系统漏洞，**2**=Web 漏洞 |
 | callbackUrl | string | ○ | 覆盖 Partner 默认回调 URL |
 | scanTemplateId | int | ○ | 引擎扫描模板 ID |
 | exportTemplateId | string | ○ | 扫描结果外发模板（如 `tpl-svmp-xml-scan-bundle`） |
 | priority | enum | ○ | `LOW` / `MEDIUM` / `HIGH` |
 | scheduleTime | datetime | ○ | 定时执行（ISO 8601 UTC） |
-| options.portScope | string | ○ | 端口范围，如 `1-65535` |
-| options.isLiveProbe | bool | ○ | 是否存活探测 |
-| options.pswdGuessEnabled | bool | ○ | 是否弱口令检测 |
+| options.portScope | string | ○ | 端口范围，默认 `1-65535` |
+| options.isLiveProbe | bool | ○ | 是否存活探测，默认`否` |
+| options.pswdGuessEnabled | bool | ○ | 是否弱口令检测，默认`否` |
+
+
 
 **响应 data**：
 
@@ -627,7 +629,7 @@ Authorization: Bearer <accessToken>
 | transferTime | string | ✓ | 变更时间 |
 | srcMethod | int | ○ | 回显处置方式 |
 
-**状态约束**：前置 `vulInfoStat ∈ {0,1}`；**3（误报）后禁止**修复/备案。
+**状态约束**：前置 `vulInfoStat ∈ {1}`；**3（误报）后禁止**修复/备案。
 
 **扫描外发**：若验证阶段配置为触发引擎复扫 / POC 扫描，扫描完成后平台同样生成 `EXPORT_READY` 事件。此类外发 `exportStage=VERIFY_SCAN`，`dataType=SYSTEM_VULNERABILITY`，输出数据按 §5.8 的规范化结构表达；单个验证接口通常输出一条 `vulnerabilities[]`，批量验证接口可输出多条，关联关系以每条漏洞的 `vulInfoID` 为准。`liveProbeResults[]`、`portScanResults[]` 仅在本次验证扫描实际产生对应结果时返回。
 
@@ -775,8 +777,8 @@ Authorization: Bearer <accessToken>
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
 | operator | string | ✓ | 操作人 |
-| verifyFixResult | enum | 条件 | `FIXED`→**6** · `NOT_FIXED`→**7** · `FAILED`→**10**；**有值则同步回写** |
-| procMethod | int | 条件 | **未传 verifyFixResult 时必填**，触发引擎核验（如 1060、1061） |
+| ~~verifyFixResult~~ | ~~enum~~ | ~~条件~~ | ~~`FIXED`→**6** · `NOT_FIXED`→**7** · `FAILED`→**10**；**有值则同步回写**~~ |
+| ~~procMethod~~ | ~~int~~ | ~~条件~~ | ~~**未传 verifyFixResult 时必填**，触发引擎核验（如 1060、1061）~~ |
 | transferTime | string | ○ | 缺省服务端生成 |
 | remark | string | ○ | 备注 |
 
@@ -870,14 +872,14 @@ TaskExport / taskExport
 └── appendices / appendix[]      # 跨目标或无法归属到单目标的附录
 ```
 
-各任务能力在规范化输出中的落点：
+**各任务能力在规范化输出中的落点：**
 
 | 任务能力 | 规范化落点 | 说明 |
 |----------|------------|------|
 | 主机存活探测 | `targets[]` + `liveProbeResults[]` | `targets[]` 保存目标主数据，`liveProbeResults[]` 保存探测方式、存活状态、时延等结果 |
 | 端口扫描 | `targets[]` + `portScanResults[]` | 端口、协议、状态、服务、Banner 等作为正式端口扫描结果输出 |
-| 漏洞扫描 | `targets[]` + `vulnerabilities[]` | 漏洞实例和漏洞详情合并为开放接口实例字段；可通过 `targetId`、`port`、`protocol` 关联端口扫描结果 |
-| 验证 / 修复核验扫描 | `targets[]` + `vulnerabilities[]` | 属于系统漏洞数据外发，使用 `exportStage` 区分 `VERIFY_SCAN` / `VERIFY_FIX_SCAN`；单个/批量实例均由 `vulnerabilities[].vulInfoID` 标识 |
+| 漏洞扫描 | `targets[]` + `liveProbeResults[]`+ `portScanResults[]`+ `vulnerabilities[]` | 漏洞实例和漏洞详情合并为开放接口实例字段；可通过 `targetId`、`port`、`protocol` 关联端口扫描结果 |
+| 修复核验 | `targets[]` + `liveProbeResults[]`+ `portScanResults[]`+ `vulnerabilities[]` | 属于系统漏洞数据外发，使用 `exportStage` 区分 `VERIFY_SCAN` / `VERIFY_FIX_SCAN`；单个/批量实例均由 `vulnerabilities[].vulInfoID` 标识 |
 
 其他引擎结果参考结构的落点：
 
@@ -1071,9 +1073,9 @@ TaskExport / taskExport
 |-----------|------|
 | `TASK_COMPLETED` | 任务正常结束 |
 | `TASK_FAILED` | 任务失败 |
-| `INSTANCE_STATUS_CHANGED` | 实例状态变更 |
-| `INSTANCE_REMEDIATED` | 修复完成（→5） |
-| `INSTANCE_ARCHIVED` | 备案完成（→9） |
+| ~~`INSTANCE_STATUS_CHANGED`~~ | ~~实例状态变更~~ |
+| ~~`INSTANCE_REMEDIATED`~~ | ~~修复完成（→5）~~ |
+| ~~`INSTANCE_ARCHIVED`~~ | ~~备案完成（→9）~~ |
 | `INSTANCE_VERIFY_FIX_COMPLETED` | 修复核验完成（→6/7/10） |
 | `EXPORT_READY` | 外发包可下载 |
 
