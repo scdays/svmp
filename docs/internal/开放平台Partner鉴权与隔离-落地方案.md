@@ -196,7 +196,7 @@ sequenceDiagram
 | POST | `/api/open/v1/instances/*/verify` | INSTANCE_VERIFY |
 | POST | `/api/open/v1/instances/verify:batch` | INSTANCE_VERIFY |
 | POST | `/api/open/v1/instances/*/remediate` | INSTANCE_REMEDIATE |
-| POST | `/api/open/v1/instances/*/archive` | INSTANCE_ARCHIVE |
+| POST | `/api/open/v1/instances/remediate:batch` | INSTANCE_REMEDIATE |
 | POST | `/api/open/v1/instances/*/verify-fix` | INSTANCE_VERIFY_FIX |
 | POST | `/api/open/v1/instances/verify-fix:batch` | INSTANCE_VERIFY_FIX |
 | GET | `/api/open/v1/exports/*` | EXPORT_READ |

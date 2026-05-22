@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
@@ -15,12 +15,7 @@ info:
 
     ## 生命周期
 
-    排查 → 验证 → **处置（修复 | 备案，二选一）** → **修复核验**（`verify-fix`）
-
-    | 处置分支 | 路径 | 终态 |
-    |----------|------|------|
-    | 可修复 | `POST .../remediate` | vulInfoStat=5 |
-    | 不可修复备案 | `POST .../archive` | vulInfoStat=9 + lvRsn |
+    排查 → 验证 → **处置**（`POST .../remediate`，含已修复 5 与修复失败 9）→ **修复核验**（`verify-fix`）
   contact:
     name: Platform Integration Team
   license:
@@ -76,11 +71,12 @@ paths:
                 value:
                   extTaskId: EXT-TASK-2026-0001
                   taskName: 2026Q2-核心业务系统排查
-                  targets: ['10.10.1.1', '10.10.1.2']
-                  targetType: IPV4
+                  targets: ['10.10.1.1', '10.10.1.2', '2001:db8::1']
                   vulnType: 1
                   callbackUrl: https://partner.example.com/hooks/vuln
                   scanTemplateId: 10086
+                  srcMethod: 1021
+                  exportTemplateId: tpl-svmp-xml-scan-bundle
                   priority: HIGH
                   options:
                     portScope: '1-65535'
@@ -501,11 +497,12 @@ paths:
     post:
       tags: [instances]
       operationId: remediateInstance
-      summary: 处置·修复（可修复）
+      summary: 处置（含已修复与修复失败/备案）
       description: |
-        处置阶段分支之一。需能力 `INSTANCE_REMEDIATE`。
-        前置：`vulInfoStat ∈ {2, 7}`，且未处于终态 5/9。
-        后置：`vulInfoStat=5`，清空 `lvRsn`。
+        需能力 `INSTANCE_REMEDIATE`。
+        前置：`vulInfoStat ∈ {2, 7}`，且 `≠ 3`。
+        可修复类 srcMethod（A.10）→ `vulInfoStat=5`；不可修复类 → `vulInfoStat=9`，须传 `lvRsn`、`archiveReason`。
+        表56 工单字段：`srcTktRole`/`dstTktRole`（A.9）；派单人/处置人使用 assigner*/handler* 拆分，勿传 srcTktPrsn/dstTktPrsn。
       parameters:
         - $ref: '#/components/parameters/VulInstanceId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -523,7 +520,14 @@ paths:
                   remedDesc: 升级 OpenSSH 至 9.6p1 并重启 sshd
                   fixLnk: https://www.openssh.com/releasenotes.html
                   remedTime: 3日
-                  operator: ops@corp.com
+                  srcTktRole: 1
+                  dstTktRole: 2
+                  assignerDept: 安全运营中心
+                  assignerEmail: soc-dispatch@corp.com
+                  assignerPhone: '010-12345678'
+                  handlerDept: 基础架构部
+                  handlerEmail: ops@corp.com
+                  handlerPhone: '010-87654321'
                   transferTime: '1747480000'
       responses:
         '200':
@@ -559,38 +563,23 @@ paths:
                     requestId: req-20260517-r099
                     data: null
 
-  /instances/{vulInfoID}/archive:
+  /instances/remediate:batch:
     post:
       tags: [instances]
-      operationId: archiveInstance
-      summary: 处置·备案（不可修复）
-      description: |
-        处置阶段分支之一，与 `remediate` 互斥。需能力 `INSTANCE_ARCHIVE`。
-        后置：`vulInfoStat=9`，必填 `lvRsn`。
-        备案扩展字段 `archiveReason`、`provincialFields` 等见 ArchiveInstanceRequest。
+      operationId: remediateInstancesBatch
+      summary: 批量处置
+      description: 需能力 `INSTANCE_REMEDIATE`。items[] 每条须含 vulInfoID，其余字段同单条 remediate。
       parameters:
-        - $ref: '#/components/parameters/VulInstanceId'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ArchiveInstanceRequest'
-            examples:
-              acceptRisk:
-                summary: 接受风险备案（lvRsn=109）
-                value:
-                  lvRsn: 109
-                  archiveReason: 业务连续性限制，经评估接受风险
-                  operator: owner@corp.com
-                  approvedBy: manager@corp.com
-                  recordAt: '2026-05-17T12:00:00Z'
-                  provincialFields:
-                    riskAcceptanceFormId: RA-2026-088
+              $ref: '#/components/schemas/RemediateInstanceBatchRequest'
       responses:
         '200':
-          description: 业务响应
+          description: 部分成功
           content:
             application/json:
               schema:
@@ -599,20 +588,7 @@ paths:
                   - type: object
                     properties:
                       data:
-                        $ref: '#/components/schemas/InstanceTransitionResult'
-              examples:
-                success:
-                  summary: vulInfoStat→9
-                  value:
-                    code: 0
-                    message: ok
-                    requestId: req-20260517-a001
-                    data:
-                      vulInfoID: VI-20260517-0003
-                      vulInfoStat: 9
-                      lvRsn: 109
-                      transferTime: '1747483600'
-                      archiveReason: 业务连续性限制，经评估接受风险
+                        $ref: '#/components/schemas/RemediateInstanceBatchResult'
 
   /instances/{vulInfoID}/verify-fix:
     post:
@@ -620,10 +596,8 @@ paths:
       operationId: verifyFixInstance
       summary: 修复核验（单条）
       description: |
-        修复后核验阶段，与 `verify`（验证漏洞真假）不同。需能力 `INSTANCE_VERIFY_FIX`。
-        前置 `vulInfoStat=5`。
-        - 传 `verifyFixResult`：同步回写 → **6**（FIXED）/ **7**（NOT_FIXED）/ **10**（FAILED）
-        - 不传 `verifyFixResult`、传 `procMethod`：触发 SVMP `POST /vuln/disposal/verify`，异步；完成后 Webhook `INSTANCE_VERIFY_FIX_COMPLETED`
+        修复后核验。需能力 `INSTANCE_VERIFY_FIX`；前置 `vulInfoStat=5`。
+        平台触发异步核验扫描；完成后 Webhook `INSTANCE_VERIFY_FIX_COMPLETED`，终态 6/7/10。
       parameters:
         - $ref: '#/components/parameters/VulInstanceId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -634,22 +608,14 @@ paths:
             schema:
               $ref: '#/components/schemas/VerifyFixInstanceRequest'
             examples:
-              reportFixed:
-                summary: 回写核验修复（vulInfoStat→6）
+              triggerVerifyFix:
+                summary: 触发修复核验扫描
                 value:
-                  verifyFixResult: FIXED
-                  procMethod: 1060
-                  operator: sec-qa@corp.com
                   transferTime: '1747488000'
-              triggerEngine:
-                summary: 触发 SVMP 异步核验
-                value:
-                  procMethod: 1060
-                  operator: sec-qa@corp.com
-                  remark: 提交自适应扫描核验
+                  remark: 安排复扫 POC
       responses:
         '200':
-          description: 业务响应（同步终态或异步受理）
+          description: 业务响应（异步受理；终态通过 Webhook 通知）
           content:
             application/json:
               schema:
@@ -658,21 +624,8 @@ paths:
                   - type: object
                     properties:
                       data:
-                        oneOf:
-                          - $ref: '#/components/schemas/InstanceTransitionResult'
-                          - $ref: '#/components/schemas/VerifyFixAsyncAccepted'
+                        $ref: '#/components/schemas/VerifyFixAsyncAccepted'
               examples:
-                syncFixed:
-                  summary: 回写成功 vulInfoStat→6
-                  value:
-                    code: 0
-                    message: ok
-                    requestId: req-20260517-f001
-                    data:
-                      vulInfoID: VI-20260517-0002
-                      vulInfoStat: 6
-                      transferTime: '1747488000'
-                      srcMethod: 1060
                 asyncAccepted:
                   summary: 异步受理
                   value:
@@ -822,37 +775,6 @@ paths:
                             items:
                               $ref: '#/components/schemas/ExportRecord'
 
-  /instances/{vulInfoID}/unfixable-records:
-    post:
-      tags: [instances]
-      operationId: archiveInstanceLegacy
-      summary: 处置·备案（兼容别名）
-      deprecated: true
-      description: |
-        **已废弃**。请使用 `POST .../archive`。
-        请求体与 `archive` 相同，平台内部转发。
-      parameters:
-        - $ref: '#/components/parameters/VulInstanceId'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ArchiveInstanceRequest'
-      responses:
-        '200':
-          description: 同 archive
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/InstanceTransitionResult'
-
 webhooks:
   platformCallback:
     post:
@@ -896,17 +818,6 @@ webhooks:
                       totalInstances: 25
                       verifiedValid: 18
                       falsePositive: 5
-              instanceRemediated:
-                summary: 实例修复完成回调
-                value:
-                  eventId: evt-20260517-0002
-                  eventType: INSTANCE_REMEDIATED
-                  occurredAt: '2026-05-17T14:05:00Z'
-                  partnerId: partner-demo-01
-                  payload:
-                    vulInfoID: VI-20260517-0002
-                    vulInfoStat: 5
-                    previousVulInfoStat: 2
               verifyFixCompleted:
                 summary: 修复核验完成回调
                 value:
@@ -1129,7 +1040,7 @@ components:
 
     CreateTaskRequest:
       type: object
-      required: [extTaskId, taskName, targets, targetType, vulnType]
+      required: [extTaskId, taskName, targets, vulnType]
       properties:
         extTaskId:
           type: string
@@ -1143,8 +1054,9 @@ components:
           minItems: 1
           items:
             type: string
-        targetType:
-          $ref: '#/components/schemas/TargetType'
+          description: |
+            扫描目标（IPv4/IPv6/URL，平台自动识别）。
+            含 IPv6 时建议 RFC 5952 规范格式；入参与回显可能不一致。
         vulnType:
           $ref: '#/components/schemas/VulnType'
         callbackUrl:
@@ -1153,7 +1065,10 @@ components:
           description: 覆盖 Partner 默认回调地址
         scanTemplateId:
           type: integer
-          description: 引擎扫描模板 ID
+          description: 扫描模板 ID；支持漏洞扫描、存活探测、端口扫描及组合
+        srcMethod:
+          type: integer
+          description: 资产扫描/处置方式（A.10）；传入则覆盖 scanTemplateId 默认处置方式
         exportTemplateId:
           type: string
           description: |
@@ -1161,9 +1076,6 @@ components:
             缺省按 scanTemplateId 与能力匹配规则选择。
         priority:
           $ref: '#/components/schemas/TaskPriority'
-        scheduleTime:
-          type: string
-          format: date-time
         options:
           $ref: '#/components/schemas/ScanTaskOptions'
 
@@ -1443,17 +1355,8 @@ components:
 
     VerifyFixInstanceRequest:
       type: object
-      required: [operator]
       properties:
-        verifyFixResult:
-          $ref: '#/components/schemas/VerifyFixResult'
-          description: 有值则同步回写终态；省略则须传 procMethod 触发 SVMP 异步核验
-        procMethod:
-          type: integer
-          description: 未传 verifyFixResult 时必填（如 1060、1061、1030–1032）
         transferTime:
-          type: string
-        operator:
           type: string
         remark:
           type: string
@@ -1476,10 +1379,8 @@ components:
 
     VerifyFixInstanceBatchRequest:
       type: object
-      required: [items, operator]
+      required: [items]
       properties:
-        operator:
-          type: string
         items:
           type: array
           minItems: 1
@@ -1490,10 +1391,6 @@ components:
             properties:
               vulInfoID:
                 type: string
-              verifyFixResult:
-                $ref: '#/components/schemas/VerifyFixResult'
-              procMethod:
-                type: integer
               transferTime:
                 type: string
               remark:
@@ -1516,11 +1413,11 @@ components:
 
     RemediateInstanceRequest:
       type: object
-      required: [srcMethod, remedDesc, remedTime, operator]
+      required: [srcMethod]
       properties:
         srcMethod:
           type: integer
-          description: A.10，如 1050/1051/1052
+          description: A.10；可修复类→5，不可修复类→9
         remedDesc:
           type: string
         fixLnk:
@@ -1534,22 +1431,9 @@ components:
           type: string
           pattern: '^\d+(日|周|月)$'
           example: '3日'
-        operator:
-          type: string
-        transferTime:
-          type: string
-        remark:
-          type: string
-
-    ArchiveInstanceRequest:
-      type: object
-      required: [lvRsn, archiveReason, operator]
-      properties:
         lvRsn:
           $ref: '#/components/schemas/LvRsnCode'
         archiveReason:
-          type: string
-        operator:
           type: string
         approvedBy:
           type: string
@@ -1558,6 +1442,58 @@ components:
         provincialFields:
           type: object
           additionalProperties: true
+        srcTktRole:
+          type: integer
+          description: 派单角色（A.9）
+        dstTktRole:
+          type: integer
+          description: 处置角色（A.9）
+        assignerDept:
+          type: string
+        assignerEmail:
+          type: string
+        assignerPhone:
+          type: string
+        handlerDept:
+          type: string
+        handlerEmail:
+          type: string
+        handlerPhone:
+          type: string
+        transferTime:
+          type: string
+        remark:
+          type: string
+
+    RemediateInstanceBatchRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            allOf:
+              - type: object
+                required: [vulInfoID]
+                properties:
+                  vulInfoID:
+                    type: string
+              - $ref: '#/components/schemas/RemediateInstanceRequest'
+
+    RemediateInstanceBatchResult:
+      type: object
+      required: [success, failed]
+      properties:
+        success:
+          type: array
+          items:
+            $ref: '#/components/schemas/InstanceTransitionResult'
+        failed:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifyBatchFailure'
 
     InstanceTransitionResult:
       type: object
@@ -1584,9 +1520,6 @@ components:
       enum:
         - TASK_COMPLETED
         - TASK_FAILED
-        - INSTANCE_STATUS_CHANGED
-        - INSTANCE_REMEDIATED
-        - INSTANCE_ARCHIVED
         - INSTANCE_VERIFY_FIX_COMPLETED
         - EXPORT_READY
 
@@ -1809,13 +1742,11 @@ components:
           type: string
           format: date-time
 
-    TaskExportVulnerability:
+    TaskExportVulnerabilityInstance:
       type: object
-      required: [vulInfoID, targetId, vulInfoStat, vulName, transferTime]
+      required: [vulInfoID, targetId, vulInfoStat, transferTime]
       properties:
         vulInfoID:
-          type: string
-        vulID:
           type: string
         targetId:
           type: string
@@ -1823,12 +1754,6 @@ components:
           $ref: '#/components/schemas/VulInfoStat'
         lvRsn:
           type: integer
-        vulName:
-          type: string
-        vulLevel:
-          type: integer
-        orgVulId:
-          type: string
         vulNetAddr:
           type: string
         vulPort:
@@ -1850,6 +1775,27 @@ components:
         remediation:
           type: object
           additionalProperties: true
+
+    TaskExportVulnerability:
+      type: object
+      required: [vulID, vulName, instances]
+      properties:
+        vulID:
+          type: string
+          description: 产品漏洞编号（外发包内唯一聚合键）
+        orgVulId:
+          type: string
+        vulLevel:
+          type: integer
+        vulName:
+          type: string
+        vulDesc:
+          type: string
+        instances:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/TaskExportVulnerabilityInstance'
 
     TaskExportWeakPassword:
       type: object

@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 |----|------|
-| API 版本 | **1.0.0** |
+| API 版本 | **1.1.0** |
 | 协议 | HTTPS · REST JSON |
 | Base Path | `/api/open/v1` |
 | OpenAPI | [`openapi/v1/openapi.yaml`](../../openapi/v1/openapi.yaml)（OpenAPI 3.1，可导入 Swagger UI / Postman / 代码生成） |
@@ -34,7 +34,7 @@
 | 能力 | 说明 |
 |------|------|
 | 扫描/排查 | 创建任务、查询进度与结果摘要 |
-| 漏洞实例 | 查询、验证、修复、备案、修复核验 |
+| 漏洞实例 | 查询、验证、处置（含修复与修复失败/备案）、修复核验 |
 | 扫描结果数据外发 | 任务结束、验证扫描、修复核验扫描完成后下载结构化结果（支持 XML / JSON 两种输出物） |
 | 事件通知 | 平台向 Partner 回调 URL 推送任务/实例/外发就绪事件 |
 
@@ -56,11 +56,10 @@
     → 实例默认 vulInfoStat = 1（初始发现）
 验证（POST /instances/{vulInfoID}/verify）
     → 2 已验证有效  |  3 已验证误报（终态，不可再处置）
-处置（二选一）
-    → POST .../remediate  → vulInfoStat = 5（已修复）
-    → POST .../archive    → vulInfoStat = 9（修复失败/备案）
+处置
+    → POST .../remediate  → vulInfoStat = 5（已修复）或 9（修复失败/备案，同一接口）
 修复核验（POST .../verify-fix）
-    → 6 核验修复  |  7 核验未修复  |  10 核验失败
+    → 平台触发核验扫描；完成后 → 6 / 7 / 10
 ```
 
 ---
@@ -185,15 +184,15 @@ Content-Type: application/json
 | 查询 | GET | `/instances/{vulInfoID}` | `INSTANCE_READ` |
 | 验证 | POST | `/instances/{vulInfoID}/verify` | `INSTANCE_VERIFY` |
 | 验证 | POST | `/instances/verify:batch` | `INSTANCE_VERIFY` |
-| 处置·修复 | POST | `/instances/{vulInfoID}/remediate` | `INSTANCE_REMEDIATE` |
-| 处置·备案 | POST | `/instances/{vulInfoID}/archive` | `INSTANCE_ARCHIVE` |
+| 处置 | POST | `/instances/{vulInfoID}/remediate` | `INSTANCE_REMEDIATE` |
+| 处置 | POST | `/instances/remediate:batch` | `INSTANCE_REMEDIATE` |
 | 修复核验 | POST | `/instances/{vulInfoID}/verify-fix` | `INSTANCE_VERIFY_FIX` |
 | 修复核验 | POST | `/instances/verify-fix:batch` | `INSTANCE_VERIFY_FIX` |
 | 外发 | GET | `/exports/{exportId}` | `EXPORT_READ` |
 | 外发 | GET | `/exports/{exportId}/download` | `EXPORT_READ` |
 | 外发 | GET | `/tasks/{taskId}/exports` | `EXPORT_READ` |
 
-**写接口生命周期**：排查 → 验证 → 处置（修复 **或** 备案）→ 修复核验。
+**写接口生命周期**：排查 → 验证 → 处置（`remediate`，含已修复与修复失败）→ 修复核验。
 
 ### 5.0.1 文档体例
 
@@ -236,17 +235,18 @@ Content-Type: application/json
 |------|------|:---:|------|
 | extTaskId | string | ✓ | Partner 幂等键 |
 | taskName | string | ✓ | 任务名称 |
-| targets | string[] | ✓ | 扫描目标列表 |
-| targetType | enum | ✓ | `IPV4` / `IPV6` / `URL` |
+| targets | string[] | ✓ | 扫描目标列表（IPv4 / IPv6 / URL；平台按条目自动识别类型） |
 | vulnType | int | ✓ | **1**=系统漏洞，**2**=Web 漏洞 |
 | callbackUrl | string | ○ | 覆盖 Partner 默认回调 URL |
-| scanTemplateId | int | ○ | 引擎扫描模板 ID |
+| scanTemplateId | int | ○ | 扫描模板 ID；支持 **漏洞扫描**、**存活探测**、**端口扫描** 及组合（由模板定义） |
+| srcMethod | int | ○ | 资产扫描/处置方式，码表见《接口规范(2025)》**A.10**；若传入则**覆盖** `scanTemplateId` 默认处置方式 |
 | exportTemplateId | string | ○ | 扫描结果外发模板（如 `tpl-svmp-xml-scan-bundle`） |
 | priority | enum | ○ | `LOW` / `MEDIUM` / `HIGH` |
-| scheduleTime | datetime | ○ | 定时执行（ISO 8601 UTC） |
 | options.portScope | string | ○ | 端口范围，如 `1-65535` |
 | options.isLiveProbe | bool | ○ | 是否存活探测 |
 | options.pswdGuessEnabled | bool | ○ | 是否弱口令检测 |
+
+> **IPv6 提示**：`targets` 含 IPv6 时，写法多样（全写、压缩、`[]` 包裹等）。Partner 入参与平台响应/外发回显的字符串形式**可能不一致**。建议统一采用 **RFC 5952 规范格式**（全小写、最长零压缩，如 `2001:db8::1`），并在联调阶段比对「请求 targets ↔ 任务详情 ↔ 外发 targets[]」是否一致。
 
 **响应 data**：
 
@@ -271,11 +271,11 @@ Idempotency-Key: idem-ext-2026-0001
 {
   "extTaskId": "EXT-TASK-2026-0001",
   "taskName": "2026Q2-核心业务系统排查",
-  "targets": ["10.10.1.1", "10.10.1.2"],
-  "targetType": "IPV4",
+  "targets": ["10.10.1.1", "10.10.1.2", "2001:db8::1"],
   "vulnType": 1,
   "callbackUrl": "https://partner.example.com/hooks/vuln",
   "scanTemplateId": 10086,
+  "srcMethod": 1021,
   "exportTemplateId": "tpl-svmp-xml-scan-bundle",
   "priority": "HIGH",
   "options": {
@@ -511,7 +511,7 @@ Authorization: Bearer <accessToken>
 
 **状态约束**：前置 `vulInfoStat ∈ {0,1}`；**3（误报）后禁止**修复/备案。
 
-**扫描外发**：若验证阶段配置为触发引擎复扫 / POC 扫描，扫描完成后平台同样生成 `EXPORT_READY` 事件。此类外发 `exportStage=VERIFY_SCAN`，`dataType=SYSTEM_VULNERABILITY`，输出数据按 §5.8 的规范化结构表达；单个验证接口通常输出一条 `vulnerabilities[]`，批量验证接口可输出多条，关联关系以每条漏洞的 `vulInfoID` 为准。`liveProbeResults[]`、`portScanResults[]` 仅在本次验证扫描实际产生对应结果时返回。
+**扫描外发**：若验证阶段触发复扫 / POC 扫描，完成后平台生成 `EXPORT_READY`（`exportStage=VERIFY_SCAN`）。外发结构按 §5.8.6 聚合；相关实例位于 `vulnerabilities[].instances[]`。
 
 **请求示例（验证有效）**
 
@@ -561,28 +561,29 @@ Authorization: Bearer <accessToken>
 
 ---
 
-### 5.4 处置阶段说明（修复与备案并列）
+### 5.4 处置阶段说明
 
-验证有效（`vulInfoStat = 2`）后，在 **§5.5 / §5.6** 中**择一**调用：
+验证有效（`vulInfoStat = 2`）或核验未修复（`vulInfoStat = 7`）后，调用 **§5.5** `POST .../remediate` 提交处置结果：
 
-| 分支 | 方法 | 路径 | 终态 |
-|------|------|------|------|
-| 可修复 | POST | `/instances/{vulInfoID}/remediate` | **5** |
-| 不可修复（备案） | POST | `/instances/{vulInfoID}/archive` | **9** |
+| 结果 | `vulInfoStat` | 说明 |
+|------|---------------|------|
+| 已修复 | **5** | `srcMethod` 为可修复类（A.10，如 1050–1052） |
+| 修复失败 / 备案 | **9** | `srcMethod` 为不可修复类；须传 `lvRsn`（A.23）、`archiveReason` |
 
-**共同状态约束**：
+**状态约束**：
 
 | 类型 | 规则 |
 |------|------|
 | 前置 | `vulInfoStat ∈ {2, 7}`，且 `≠ 3` |
-| 前置 | 处置阶段内尚未产生终态 5 或 9 |
-| 互斥 | 已修复不可备案、已备案不可修复（**40005**） |
+| 终态 | 单次调用推进至 **5** 或 **9**；已终态不可重复处置（**40005**） |
+
+> 原独立 `POST .../archive` 已合并入 `remediate`；`archive` 路径不再提供。
 
 ---
 
-### 5.5 处置 · 修复
+### 5.5 处置 · 修复（含修复失败/备案）
 
-#### `POST /instances/{vulInfoID}/remediate` — 标记已修复
+#### 5.5.1 `POST /instances/{vulInfoID}/remediate` — 单条处置
 
 | 项 | 值 |
 |----|-----|
@@ -592,18 +593,30 @@ Authorization: Bearer <accessToken>
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
-| srcMethod | int | ✓ | 处置方式 A.10：1050/1051/1052 等 |
-| remedDesc | string | ✓ | 修复说明 |
+| srcMethod | int | ✓ | 漏洞管理处置方式，码表 **A.10**（如 1050 补丁、1051 防护、1052 关停；不可修复类 → 终态 9） |
+| remedDesc | string | 条件 | 已修复（→5）时必填 |
 | fixLnk | string | 条件 | `srcMethod=1050` 时必填 |
 | defDev | string | 条件 | `srcMethod=1051` 或 `1052` 时必填 |
-| remedTime | string | ✓ | 修复耗时，如 `3日` |
-| operator | string | ✓ | 操作人 |
+| remedTime | string | 条件 | 已修复时必填，如 `3日` |
+| lvRsn | int | 条件 | 修复失败（→9）时必填，码表 **A.23**（101–109 / 999） |
+| archiveReason | string | 条件 | 修复失败（→9）时必填 |
+| approvedBy | string | ○ | 修复失败审批人 |
+| recordAt | string | ○ | 备案时间 |
+| provincialFields | object | ○ | 省侧扩展 JSON |
+| srcTktRole | int | ○ | 派单角色，码表 **A.9**（表56 `srcTktRole`） |
+| dstTktRole | int | ○ | 处置角色，码表 **A.9**（表56 `dstTktRole`） |
+| assignerDept | string | ○ | 派单人部门（表56 拆分 `srcTktPrsn`，**勿**直接传 `srcTktPrsn`） |
+| assignerEmail | string | ○ | 派单人邮箱 |
+| assignerPhone | string | ○ | 派单人电话 |
+| handlerDept | string | ○ | 处置人部门（表56 拆分 `dstTktPrsn`，**勿**直接传 `dstTktPrsn`） |
+| handlerEmail | string | ○ | 处置人邮箱 |
+| handlerPhone | string | ○ | 处置人电话 |
 | transferTime | string | ○ | 缺省服务端生成 |
 | remark | string | ○ | 备注 |
 
-**响应 data**：`vulInfoID`、`vulInfoStat`（**5**）、`lvRsn`（空）、`transferTime`、`remedDesc`、`srcMethod`。
+**响应 data**：`vulInfoID`、`vulInfoStat`（**5** 或 **9**）、`lvRsn`、`transferTime`、`remedDesc` 或 `archiveReason`、`srcMethod`。
 
-**请求示例**
+**请求示例（已修复）**
 
 ```json
 {
@@ -611,35 +624,61 @@ Authorization: Bearer <accessToken>
   "remedDesc": "升级 OpenSSH 至 9.6p1 并重启 sshd",
   "fixLnk": "https://www.openssh.com/releasenotes.html",
   "remedTime": "3日",
-  "operator": "ops@corp.com",
+  "srcTktRole": 1,
+  "dstTktRole": 2,
+  "assignerDept": "安全运营中心",
+  "assignerEmail": "soc-dispatch@corp.com",
+  "assignerPhone": "010-12345678",
+  "handlerDept": "基础架构部",
+  "handlerEmail": "ops@corp.com",
+  "handlerPhone": "010-87654321",
   "transferTime": "1747480000"
+}
+```
+
+**请求示例（修复失败/备案）**
+
+```json
+{
+  "srcMethod": 1099,
+  "lvRsn": 101,
+  "archiveReason": "业务连续性限制，经评估接受风险",
+  "approvedBy": "risk-committee@corp.com",
+  "srcTktRole": 1,
+  "dstTktRole": 3,
+  "assignerDept": "安全运营中心",
+  "assignerEmail": "soc-dispatch@corp.com",
+  "assignerPhone": "010-12345678",
+  "handlerDept": "业务系统部",
+  "handlerEmail": "app-owner@corp.com",
+  "handlerPhone": "010-11112222",
+  "transferTime": "1747481000"
 }
 ```
 
 ---
 
-### 5.6 处置 · 备案
-
-#### `POST /instances/{vulInfoID}/archive` — 不可修复备案
+#### 5.5.2 `POST /instances/remediate:batch` — 批量处置
 
 | 项 | 值 |
 |----|-----|
-| 能力 | `INSTANCE_ARCHIVE` |
+| 能力 | `INSTANCE_REMEDIATE` |
+| 说明 | 部分成功；**不使用** `extTaskId` |
 
 **请求体**：
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
-| lvRsn | int | ✓ | 101–109 / 999（A.23） |
-| archiveReason | string | ✓ | 备案说明 |
-| operator | string | ✓ | 操作人 |
-| approvedBy | string | ○ | 审批人 |
-| recordAt | string | ○ | 备案时间 |
-| provincialFields | object | ○ | 省侧扩展 JSON |
+| items | array | ✓ | 待处置列表 |
 
-**响应 data**：`vulInfoID`、`vulInfoStat`（**9**）、`lvRsn`、`transferTime`、`archiveReason`。
+**items[] 元素**：字段同 §5.5.1，且每条 **必填** `vulInfoID`（路径参数改为 body 字段）。
 
-**兼容别名**：`POST .../unfixable-records` 已废弃，同 `archive`。
+**响应 data**：
+
+| 参数 | 说明 |
+|------|------|
+| success | 成功项数组，元素结构同单条「响应 data」 |
+| failed | 失败项：`vulInfoID`、`code`、`message` |
 
 ---
 
@@ -650,40 +689,25 @@ Authorization: Bearer <accessToken>
 | 项 | 值 |
 |----|-----|
 | 能力 | `INSTANCE_VERIFY_FIX` |
-| 说明 | 前置 **`vulInfoStat = 5`** |
+| 说明 | 前置 **`vulInfoStat = 5`**；平台触发修复核验扫描，完成后推进状态并可选外发 |
 
 **请求体**：
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
-| operator | string | ✓ | 操作人 |
-| verifyFixResult | enum | 条件 | `FIXED`→**6** · `NOT_FIXED`→**7** · `FAILED`→**10**；**有值则同步回写** |
-| procMethod | int | 条件 | **未传 verifyFixResult 时必填**，触发引擎核验（如 1060、1061） |
 | transferTime | string | ○ | 缺省服务端生成 |
 | remark | string | ○ | 备注 |
 
-**两种调用模式**：
+**平台行为**：受理后异步执行核验扫描；`vulInfoStat` 暂保持 **5**，完成后通过 Webhook `INSTANCE_VERIFY_FIX_COMPLETED` 通知终态 **6 / 7 / 10**，并可产生 `EXPORT_READY`（`exportStage=VERIFY_FIX_SCAN`）。
 
-| 模式 | 请求特征 | 平台行为 | 典型响应 |
-|------|----------|----------|----------|
-| 回写结果 | 传 `verifyFixResult` | 直接推进状态机 | `vulInfoStat` 为 6/7/10 |
-| 触发引擎 | 不传 `verifyFixResult`，传 `procMethod` | 异步核验 | `verifyFixStatus` 为 `PENDING`/`RUNNING`，`vulInfoStat` 暂为 **5**；完成后 Webhook |
+**响应 data（受理）**：`vulInfoID`、`vulInfoStat`（5）、`verifyFixStatus`（`PENDING` / `RUNNING`）、`verifyFixJobId`、`message`。
 
-**扫描外发**：触发引擎模式下，修复核验扫描完成后除推进实例状态外，平台可生成 `EXPORT_READY` 事件。此类外发 `exportStage=VERIFY_FIX_SCAN`，`dataType=SYSTEM_VULNERABILITY`，输出数据按 §5.8 的规范化结构表达；单个修复核验接口通常输出一条 `vulnerabilities[]`，批量修复核验接口可输出多条，关联关系以每条漏洞的 `vulInfoID` 为准。
-
-**响应 data（回写成功）**：`vulInfoID`、`vulInfoStat`（6/7/10）、`transferTime`、`srcMethod`（可选）。
-
-**响应 data（异步受理）**：`vulInfoID`、`vulInfoStat`（5）、`verifyFixStatus`、`verifyFixJobId`、`message`。
-
-**请求示例（回写核验修复）**
+**请求示例**
 
 ```json
 {
-  "verifyFixResult": "FIXED",
-  "procMethod": 1060,
-  "operator": "sec-qa@corp.com",
   "transferTime": "1747488000",
-  "remark": "复扫 POC 未再现"
+  "remark": "安排复扫 POC"
 }
 ```
 
@@ -695,9 +719,21 @@ Authorization: Bearer <accessToken>
 |----|-----|
 | 能力 | `INSTANCE_VERIFY_FIX` |
 
-**请求体**：批次级 `operator`（✓）+ `items[]`（字段同单条）。
+**请求体**：
 
-**响应 data**：`success` / `failed`，结构同 §5.3.2 批量验证。
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| items | array | ✓ | 待核验列表 |
+
+**items[] 元素**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| vulInfoID | string | ✓ | 实例 ID |
+| transferTime | string | ○ | 本条时间 |
+| remark | string | ○ | 备注 |
+
+**响应 data**：`success` / `failed`，结构同 §5.5.2 批量处置。
 
 ---
 
@@ -729,10 +765,10 @@ Authorization: Bearer <accessToken>
 | `exportStage` | 触发时机 | `dataType` | 输出约定 |
 |---------------|----------|------------|----------|
 | `TASK_COMPLETED` | 普通扫描 / 排查任务结束 | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` | 按任务启用能力输出 `liveProbeResults[]`、`portScanResults[]`、`vulnerabilities[]` 等 |
-| `VERIFY_SCAN` | 漏洞验证阶段触发复扫 / POC 扫描完成 | `SYSTEM_VULNERABILITY` | 输出系统漏洞数据；单个/批量结果均进入 `vulnerabilities[]`，以 `vulInfoID` 区分实例 |
-| `VERIFY_FIX_SCAN` | 修复核验阶段触发复扫完成 | `SYSTEM_VULNERABILITY` | 输出系统漏洞数据；单个/批量结果均进入 `vulnerabilities[]`，以 `vulInfoID` 区分实例 |
+| `VERIFY_SCAN` | 漏洞验证阶段触发复扫 / POC 扫描完成 | `SYSTEM_VULNERABILITY` | 按 §5.8.6 产品漏洞聚合；实例在 `instances[]` |
+| `VERIFY_FIX_SCAN` | 修复核验阶段触发复扫完成 | `SYSTEM_VULNERABILITY` | 同上 |
 
-`VERIFY_SCAN` / `VERIFY_FIX_SCAN` 产生的外发与任务结束外发使用同一下载接口和同一 `xml` / `json` 序列化规则；区别仅在 `export.exportStage`、`export.dataType`。阶段扫描外发不再额外定义关联对象，第三方直接按 `vulnerabilities[].vulInfoID` 识别单个或批量系统漏洞实例。
+`VERIFY_SCAN` / `VERIFY_FIX_SCAN` 产生的外发与任务结束外发使用同一下载接口和同一 `xml` / `json` 序列化规则；区别仅在 `export.exportStage`、`export.dataType`。阶段扫描外发按 §5.8.6 产品漏洞聚合结构输出，实例明细位于 `vulnerabilities[].instances[]`，以 `vulInfoID` 标识。
 
 #### 5.8.3 输出物逻辑结构
 
@@ -744,9 +780,10 @@ TaskExport / taskExport
 ├── targets / target[]          # 扫描目标 / 资产维度
 ├── liveProbeResults / liveProbeResult[]  # 主机存活探测结果
 ├── portScanResults / portScanResult[]    # 端口扫描结果
-├── vulnerabilities / vulnerability[]
-│   ├── evidence                # URL、协议、端口、命中信息等证据
-│   └── remediation             # 修复、备案、核验相关字段
+├── vulnerabilities / vulnerability[]   # 按产品漏洞 vulID 聚合
+│   ├── vulID, orgVulId, vulLevel, vulName, vulDesc
+│   └── instances / instance[]            # 系统漏洞实例明细
+│       ├── vulInfoID, targetId, vulInfoStat, vulPort, evidence …
 ├── weakPasswords / weakPassword[]
 ├── baselineResults / baselineResult[]
 └── appendices / appendix[]      # 跨目标或无法归属到单目标的附录
@@ -758,8 +795,8 @@ TaskExport / taskExport
 |----------|------------|------|
 | 主机存活探测 | `targets[]` + `liveProbeResults[]` | `targets[]` 保存目标主数据，`liveProbeResults[]` 保存探测方式、存活状态、时延等结果 |
 | 端口扫描 | `targets[]` + `portScanResults[]` | 端口、协议、状态、服务、Banner 等作为正式端口扫描结果输出 |
-| 漏洞扫描 | `targets[]` + `vulnerabilities[]` | 漏洞实例和漏洞详情合并为开放接口实例字段；可通过 `targetId`、`port`、`protocol` 关联端口扫描结果 |
-| 验证 / 修复核验扫描 | `targets[]` + `vulnerabilities[]` | 属于系统漏洞数据外发，使用 `exportStage` 区分 `VERIFY_SCAN` / `VERIFY_FIX_SCAN`；单个/批量实例均由 `vulnerabilities[].vulInfoID` 标识 |
+| 漏洞扫描 | `targets[]` + `vulnerabilities[]` | 按 **产品漏洞 `vulID`** 聚合；实例明细在 `instances[]` |
+| 验证 / 修复核验扫描 | `vulnerabilities[]` | `exportStage` 区分 `VERIFY_SCAN` / `VERIFY_FIX_SCAN`；实例在 `instances[]` |
 
 其他引擎结果参考结构的落点：
 
@@ -780,7 +817,7 @@ TaskExport / taskExport
 | `taskExport.export.dataType` | `/TaskExport/export/dataType` | enum | ✓ | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` |
 | `taskExport.export.generatedAt` | `/TaskExport/export/generatedAt` | datetime | ✓ | 生成时间 |
 | `taskExport.export.expiresAt` | `/TaskExport/export/expiresAt` | datetime | ○ | 下载过期时间 |
-| `taskExport.export.recordCount` | `/TaskExport/export/recordCount` | int | ✓ | 主记录条数，默认按 `vulnerabilities` 计数 |
+| `taskExport.export.recordCount` | `/TaskExport/export/recordCount` | int | ✓ | 漏洞**实例**总条数（`instances[]` 合计），用于评估包大小 |
 | `taskExport.task.taskId` | `/TaskExport/task/taskId` | string | ✓ | 平台任务 ID |
 | `taskExport.task.extTaskId` | `/TaskExport/task/extTaskId` | string | ○ | Partner 幂等键 |
 | `taskExport.task.taskName` | `/TaskExport/task/taskName` | string | ✓ | 任务名称 |
@@ -834,34 +871,39 @@ TaskExport / taskExport
 | `taskExport.portScanResults[].version` | `/TaskExport/portScanResults/portScanResult/version` | string | ○ | 服务版本 |
 | `taskExport.portScanResults[].detectedAt` | `/TaskExport/portScanResults/portScanResult/detectedAt` | datetime | ○ | 探测时间 |
 
-#### 5.8.6 输出参数（`vulnerabilities[]`）
+#### 5.8.6 输出参数（`vulnerabilities[]` · 产品漏洞聚合）
+
+外发时 **`vulnerabilities[]` 按产品漏洞 `vulID` 聚合**，同一产品漏洞的多条实例归入 `instances[]`，以减少重复字段、缩小包体。
+
+**产品层（`vulnerabilities[]` 元素）**：
 
 | JSON 路径 | XML 路径 | 类型 | 必填 | 说明 |
 |-----------|----------|------|:---:|------|
-| `taskExport.vulnerabilities[].vulInfoID` | `/TaskExport/vulnerabilities/vulnerability/vulInfoID` | string | ✓ | 漏洞实例 ID，对应 §5.2 / §5.3 / §5.5–§5.7 |
-| `taskExport.vulnerabilities[].vulID` | `/TaskExport/vulnerabilities/vulnerability/vulID` | string | ○ | 产品漏洞编号 |
-| `taskExport.vulnerabilities[].targetId` | `/TaskExport/vulnerabilities/vulnerability/targetId` | string | ✓ | 关联 `targets[].targetId` |
-| `taskExport.vulnerabilities[].vulInfoStat` | `/TaskExport/vulnerabilities/vulnerability/vulInfoStat` | int | ✓ | 漏洞实例状态，见附录 A |
-| `taskExport.vulnerabilities[].lvRsn` | `/TaskExport/vulnerabilities/vulnerability/lvRsn` | int | ○ | 未修复原因，备案场景使用 |
-| `taskExport.vulnerabilities[].vulName` | `/TaskExport/vulnerabilities/vulnerability/vulName` | string | ✓ | 漏洞名称 |
-| `taskExport.vulnerabilities[].vulLevel` | `/TaskExport/vulnerabilities/vulnerability/vulLevel` | int | ○ | 危害等级 |
+| `taskExport.vulnerabilities[].vulID` | `/TaskExport/vulnerabilities/vulnerability/vulID` | string | ✓ | 产品漏洞编号（聚合键，外发包内唯一） |
 | `taskExport.vulnerabilities[].orgVulId` | `/TaskExport/vulnerabilities/vulnerability/orgVulId` | string | ○ | 原始编号，如 CVE |
-| `taskExport.vulnerabilities[].vulNetAddr` | `/TaskExport/vulnerabilities/vulnerability/vulNetAddr` | string | ○ | 网络地址 |
-| `taskExport.vulnerabilities[].vulPort` | `/TaskExport/vulnerabilities/vulnerability/vulPort` | int | ○ | 端口 |
-| `taskExport.vulnerabilities[].vulSvc` | `/TaskExport/vulnerabilities/vulnerability/vulSvc` | string | ○ | 服务 |
-| `taskExport.vulnerabilities[].isAccess` | `/TaskExport/vulnerabilities/vulnerability/isAccess` | int | ○ | **0** 内网 / **1** 互联网 |
-| `taskExport.vulnerabilities[].transferTime` | `/TaskExport/vulnerabilities/vulnerability/transferTime` | string | ✓ | 状态变更时间，沿用实例字段约定 |
-| `taskExport.vulnerabilities[].srcMethod` | `/TaskExport/vulnerabilities/vulnerability/srcMethod` | int | ○ | 验证 / 处置方式 |
-| `taskExport.vulnerabilities[].extVulnRef` | `/TaskExport/vulnerabilities/vulnerability/extVulnRef` | string | ○ | Partner 扩展引用 |
-| `taskExport.vulnerabilities[].evidence.url` | `/TaskExport/vulnerabilities/vulnerability/evidence/url` | string | ○ | Web 漏洞 URL 或命中 URL |
-| `taskExport.vulnerabilities[].evidence.protocol` | `/TaskExport/vulnerabilities/vulnerability/evidence/protocol` | string | ○ | 协议 |
-| `taskExport.vulnerabilities[].evidence.message` | `/TaskExport/vulnerabilities/vulnerability/evidence/message` | string | ○ | 命中证据、版本信息、请求摘要等 |
-| `taskExport.vulnerabilities[].remediation.remedDesc` | `/TaskExport/vulnerabilities/vulnerability/remediation/remedDesc` | string | ○ | 修复说明 |
-| `taskExport.vulnerabilities[].remediation.fixLnk` | `/TaskExport/vulnerabilities/vulnerability/remediation/fixLnk` | string | ○ | 修复链接 |
-| `taskExport.vulnerabilities[].remediation.defDev` | `/TaskExport/vulnerabilities/vulnerability/remediation/defDev` | string | ○ | 防护设备 |
-| `taskExport.vulnerabilities[].remediation.remedTime` | `/TaskExport/vulnerabilities/vulnerability/remediation/remedTime` | string | ○ | 修复耗时 |
-| `taskExport.vulnerabilities[].remediation.archiveReason` | `/TaskExport/vulnerabilities/vulnerability/remediation/archiveReason` | string | ○ | 备案说明 |
-| `taskExport.vulnerabilities[].remediation.provincialFields` | `/TaskExport/vulnerabilities/vulnerability/remediation/provincialFields` | object | ○ | 省侧扩展字段；XML 中以 key/value 列表表达 |
+| `taskExport.vulnerabilities[].vulLevel` | `/TaskExport/vulnerabilities/vulnerability/vulLevel` | int | ○ | 危害等级 |
+| `taskExport.vulnerabilities[].vulName` | `/TaskExport/vulnerabilities/vulnerability/vulName` | string | ✓ | 漏洞名称 |
+| `taskExport.vulnerabilities[].vulDesc` | `/TaskExport/vulnerabilities/vulnerability/vulDesc` | string | ○ | 漏洞描述 |
+
+**实例层（`vulnerabilities[].instances[]`）**：
+
+| JSON 路径 | XML 路径 | 类型 | 必填 | 说明 |
+|-----------|----------|------|:---:|------|
+| `…instances[].vulInfoID` | `…/instances/instance/vulInfoID` | string | ✓ | 系统漏洞实例 ID |
+| `…instances[].targetId` | `…/instances/instance/targetId` | string | ✓ | 关联 `targets[].targetId` |
+| `…instances[].vulInfoStat` | `…/instances/instance/vulInfoStat` | int | ✓ | 实例状态，见附录 A |
+| `…instances[].lvRsn` | `…/instances/instance/lvRsn` | int | ○ | 未修复原因 |
+| `…instances[].vulNetAddr` | `…/instances/instance/vulNetAddr` | string | ○ | 网络地址 |
+| `…instances[].vulPort` | `…/instances/instance/vulPort` | int | ○ | 端口 |
+| `…instances[].vulSvc` | `…/instances/instance/vulSvc` | string | ○ | 服务 |
+| `…instances[].isAccess` | `…/instances/instance/isAccess` | int | ○ | **0** 内网 / **1** 互联网 |
+| `…instances[].transferTime` | `…/instances/instance/transferTime` | string | ✓ | 状态变更时间 |
+| `…instances[].srcMethod` | `…/instances/instance/srcMethod` | int | ○ | 验证 / 处置方式 |
+| `…instances[].extVulnRef` | `…/instances/instance/extVulnRef` | string | ○ | Partner 扩展引用 |
+| `…instances[].evidence.url` | `…/evidence/url` | string | ○ | Web 命中 URL |
+| `…instances[].evidence.protocol` | `…/evidence/protocol` | string | ○ | 协议 |
+| `…instances[].evidence.message` | `…/evidence/message` | string | ○ | 命中证据 |
+| `…instances[].remediation.*` | `…/remediation/*` | — | ○ | 修复 / 备案字段，结构同原扁平 `remediation` |
 
 #### 5.8.7 输出参数（弱口令、配置基线与附录）
 
@@ -953,9 +995,6 @@ TaskExport / taskExport
 |-----------|------|
 | `TASK_COMPLETED` | 任务正常结束 |
 | `TASK_FAILED` | 任务失败 |
-| `INSTANCE_STATUS_CHANGED` | 实例状态变更 |
-| `INSTANCE_REMEDIATED` | 修复完成（→5） |
-| `INSTANCE_ARCHIVED` | 备案完成（→9） |
 | `INSTANCE_VERIFY_FIX_COMPLETED` | 修复核验完成（→6/7/10） |
 | `EXPORT_READY` | 外发包可下载 |
 
@@ -970,13 +1009,13 @@ TaskExport / taskExport
 | summary.verifiedValid | int | ○ | 验证有效数 |
 | summary.falsePositive | int | ○ | 误报数 |
 
-**`INSTANCE_*` 类 · payload**：
+**`INSTANCE_VERIFY_FIX_COMPLETED` · payload**：
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
 | vulInfoID | string | ✓ | 实例 ID |
-| vulInfoStat | int | ✓ | 当前状态 |
-| previousVulInfoStat | int | ○ | 变更前状态 |
+| vulInfoStat | int | ✓ | 当前状态（6/7/10） |
+| previousVulInfoStat | int | ○ | 变更前状态（通常为 5） |
 
 **`EXPORT_READY` · payload**：
 
@@ -1066,7 +1105,9 @@ TaskExport / taskExport
 | `xml` | `<TaskExport>` | `export-{taskId}-{exportId}.xml` |
 | `json` | `{ "taskExport": { ... } }` | `export-{taskId}-{exportId}.json` |
 
-### 7.2 结构示例
+### 7.2 结构示例（完整）
+
+以下示例展示任务结束外发的**完整顶层结构**：`export`、`task`、`summary`、`targets`、`liveProbeResults`、`portScanResults`、聚合后的 `vulnerabilities[]`（含 `instances[]`）。验证/修复核验阶段外发仅 `export` + `vulnerabilities[]` 等子集，序列化规则相同。
 
 **JSON 示例**：
 
@@ -1076,25 +1117,49 @@ TaskExport / taskExport
     "export": {
       "exportId": "EXP-20260518-7f3a",
       "format": "json",
+      "exportTemplateId": "tpl-svmp-xml-scan-bundle",
       "exportStage": "TASK_COMPLETED",
       "dataType": "MIXED",
       "generatedAt": "2026-05-18T14:05:00Z",
-      "recordCount": 1
+      "expiresAt": "2026-05-25T14:05:00Z",
+      "recordCount": 3
     },
     "task": {
       "taskId": "TASK-7f3a2b1c",
       "extTaskId": "EXT-TASK-2026-0001",
       "taskName": "2026Q2-核心业务系统排查",
-      "targetType": "IPV4",
       "vulnType": 1,
-      "status": "FINISHED"
+      "scanTemplateId": 10086,
+      "status": "FINISHED",
+      "startedAt": "2026-05-18T08:00:00Z",
+      "finishedAt": "2026-05-18T14:00:00Z"
+    },
+    "summary": {
+      "totalTargets": 2,
+      "aliveTargets": 2,
+      "openPorts": 4,
+      "totalInstances": 3,
+      "verifiedValid": 0,
+      "falsePositive": 0,
+      "remediated": 0,
+      "archived": 0,
+      "weakPasswordCount": 0,
+      "baselineIssueCount": 0
     },
     "targets": [
       {
         "targetId": "TGT-001",
         "target": "10.10.1.1",
         "targetType": "IPV4",
-        "assetName": "core-host-01"
+        "assetID": "AST-1001",
+        "assetName": "core-host-01",
+        "os": "Linux"
+      },
+      {
+        "targetId": "TGT-002",
+        "target": "2001:db8::1",
+        "targetType": "IPV6",
+        "assetName": "core-host-v6"
       }
     ],
     "liveProbeResults": [
@@ -1104,7 +1169,17 @@ TaskExport / taskExport
         "address": "10.10.1.1",
         "alive": true,
         "probeMethod": "ICMP",
-        "latencyMs": 12
+        "latencyMs": 12,
+        "detectedAt": "2026-05-18T08:05:00Z"
+      },
+      {
+        "liveProbeId": "LIVE-002",
+        "targetId": "TGT-002",
+        "address": "2001:db8::1",
+        "alive": true,
+        "probeMethod": "ICMP",
+        "latencyMs": 8,
+        "detectedAt": "2026-05-18T08:05:02Z"
       }
     ],
     "portScanResults": [
@@ -1116,54 +1191,130 @@ TaskExport / taskExport
         "protocol": "TCP",
         "state": "open",
         "service": "ssh",
-        "banner": "OpenSSH/4.3"
+        "banner": "OpenSSH/4.3",
+        "detectedAt": "2026-05-18T08:10:00Z"
+      },
+      {
+        "portScanId": "PORT-002",
+        "targetId": "TGT-001",
+        "address": "10.10.1.1",
+        "port": 443,
+        "protocol": "TCP",
+        "state": "open",
+        "service": "https",
+        "detectedAt": "2026-05-18T08:10:01Z"
       }
     ],
     "vulnerabilities": [
       {
-        "vulInfoID": "VI-20260518-0001",
-        "targetId": "TGT-001",
-        "vulInfoStat": 1,
+        "vulID": "VUL-OPENSSH-BYPASS",
+        "orgVulId": "CVE-2006-5051",
+        "vulLevel": 3,
         "vulName": "OpenSSH 安全限制绕过漏洞",
-        "vulPort": 22,
-        "vulSvc": "ssh",
-        "transferTime": "1747476000",
-        "evidence": {
-          "protocol": "TCP",
-          "message": "OpenSSH/4.3"
-        }
+        "vulDesc": "OpenSSH 4.x 存在安全限制绕过，可能导致未授权访问。",
+        "instances": [
+          {
+            "vulInfoID": "VI-20260518-0001",
+            "targetId": "TGT-001",
+            "vulInfoStat": 1,
+            "vulNetAddr": "10.10.1.1",
+            "vulPort": 22,
+            "vulSvc": "ssh",
+            "isAccess": 0,
+            "transferTime": "1747476000",
+            "evidence": {
+              "protocol": "TCP",
+              "message": "OpenSSH/4.3"
+            }
+          },
+          {
+            "vulInfoID": "VI-20260518-0002",
+            "targetId": "TGT-002",
+            "vulInfoStat": 1,
+            "vulNetAddr": "2001:db8::1",
+            "vulPort": 22,
+            "vulSvc": "ssh",
+            "transferTime": "1747476100",
+            "evidence": {
+              "protocol": "TCP",
+              "message": "OpenSSH/4.3"
+            }
+          }
+        ]
+      },
+      {
+        "vulID": "VUL-SSL-WEAK",
+        "orgVulId": "CVE-2014-3566",
+        "vulLevel": 2,
+        "vulName": "SSLv3 POODLE 漏洞",
+        "vulDesc": "服务支持 SSLv3，存在 POODLE 攻击风险。",
+        "instances": [
+          {
+            "vulInfoID": "VI-20260518-0003",
+            "targetId": "TGT-001",
+            "vulInfoStat": 1,
+            "vulNetAddr": "10.10.1.1",
+            "vulPort": 443,
+            "vulSvc": "https",
+            "transferTime": "1747476200",
+            "evidence": {
+              "protocol": "TCP",
+              "message": "SSLv3 supported"
+            }
+          }
+        ]
       }
     ]
   }
 }
 ```
 
-**XML 示例**：
+**XML 示例**（与 JSON 同构；`instances` 为 `instance` 元素列表）：
 
 ```xml
 <TaskExport>
   <export>
     <exportId>EXP-20260518-7f3a</exportId>
     <format>xml</format>
+    <exportTemplateId>tpl-svmp-xml-scan-bundle</exportTemplateId>
     <exportStage>TASK_COMPLETED</exportStage>
     <dataType>MIXED</dataType>
     <generatedAt>2026-05-18T14:05:00Z</generatedAt>
-    <recordCount>1</recordCount>
+    <expiresAt>2026-05-25T14:05:00Z</expiresAt>
+    <recordCount>3</recordCount>
   </export>
   <task>
     <taskId>TASK-7f3a2b1c</taskId>
     <extTaskId>EXT-TASK-2026-0001</extTaskId>
     <taskName>2026Q2-核心业务系统排查</taskName>
-    <targetType>IPV4</targetType>
     <vulnType>1</vulnType>
+    <scanTemplateId>10086</scanTemplateId>
     <status>FINISHED</status>
+    <startedAt>2026-05-18T08:00:00Z</startedAt>
+    <finishedAt>2026-05-18T14:00:00Z</finishedAt>
   </task>
+  <summary>
+    <totalTargets>2</totalTargets>
+    <aliveTargets>2</aliveTargets>
+    <openPorts>4</openPorts>
+    <totalInstances>3</totalInstances>
+    <verifiedValid>0</verifiedValid>
+    <falsePositive>0</falsePositive>
+    <remediated>0</remediated>
+    <archived>0</archived>
+  </summary>
   <targets>
     <target>
       <targetId>TGT-001</targetId>
       <target>10.10.1.1</target>
       <targetType>IPV4</targetType>
       <assetName>core-host-01</assetName>
+    </target>
+    <target>
+      <targetId>TGT-002</targetId>
+      <target>2001:db8::1</target>
+      <targetType>IPV6</targetType>
+      <assetName>core-host-v6</assetName>
     </target>
   </targets>
   <liveProbeResults>
@@ -1190,25 +1341,57 @@ TaskExport / taskExport
   </portScanResults>
   <vulnerabilities>
     <vulnerability>
-      <vulInfoID>VI-20260518-0001</vulInfoID>
-      <targetId>TGT-001</targetId>
-      <vulInfoStat>1</vulInfoStat>
+      <vulID>VUL-OPENSSH-BYPASS</vulID>
+      <orgVulId>CVE-2006-5051</orgVulId>
+      <vulLevel>3</vulLevel>
       <vulName>OpenSSH 安全限制绕过漏洞</vulName>
-      <vulPort>22</vulPort>
-      <vulSvc>ssh</vulSvc>
-      <transferTime>1747476000</transferTime>
-      <evidence>
-        <protocol>TCP</protocol>
-        <message>OpenSSH/4.3</message>
-      </evidence>
+      <vulDesc>OpenSSH 4.x 存在安全限制绕过，可能导致未授权访问。</vulDesc>
+      <instances>
+        <instance>
+          <vulInfoID>VI-20260518-0001</vulInfoID>
+          <targetId>TGT-001</targetId>
+          <vulInfoStat>1</vulInfoStat>
+          <vulPort>22</vulPort>
+          <vulSvc>ssh</vulSvc>
+          <transferTime>1747476000</transferTime>
+          <evidence>
+            <protocol>TCP</protocol>
+            <message>OpenSSH/4.3</message>
+          </evidence>
+        </instance>
+        <instance>
+          <vulInfoID>VI-20260518-0002</vulInfoID>
+          <targetId>TGT-002</targetId>
+          <vulInfoStat>1</vulInfoStat>
+          <vulPort>22</vulPort>
+          <transferTime>1747476100</transferTime>
+        </instance>
+      </instances>
+    </vulnerability>
+    <vulnerability>
+      <vulID>VUL-SSL-WEAK</vulID>
+      <orgVulId>CVE-2014-3566</orgVulId>
+      <vulLevel>2</vulLevel>
+      <vulName>SSLv3 POODLE 漏洞</vulName>
+      <vulDesc>服务支持 SSLv3，存在 POODLE 攻击风险。</vulDesc>
+      <instances>
+        <instance>
+          <vulInfoID>VI-20260518-0003</vulInfoID>
+          <targetId>TGT-001</targetId>
+          <vulInfoStat>1</vulInfoStat>
+          <vulPort>443</vulPort>
+          <vulSvc>https</vulSvc>
+          <transferTime>1747476200</transferTime>
+        </instance>
+      </instances>
     </vulnerability>
   </vulnerabilities>
 </TaskExport>
 ```
 
-字段说明以 §5.8.4–§5.8.7 为准。对外契约仅承诺本节及 §5.8 定义的规范化字段。
+字段说明以 §5.8.4–§5.8.7 为准。
 
-**验证 / 修复核验扫描外发差异**：结构与上例一致，但 `export.exportStage` 分别为 `VERIFY_SCAN` / `VERIFY_FIX_SCAN`，`export.dataType` 固定为 `SYSTEM_VULNERABILITY`。单个接口输出一条或多条 `vulnerabilities[]`，批量接口输出多条 `vulnerabilities[]`，不再额外增加关联对象：
+**修复核验扫描外发**（`exportStage=VERIFY_FIX_SCAN`，`dataType=SYSTEM_VULNERABILITY`）：
 
 ```json
 {
@@ -1223,11 +1406,21 @@ TaskExport / taskExport
     },
     "vulnerabilities": [
       {
-        "vulInfoID": "VI-20260518-0001",
-        "targetId": "TGT-001",
-        "vulInfoStat": 6,
+        "vulID": "VUL-OPENSSH-BYPASS",
+        "orgVulId": "CVE-2006-5051",
+        "vulLevel": 3,
         "vulName": "OpenSSH 安全限制绕过漏洞",
-        "transferTime": "1747488000"
+        "vulDesc": "OpenSSH 4.x 存在安全限制绕过。",
+        "instances": [
+          {
+            "vulInfoID": "VI-20260518-0001",
+            "targetId": "TGT-001",
+            "vulInfoStat": 6,
+            "vulNetAddr": "10.10.1.1",
+            "vulPort": 22,
+            "transferTime": "1747488000"
+          }
+        ]
       }
     ]
   }
@@ -1249,8 +1442,7 @@ TaskExport / taskExport
 | `TASK_READ` | 查询任务 |
 | `INSTANCE_READ` | 查询实例 |
 | `INSTANCE_VERIFY` | 验证 |
-| `INSTANCE_REMEDIATE` | 修复 |
-| `INSTANCE_ARCHIVE` | 备案 |
+| `INSTANCE_REMEDIATE` | 处置（含已修复与修复失败） |
 | `INSTANCE_VERIFY_FIX` | 修复核验 |
 | `EXPORT_READ` | 查询/下载外发包 |
 | `EVENT_SUBSCRIBE` | 接收 Webhook（须在平台登记回调 URL） |
@@ -1287,10 +1479,10 @@ TaskExport / taskExport
 4. POST /instances/search?taskId=... → 入库漏洞实例
 5. 业务侧处置后：
    - POST .../verify（有效/误报）
-   - POST .../remediate 或 .../archive
+   - POST .../remediate（含修复失败 →9）
    - POST .../verify-fix
 6. 若 verify / verify-fix 触发扫描，继续接收 EXPORT_READY，按 `exportStage` 识别验证扫描或修复核验扫描外发
-7. 可选：订阅 INSTANCE_* 事件驱动 ITSM 工单
+7. 可选：订阅 `INSTANCE_VERIFY_FIX_COMPLETED` / `EXPORT_READY` 等事件驱动 ITSM 工单
 ```
 
 ---
