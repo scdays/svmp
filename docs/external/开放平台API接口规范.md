@@ -136,9 +136,9 @@ Host: vuln-platform.example.com
 Content-Type: application/json
 
 {
-  "grantType": "client_credentials",
-  "clientId": "cli_abc123",
-  "clientSecret": "your-secret"
+  "clientId": "cli_aabe1d70034b",
+  "clientSecret": "ChKfotF9BhwNjqVJXfr4uAn5gPG5dpkd",
+  "grantType": "client_credentials"
 }
 ```
 
@@ -159,13 +159,13 @@ HTTP **200**，body 使用 §4.1 包装；`code=0` 时 `data` 字段如下：
 {
   "code": 0,
   "message": "ok",
-  "requestId": "req-token-001",
   "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+    "accessToken": "VGaiBSmlK_C2eEgfrYT3-YnR7CKZ57pxTIpLtjAnCDg",
     "tokenType": "Bearer",
     "expiresIn": 86400,
-    "partnerId": "partner-siem-01"
-  }
+    "partnerId": "SOC-CLIENT-A"
+  },
+  "requestId": "req-96af4debd56840c2"
 }
 ```
 
@@ -175,8 +175,8 @@ HTTP **200**，body 使用 §4.1 包装；`code=0` 时 `data` 字段如下：
 {
   "code": 40101,
   "message": "Invalid client credentials",
-  "requestId": "req-token-002",
-  "data": null
+  "data": null,
+  "requestId": "req-fa2b4ad2735d4660"
 }
 ```
 
@@ -216,7 +216,7 @@ Content-Type: application/json
 **如何获取 `accessToken`**：见 [§2.3 获取访问令牌](#23-获取访问令牌)（`POST /oauth/token`，`grantType=client_credentials`）。  
 若运营已直接交付长期 Token，可跳过换 Token 步骤，但仍须使用上述 Header 格式。
 
-### 3.2 方式二：API Key + 签名
+### 3.2 方式二：API Key + 签名(1.0.0版本暂不支持)
 
 | 请求头 | 说明 |
 |--------|------|
