@@ -908,7 +908,7 @@ TaskExport / taskExport
 |----------|------------|------|
 | 主机存活探测 | `targets[]` + `liveProbeResults[]` | `targets[]` 保存目标主数据，`liveProbeResults[]` 保存探测方式、存活状态、时延等结果 |
 | 端口扫描 | `targets[]` + `portScanResults[]` | 端口、协议、状态、服务、Banner 等作为正式端口扫描结果输出 |
-| 漏洞扫描 | `targets[]` + `liveProbeResults[]` + `vulnerabilities[]` | 目标与存活结果与漏洞结果同包输出；漏洞按 **产品漏洞 `vulID`** 聚合，实例在 `instances[]` |
+| 漏洞扫描 | `targets[]` + `liveProbeResults[]` + `portScanResults[]` + `vulnerabilities[]` | 目标、存活、端口与漏洞结果同包输出；漏洞按 **产品漏洞 `vulID`** 聚合，实例在 `instances[]` |
 | 修复核验 | `targets[]` + `liveProbeResults[]` + `portScanResults[]` + `vulnerabilities[]` | `exportStage=VERIFY_FIX_SCAN` |
 
 其他引擎结果参考结构的落点：
