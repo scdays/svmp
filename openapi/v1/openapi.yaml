@@ -1,14 +1,14 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 1.1.0
+  version: 1.0.0
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
     - 接口规范：[`docs/external/开放平台API接口规范.md`](../docs/external/开放平台API接口规范.md)
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
-    - 鉴权：`Authorization: Bearer` 或 `X-Api-Key` + `X-Signature`（HMAC-SHA256）
+    - 鉴权：**v1.0.0 仅支持** `Authorization: Bearer`（OAuth 2.0 Client Credentials）；API Key + HMAC 暂未开放
     - 响应包装：除特别说明外，HTTP 200 仍使用业务 `code` 区分成功/失败
     - 幂等：创建任务用 `extTaskId` 或 `Idempotency-Key`；实例写 `{动作}:{vulInfoID}:{clientRequestId}`；批量 `{动作}:batch:{clientBatchId}`（详见接口规范 §4.2，默认保留 24h）
     - 调 SVMP：`extTaskId` 不下发；查询进度仅 SVMP `taskId`
@@ -45,7 +45,6 @@ tags:
 
 security:
   - bearerAuth: []
-  - apiKeyAuth: []
 
 paths:
   /tasks:
@@ -568,7 +567,9 @@ paths:
       tags: [instances]
       operationId: remediateInstancesBatch
       summary: 批量处置
-      description: 需能力 `INSTANCE_REMEDIATE`。items[] 每条须含 vulInfoID，其余字段同单条 remediate。
+      description: |
+        需能力 `INSTANCE_REMEDIATE`。items[] 每条须含 vulInfoID。
+        批次幂等 Key：`remediate:batch:{clientBatchId}`（§4.2）。
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -644,7 +645,9 @@ paths:
       tags: [instances]
       operationId: verifyFixInstanceBatch
       summary: 批量修复核验
-      description: 部分成功；每条由 items[].vulInfoID 标识。需能力 `INSTANCE_VERIFY_FIX`。
+      description: |
+        部分成功；每条由 items[].vulInfoID 标识。需能力 `INSTANCE_VERIFY_FIX`。
+        批次幂等 Key：`verify-fix:batch:{clientBatchId}`（§4.2）。
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -869,12 +872,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Partner 访问令牌
-    apiKeyAuth:
-      type: apiKey
-      in: header
-      name: X-Api-Key
-      description: 与 `X-Signature`（HMAC-SHA256）配合使用
+      description: Partner 访问令牌（v1.0.0 唯一支持的 REST 鉴权方式）
 
   parameters:
     TaskId:
@@ -898,7 +896,12 @@ components:
       schema:
         type: string
         maxLength: 128
-      description: 写操作幂等键
+      description: |
+        写操作幂等键，详见接口规范 §4.2。
+        创建任务：与 extTaskId 二选一。
+        实例单条：{动作}:{vulInfoID}:{clientRequestId}。
+        实例批量：{动作}:batch:{clientBatchId}。
+        平台按 (partnerId, Key) 缓存响应，默认 24 小时。
     Page:
       name: page
       in: query

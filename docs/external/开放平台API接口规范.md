@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 |----|------|
-| API 版本 | **1.1.0** |
+| API 版本 | **1.0.0** |
 | 协议 | HTTPS · REST JSON |
 | Base Path | `/api/open/v1` |
 | OpenAPI | [`openapi/v1/openapi.yaml`](../../openapi/v1/openapi.yaml)（OpenAPI 3.1，可导入 Swagger UI / Postman / 代码生成） |
@@ -76,7 +76,7 @@
 | 配置项 | 说明 |
 |--------|------|
 | `partnerId` | 接入方唯一标识 |
-| 鉴权凭证 | Bearer Token，或 `X-Api-Key` + HMAC 密钥 |
+| 鉴权凭证 | Bearer Token（OAuth 2.0 Client Credentials，见 §3.1） |
 | `capabilities` | 已开通的能力码列表（见 §8） |
 | 回调地址 | 默认 `callbackUrl`（可在创建任务时覆盖） |
 | IP 白名单 / mTLS | 按安全要求可选 |
@@ -94,26 +94,20 @@
 
 ## 3. 鉴权与安全
 
-### 3.1 方式一：Bearer Token（推荐）
+### 3.1 Bearer Token
+
+**v1.0.0 唯一支持的 REST 鉴权方式。**
 
 ```http
 Authorization: Bearer <accessToken>
 Content-Type: application/json
 ```
 
-### 3.2 方式二：API Key + 签名
+Token 由平台登录服务签发（OAuth 2.0 Client Credentials）；`accessToken` 有效期与刷新策略以运营开通说明为准。
 
-| 请求头 | 说明 |
-|--------|------|
-| `X-Api-Key` | 平台分配的 Key |
-| `X-Signature` | 对规范串做 **HMAC-SHA256** 的十六进制摘要 |
-| `X-Timestamp` | Unix 时间戳（秒），有效期建议 ≤ 5 分钟 |
+### 3.2 方式二：API Key + 签名（暂未开放）
 
-签名原文（示例，以运营文档为准）：
-
-```text
-{HTTP_METHOD}\n{PATH}\n{TIMESTAMP}\n{SHA256_HEX(BODY)}
-```
+`X-Api-Key` + `X-Signature`（HMAC-SHA256）鉴权**不在 v1.0.0 范围内**；调用 REST API 须使用 §3.1 Bearer Token。该方式计划于后续版本提供。
 
 ### 3.3 Webhook 验签（Partner 侧实现）
 
@@ -257,7 +251,7 @@ Idempotency-Key: remediate:batch:batch-20260518-001
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
-| Authorization | string | ✓ | `Bearer <accessToken>`，或 `X-Api-Key` + `X-Signature` |
+| Authorization | string | ✓ | `Bearer <accessToken>`（v1.0.0 仅支持 Bearer，见 §3.1） |
 | Content-Type | string | ✓ | `application/json` |
 | Idempotency-Key | string | ○ | 写操作幂等，见 §4.2；创建任务可与 `extTaskId` 二选一 |
 
