@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  开放平台 · 扫描任务配置（口令猜测 type=3，§5.1.1）
-  scanTemplateId=0：Partner 在 scanPolicy 中自行填写各扫描阶段
+  开放平台 · 模式 B：口令猜测 type=3，内联 scanTemplate/reportTemplate
 -->
 <ScanTask>
   <targets>
-    <target>10.10.1.1</target>
-    <target>10.10.1.2</target>
+    <target>
+      <ip><![CDATA[10.10.1.1]]></ip>
+    </target>
+    <target>
+      <ip><![CDATA[10.10.1.2]]></ip>
+    </target>
   </targets>
-  <scanTemplateId>0</scanTemplateId>
-  <reportTemplateId>2001</reportTemplateId>
   <priority>MEDIUM</priority>
-  <scanPolicy>
+  <scanTemplate>
     <liveProbe enabled="true">
       <icmp>true</icmp>
       <tcp>true</tcp>
@@ -26,5 +27,9 @@
         <service protocol="TELNET" ports="23"/>
       </services>
     </pwdGuess>
-  </scanPolicy>
+  </scanTemplate>
+  <reportTemplate>
+    <format>json</format>
+    <dataProfile>MIXED</dataProfile>
+  </reportTemplate>
 </ScanTask>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  开放平台 · 模式 B：富文本 target + 内联 scanTemplate/reportTemplate（type=1，§5.1.1）
+  不使用平台内置 scanTemplateId / reportTemplateId
+-->
+<ScanTask>
+  <targets>
+    <target>
+      <ip><![CDATA[10.65.195.204]]></ip>
+      <protocol><![CDATA[SSH]]></protocol>
+      <port><![CDATA[22]]></port>
+      <username><![CDATA[root]]></username>
+      <password><![CDATA[Gp+CdzxD]]></password>
+      <jumphosts>
+        <jumphost>
+          <ip><![CDATA[10.65.195.204]]></ip>
+          <protocol><![CDATA[SSH]]></protocol>
+          <port><![CDATA[22]]></port>
+          <username><![CDATA[root]]></username>
+          <password><![CDATA[Gp+CdzxD]]></password>
+        </jumphost>
+      </jumphosts>
+      <templates/>
+    </target>
+  </targets>
+  <priority>HIGH</priority>
+  <scanTemplate>
+    <liveProbe enabled="true">
+      <icmp>true</icmp>
+      <tcp>true</tcp>
+      <tcpPorts>21,22,80,443</tcpPorts>
+    </liveProbe>
+    <portScan enabled="true">
+      <strategy>standard</strategy>
+      <tcpMode>SYN</tcpMode>
+      <udpEnabled>false</udpEnabled>
+    </portScan>
+    <vulnScan enabled="true">
+      <depth>3</depth>
+      <expVerify>false</expVerify>
+    </vulnScan>
+  </scanTemplate>
+  <reportTemplate>
+    <format>json</format>
+    <dataProfile>MIXED</dataProfile>
+  </reportTemplate>
+</ScanTask>

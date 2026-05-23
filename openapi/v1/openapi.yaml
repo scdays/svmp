@@ -54,8 +54,8 @@ paths:
       summary: 创建扫描任务
       description: |
         需能力 `TASK_WRITE`。同一 `POST /tasks` 支持两种请求体（见接口规范 §5.1.1 / §5.1.2）：
-        - **XML 配置（§5.1.1）**：`type`（1/2/3）+ `file`；XML 内填写 `scanTemplateId`、`reportTemplateId` 及可选 `scanPolicy`，见附录 G
-        - **JSON 参数（§5.1.2）**：`type`（1/2/3）+ `targets` + `scanTemplateId` + `reportTemplateId`；平台按模板 ID 查询并编排，见附录 H
+        - **XML 配置（§5.1.1）**：`type`（1/2/3）+ `file`；可引用平台模板 ID，或内联 scanTemplate/reportTemplate，见附录 G
+        - **JSON 参数（§5.1.2）**：`type`（1/2/3）+ `targets`（字符串或对象）+ `scanTemplateId` + `reportTemplateId`；仅引用平台模板，见附录 H
         模板 ID 缺省 **0** 表示按 `type` 自动匹配。`extTaskId` 为 Partner 幂等键。
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -76,12 +76,25 @@ paths:
                   type: 2
                   file: '<?xml version="1.0" encoding="UTF-8"?><ScanTask><targets><target>https://www.example.com/</target></targets><scanTemplateId>1002</scanTemplateId><reportTemplateId>2001</reportTemplateId><priority>MEDIUM</priority></ScanTask>'
               createScanByJson:
-                summary: 创建漏洞扫描（type=1 + JSON 模板 ID）
+                summary: 创建漏洞扫描（type=1，富文本 targets + 平台模板）
                 value:
                   extTaskId: EXT-TASK-2026-0001
                   taskName: 2026Q2-核心业务系统排查
                   type: 1
-                  targets: ['10.10.1.1', '10.10.1.2', '2001:db8::1']
+                  targets:
+                    - '10.10.1.2'
+                    - ip: 10.65.195.204
+                      protocol: SSH
+                      port: 22
+                      username: root
+                      password: Gp+CdzxD
+                      jumphosts:
+                        - ip: 10.65.195.204
+                          protocol: SSH
+                          port: 22
+                          username: root
+                          password: Gp+CdzxD
+                      templates: []
                   scanTemplateId: 1001
                   reportTemplateId: 2001
                   callbackUrl: https://partner.example.com/hooks/vuln
@@ -1062,6 +1075,91 @@ components:
       default: 0
       minimum: 0
 
+    JumpHost:
+      type: object
+      required: [ip, protocol, port]
+      properties:
+        ip:
+          type: string
+        protocol:
+          type: string
+          description: SSH / Telnet 等
+        port:
+          type: integer
+          minimum: 0
+          maximum: 65535
+        username:
+          type: string
+        password:
+          type: string
+          description: 明文；须 HTTPS 传输，平台侧加密存储
+
+    ScanTargetBvsParam:
+      type: object
+      required: [name, value]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        typefield:
+          type: string
+          enum: [text, password]
+        value:
+          type: string
+
+    ScanTargetBvsTemplate:
+      type: object
+      required: [uuid, engine]
+      properties:
+        uuid:
+          type: string
+        engine:
+          type: string
+          example: bvs
+        params:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanTargetBvsParam'
+
+    ScanTargetDetail:
+      type: object
+      description: 与附录 G 富文本 target 同构
+      properties:
+        address:
+          type: string
+          description: IPv4/IPv6/URL 简写；与 ip/url 三选一
+        ip:
+          type: string
+        url:
+          type: string
+          format: uri
+        protocol:
+          type: string
+          description: SSH / SMB / Telnet / RDP 等
+        port:
+          type: integer
+          minimum: 0
+          maximum: 65535
+        username:
+          type: string
+        password:
+          type: string
+        jumphosts:
+          type: array
+          items:
+            $ref: '#/components/schemas/JumpHost'
+        templates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanTargetBvsTemplate'
+
+    ScanTargetItem:
+      oneOf:
+        - type: string
+          description: 简写目标（IPv4/IPv6/URL）
+        - $ref: '#/components/schemas/ScanTargetDetail'
+
     CreateScanTaskByFileRequest:
       type: object
       required: [extTaskId, taskName, type, file]
@@ -1080,8 +1178,8 @@ components:
           type: string
           description: |
             任务配置 XML（UTF-8），根元素 ScanTask。
-            须含 scanTemplateId、reportTemplateId；scanTemplateId=0 时须含 scanPolicy。
-            见接口规范附录 G；示例 templates/xml/scan-task-*-example.xml。
+            目标支持简写或富文本（ip/protocol/port/凭据/jumphosts/templates）；
+            模板模式 A：scanTemplateId+reportTemplateId；模式 B：内联 scanTemplate+reportTemplate（附录 G/H）。
 
     CreateScanTaskByJsonRequest:
       type: object
@@ -1102,10 +1200,8 @@ components:
           type: array
           minItems: 1
           items:
-            type: string
-          description: |
-            扫描目标（IPv4/IPv6/URL，平台自动识别）。
-            含 IPv6 时建议 RFC 5952 规范格式。
+            $ref: '#/components/schemas/ScanTargetItem'
+          description: 简写字符串或对象（含登陆凭据、跳转机、BVS 模板），见附录 G.2
         scanTemplateId:
           $ref: '#/components/schemas/TemplateId'
         reportTemplateId:

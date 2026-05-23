@@ -275,7 +275,7 @@ Idempotency-Key: remediate:batch:batch-20260518-001
 | 项 | 值 |
 |----|-----|
 | 能力 | `TASK_WRITE` |
-| 说明 | 基于 **XML 任务配置文件** 创建扫描任务；`type` **1 / 2 / 3** 均可，Partner 在 `file` 中填写 **扫描模板 ID**、**报告模板 ID** 及可选扫描策略，见 [附录 G](#附录-g--扫描任务配置文件-file)、[附录 H](#附录-h--扫描模板与报告模板) |
+| 说明 | 基于 **XML 任务配置文件** 创建扫描任务；`type` **1 / 2 / 3** 均可。Partner 在 `file` 中填写目标，并 **二选一**：引用平台模板 ID，或内联 [附录 H](#附录-h--扫描模板与报告模板) 的 `<scanTemplate>` / `<reportTemplate>` 自定义策略（不使用平台内置模板） |
 
 **路径参数**：— · **查询参数**：—
 
@@ -286,7 +286,7 @@ Idempotency-Key: remediate:batch:batch-20260518-001
 | extTaskId | string | ✓ | Partner 幂等键 |
 | taskName | string | ✓ | 任务名称 |
 | type | int | ✓ | 任务类型，见 [附录 F](#附录-f--任务类型-type)（**1** / **2** / **3**） |
-| file | string | ✓ | 任务配置 XML 正文（UTF-8）；根元素 `<ScanTask>`，须含 `scanTemplateId`、`reportTemplateId`，结构见 [附录 G](#附录-g--扫描任务配置文件-file) |
+| file | string | ✓ | 任务配置 XML（UTF-8）；根元素 `<ScanTask>`，见 [附录 G](#附录-g--扫描任务配置文件-file) |
 
 **响应 data**：
 
@@ -339,7 +339,7 @@ Idempotency-Key: idem-ext-2026-web-0001
 | 项 | 值 |
 |----|-----|
 | 能力 | `TASK_WRITE` |
-| 说明 | `type` **1 / 2 / 3** 均可；Partner 仅传入目标与 **模板 ID**，平台按 ID 查询 [附录 H](#附录-h--扫描模板与报告模板) 中预置模板并编排执行；新发现漏洞实例默认 `vulInfoStat = 1` |
+| 说明 | `type` **1 / 2 / 3** 均可；Partner 传入 **结构化目标** 与 **平台模板 ID**（`scanTemplateId`、`reportTemplateId`），平台按 ID 查询 [附录 H](#附录-h--扫描模板与报告模板) 并编排执行；**不支持**在 JSON 中内联模板内容（自定义模板请用 §5.1.1） |
 
 **路径参数**：— · **查询参数**：—
 
@@ -350,11 +350,25 @@ Idempotency-Key: idem-ext-2026-web-0001
 | extTaskId | string | ✓ | Partner 幂等键 |
 | taskName | string | ✓ | 任务名称 |
 | type | int | ✓ | 任务类型，见 [附录 F](#附录-f--任务类型-type)（**1** / **2** / **3**） |
-| targets | string[] | ✓ | 扫描目标列表（IPv4 / IPv6 / URL；平台按条目自动识别类型） |
-| scanTemplateId | int | ○ | 扫描模板 ID，见 [附录 H.1](#h1-扫描模板-scantemplateid)；**缺省 `0`** 表示按 **`type` 自动匹配**平台默认扫描模板 |
-| reportTemplateId | int | ○ | 报告/外发模板 ID，见 [附录 H.2](#h2-报告模板-reporttemplateid)；**缺省 `0`** 表示按 **`type` 自动匹配**默认报告模板 |
+| targets | array | ✓ | 扫描目标列表；元素为 **字符串**（简写地址/URL）或 **对象**（含登陆凭据、跳转机、配置模板），见 [附录 G.2](#g2-元素与字段) |
+| scanTemplateId | int | ○ | 平台扫描模板 ID（[附录 H.1](#h1-扫描模板-scantemplateid)）；**缺省 `0`** 按 `type` 自动匹配 |
+| reportTemplateId | int | ○ | 平台报告模板 ID（[附录 H.2](#h2-报告模板-reporttemplateid)）；**缺省 `0`** 按 `type` 自动匹配 |
 | callbackUrl | string | ○ | 覆盖 Partner 默认回调 URL |
 | priority | enum | ○ | `LOW` / `MEDIUM` / `HIGH` |
+
+**`targets[]` 对象字段**（与 XML 富文本 `<target>` 同构）：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| address | string | 条件 | 简写目标（IPv4/IPv6/URL）；与 `ip` / `url` 三选一 |
+| ip | string | 条件 | 主机 IP（IPv4/IPv6） |
+| url | string | 条件 | Web 目标 URL（`type=2`） |
+| protocol | string | ○ | 登陆协议：`SSH` / `SMB` / `Telnet` / `RDP` 等 |
+| port | int | ○ | 登陆端口 **0–65535** |
+| username | string | ○ | 登陆用户名 |
+| password | string | ○ | 登陆密码（明文；传输须 HTTPS，平台侧加密存储） |
+| jumphosts | array | ○ | 跳转机列表，元素字段同本表 `ip`/`protocol`/`port`/`username`/`password` |
+| templates | array | ○ | 配置核查（BVS）模板，见 [附录 G.2](#g2-元素与字段) |
 
 > **IPv6 提示**：`targets` 含 IPv6 时，写法多样（全写、压缩、`[]` 包裹等）。Partner 入参与平台响应/外发回显的字符串形式**可能不一致**。建议统一采用 **RFC 5952 规范格式**（全小写、最长零压缩，如 `2001:db8::1`），并在联调阶段比对「请求 targets ↔ 任务详情 ↔ 外发 targets[]」是否一致。
 
@@ -382,7 +396,26 @@ Idempotency-Key: idem-ext-2026-0001
   "extTaskId": "EXT-TASK-2026-0001",
   "taskName": "2026Q2-核心业务系统排查",
   "type": 1,
-  "targets": ["10.10.1.1", "10.10.1.2", "2001:db8::1"],
+  "targets": [
+    "10.10.1.2",
+    {
+      "ip": "10.65.195.204",
+      "protocol": "SSH",
+      "port": 22,
+      "username": "root",
+      "password": "Gp+CdzxD",
+      "jumphosts": [
+        {
+          "ip": "10.65.195.204",
+          "protocol": "SSH",
+          "port": 22,
+          "username": "root",
+          "password": "Gp+CdzxD"
+        }
+      ],
+      "templates": []
+    }
+  ],
   "scanTemplateId": 1001,
   "reportTemplateId": 2001,
   "callbackUrl": "https://partner.example.com/hooks/vuln",
@@ -1715,7 +1748,8 @@ TaskExport / taskExport
 |------|------|
 | OpenAPI 3.1 | [`openapi/v1/openapi.yaml`](../../openapi/v1/openapi.yaml) |
 | 扫描任务配置示例（漏洞扫描） | [`templates/xml/scan-task-vuln-example.xml`](../../templates/xml/scan-task-vuln-example.xml) |
-| 扫描任务 scanPolicy 结构参考 | [`templates/xml/scan-task-scanpolicy-reference.xml`](../../templates/xml/scan-task-scanpolicy-reference.xml) |
+| 扫描任务（模式 B · 内联模板） | [`templates/xml/scan-task-vuln-inline-example.xml`](../../templates/xml/scan-task-vuln-inline-example.xml) |
+| 内联 scanTemplate/reportTemplate 参考 | [`templates/xml/scan-task-inline-templates-reference.xml`](../../templates/xml/scan-task-inline-templates-reference.xml) |
 | 扫描任务配置示例（WEB） | [`templates/xml/scan-task-web-example.xml`](../../templates/xml/scan-task-web-example.xml) |
 | 扫描任务配置示例（口令猜测） | [`templates/xml/scan-task-pwdguess-example.xml`](../../templates/xml/scan-task-pwdguess-example.xml) |
 | 引擎厂商配置参考样例 | [`templates/xml/config.xml`](../../templates/xml/config.xml)（非开放平台标准格式，仅供映射对照） |
@@ -1834,165 +1868,200 @@ TaskExport / taskExport
 
 §5.1.1 请求体 `file` 字段承载 **UTF-8 XML 正文**（非 Base64）。Partner 将 XML 作为 JSON 字符串转义后提交。
 
-与 §5.1.2 的差异：**§5.1.2 仅传模板 ID**，扫描/报告策略由平台模板解析；**§5.1.1 在 XML 中显式填写 `scanTemplateId`、`reportTemplateId`**，并在 `scanTemplateId=0` 时可通过 `<scanPolicy>` 自行描述扫描阶段（结构同 [附录 H.1](#h1-扫描模板-scantemplateid)）。
+与 §5.1.2 的差异：
+
+| 项 | §5.1.1（`file`） | §5.1.2（JSON） |
+|----|------------------|----------------|
+| 目标 | XML `<targets>`，支持简写与富文本 | JSON `targets[]`，字符串或对象 |
+| 扫描/报告策略 | **引用平台模板 ID**，或 **内联 `<scanTemplate>` / `<reportTemplate>`**（自定义，不用平台内置） | **仅** `scanTemplateId` / `reportTemplateId` |
 
 ### G.1 设计说明
 
 | 项 | 约定 |
 |----|------|
 | 根元素 | **`<ScanTask>`** |
-| 任务类型 | JSON **`type`**（1/2/3）；**不在 XML 内重复** |
-| 任务名称 | JSON **`taskName`**；**不在 XML 内重复** |
-| 模板 ID | **`scanTemplateId`**、**`reportTemplateId`** 必填（可为 **0** 表示自动匹配） |
-| 厂商参考 | 引擎原始配置见 [`templates/xml/config.xml`](../../templates/xml/config.xml) |
+| 任务类型 / 名称 | JSON **`type`**、**`taskName`**；不在 XML 重复 |
+| 模板（二选一） | **A** · `scanTemplateId` + `reportTemplateId`（均 **>0**，引用平台 [附录 H](#附录-h--扫描模板与报告模板)） · **B** · 内联 `<scanTemplate>` + `<reportTemplate>`（结构同 H.1/H.2，**不得**与 A 同时出现） |
+| 厂商参考 | [`templates/xml/config.xml`](../../templates/xml/config.xml) |
 
 ### G.2 元素与字段
 
-**根 `<ScanTask>`**
+**`<targets>` · 目标**
+
+每条 `<target>` 为 **简写** 或 **富文本** 二选一：
+
+| 形式 | 结构 | 说明 |
+|------|------|------|
+| 简写 | `<target>10.10.1.1</target>` 或 `<target>https://…</target>` | 无登陆信息 |
+| 富文本 | 见下表子元素 | 登陆检查 / 跳转机 / BVS 模板 |
+
+**富文本 `<target>` 子元素**
 
 | 路径 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
-| `/ScanTask/targets` | 容器 | ✓ | 扫描目标 |
-| `/ScanTask/targets/target` | string | ✓ | 至少 1 条 |
-| `/ScanTask/scanTemplateId` | int | ✓ | 扫描模板 ID；**0**=按 `type` 自动匹配，且须同时提供 `scanPolicy` |
-| `/ScanTask/reportTemplateId` | int | ✓ | 报告/外发模板 ID；**0**=按 `type` 自动匹配 |
-| `/ScanTask/priority` | enum | ○ | `LOW` / `MEDIUM` / `HIGH`；缺省 `MEDIUM` |
-| `/ScanTask/scanPolicy` | 容器 | 条件 | **`scanTemplateId=0` 时必填**；`scanTemplateId>0` 时可选，用于覆盖模板缺省项 |
+| `…/ip` | string | ✓* | 目标 IP（IPv4/IPv6）；*富文本时与 `url` 二选一 |
+| `…/url` | string | ✓* | Web URL（`type=2`） |
+| `…/protocol` | string | ○ | `SSH` / `SMB` / `Telnet` / `RDP` 等 |
+| `…/port` | int | ○ | 端口 **0–65535** |
+| `…/username` | string | ○ | 用户名 |
+| `…/password` | string | ○ | 密码（CDATA） |
+| `…/jumphosts` | 容器 | ○ | 可为空；子元素 `jumphost` |
+| `…/jumphosts/jumphost/ip` | string | ✓ | 跳转机 IP |
+| `…/jumphosts/jumphost/protocol` | string | ✓ | `SSH` / `Telnet` |
+| `…/jumphosts/jumphost/port` | int | ✓ | 端口 |
+| `…/jumphosts/jumphost/username` | string | ○ | 用户名 |
+| `…/jumphosts/jumphost/password` | string | ○ | 密码 |
+| `…/templates` | 容器 | ○ | 可为空；BVS 配置模板 |
+| `…/templates/template/@uuid` | string | ✓ | 模板 UUID |
+| `…/templates/template/@engine` | string | ✓ | 如 `bvs` |
+| `…/templates/template/param/@name` | string | ✓ | 参数名 |
+| `…/templates/template/param/@description` | string | ○ | 展示名 |
+| `…/templates/template/param/@typefield` | string | ○ | `text` / `password` |
+| `…/templates/template/param` | string | ✓ | 参数值（CDATA） |
 
-**`<scanPolicy>` 子节点**（与 [附录 H.1](#h1-扫描模板-scantemplateid) 扫描阶段一一对应）
+**根 `<ScanTask>` · 模板与优先级**
 
 | 路径 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
-| `…/liveProbe/@enabled` | bool | ○ | 存活探测；type **1** 缺省 **true** |
-| `…/liveProbe/icmp` | bool | ○ | ICMP 探测 |
-| `…/liveProbe/tcp` | bool | ○ | TCP 探测 |
-| `…/liveProbe/tcpPorts` | string | ○ | TCP 探测端口，逗号分隔 |
-| `…/portScan/@enabled` | bool | ○ | 端口扫描；type **1** 缺省 **true** |
-| `…/portScan/strategy` | enum | ○ | `standard` / `fast` / `user` / `all` |
-| `…/portScan/userPorts` | string | 条件 | `strategy=user` 时必填，如 `1-65535` |
-| `…/portScan/tcpMode` | enum | ○ | `SYN` / `CONNECT` |
-| `…/portScan/udpEnabled` | bool | ○ | 是否 UDP 扫描 |
-| `…/vulnScan/@enabled` | bool | ○ | 漏洞扫描；type **1** / **2** 缺省 **true** |
-| `…/vulnScan/depth` | int | ○ | 扫描深度 **1–5** |
-| `…/vulnScan/expVerify` | bool | ○ | 是否 POC 验证；type **2** 常用 |
-| `…/pwdGuess/@enabled` | bool | ○ | 口令猜测；type **3** 须 **true** |
-| `…/pwdGuess/threadNum` | int | ○ | 并发线程数 |
-| `…/pwdGuess/timeoutSec` | int | ○ | 单目标超时（秒） |
-| `…/pwdGuess/services/service/@protocol` | string | 条件 | type **3** 且 `pwdGuess` 启用时必填 |
-| `…/pwdGuess/services/service/@ports` | string | 条件 | 端口列表，逗号分隔 |
+| `/ScanTask/scanTemplateId` | int | 条件 | 模式 **A**；平台扫描模板 ID |
+| `/ScanTask/reportTemplateId` | int | 条件 | 模式 **A**；平台报告模板 ID |
+| `/ScanTask/scanTemplate` | 容器 | 条件 | 模式 **B**；内联 [H.1](#h1-扫描模板-scantemplateid) 扫描阶段 |
+| `/ScanTask/reportTemplate` | 容器 | 条件 | 模式 **B**；内联 [H.2](#h2-报告模板-reporttemplateid) |
+| `/ScanTask/priority` | enum | ○ | `LOW` / `MEDIUM` / `HIGH` |
 
-### G.3 类型约束
+**内联 `<scanTemplate>` 扫描阶段**（原 `scanPolicy`，与 H.1 同构）
 
-| JSON `type` | `targets/target` | 须启用的 `scanPolicy` 阶段 |
-|-------------|------------------|---------------------------|
-| **1** 漏洞扫描 | IPv4 / IPv6 / URL | 至少 `liveProbe` 或 `portScan` 或 `vulnScan` 之一 enabled |
-| **2** WEB 应用扫描 | **URL**（`http(s)://`） | `vulnScan` enabled；不得启用 `pwdGuess` |
-| **3** 口令猜测 | IPv4 / IPv6 | `pwdGuess` enabled；目标不得为 URL |
+| 路径 | 类型 | 说明 |
+|------|------|------|
+| `…/liveProbe/@enabled` | bool | 存活探测 |
+| `…/liveProbe/icmp` · `tcp` · `tcpPorts` | | ICMP/TCP 及端口列表 |
+| `…/portScan/@enabled` | bool | 端口扫描 |
+| `…/portScan/strategy` | enum | `standard` / `fast` / `user` / `all` |
+| `…/portScan/userPorts` · `tcpMode` · `udpEnabled` | | 端口策略细节 |
+| `…/vulnScan/@enabled` · `depth` · `expVerify` | | 漏洞/Web 扫描 |
+| `…/pwdGuess/@enabled` · `threadNum` · `timeoutSec` · `services/service` | | 口令猜测（type **3**） |
 
-校验失败返回 **40001**。
+**内联 `<reportTemplate>`**
+
+| 路径 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| `…/format` | enum | ✓ | `json` / `xml` |
+| `…/dataProfile` | enum | ✓ | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` 等 |
+
+### G.3 校验规则
+
+| 规则 | 说明 |
+|------|------|
+| 模板模式 | **A**（双 ID >0）与 **B**（双内联元素）**互斥**；混用 → **40001** |
+| 模式 B | 不得出现 `scanTemplateId` / `reportTemplateId`，或二者均为 **0** |
+| 模式 A | 不得出现 `<scanTemplate>` / `<reportTemplate>` |
+| 目标 | 至少 1 条；`type=2` 须 URL；`type=3` 须 IP 且启用 `pwdGuess` |
 
 ### G.4 示例
 
-完整文件见 `templates/xml/scan-task-*-example.xml`。以下为 **使用平台模板 ID**（推荐）与 **scanTemplateId=0 自配策略** 两种写法。
-
-**漏洞扫描 · 引用平台模板（`type=1`）**
+**模式 B · 富文本目标 + 内联 H.1/H.2（`type=1`）** — 见 [`scan-task-vuln-inline-example.xml`](../../templates/xml/scan-task-vuln-inline-example.xml)
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <ScanTask>
   <targets>
-    <target>10.10.1.1</target>
-    <target>10.10.1.2</target>
+    <target>
+      <ip><![CDATA[10.65.195.204]]></ip>
+      <protocol><![CDATA[SSH]]></protocol>
+      <port><![CDATA[22]]></port>
+      <username><![CDATA[root]]></username>
+      <password><![CDATA[Gp+CdzxD]]></password>
+      <jumphosts>
+        <jumphost>
+          <ip><![CDATA[10.65.195.204]]></ip>
+          <protocol><![CDATA[SSH]]></protocol>
+          <port><![CDATA[22]]></port>
+          <username><![CDATA[root]]></username>
+          <password><![CDATA[Gp+CdzxD]]></password>
+        </jumphost>
+      </jumphosts>
+      <templates/>
+    </target>
   </targets>
-  <scanTemplateId>1001</scanTemplateId>
-  <reportTemplateId>2001</reportTemplateId>
   <priority>HIGH</priority>
+  <scanTemplate>
+    <liveProbe enabled="true"><icmp>true</icmp><tcp>true</tcp><tcpPorts>21,22,80,443</tcpPorts></liveProbe>
+    <portScan enabled="true"><strategy>standard</strategy><tcpMode>SYN</tcpMode></portScan>
+    <vulnScan enabled="true"><depth>3</depth><expVerify>false</expVerify></vulnScan>
+  </scanTemplate>
+  <reportTemplate>
+    <format>json</format>
+    <dataProfile>MIXED</dataProfile>
+  </reportTemplate>
 </ScanTask>
 ```
 
-**WEB 扫描 · 自配策略（`scanTemplateId=0`，`type=2`）**
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<ScanTask>
-  <targets>
-    <target>https://www.example.com/</target>
-  </targets>
-  <scanTemplateId>0</scanTemplateId>
-  <reportTemplateId>2001</reportTemplateId>
-  <scanPolicy>
-    <vulnScan enabled="true">
-      <depth>3</depth>
-      <expVerify>false</expVerify>
-    </vulnScan>
-  </scanPolicy>
-</ScanTask>
-```
+**模式 A · 引用平台模板** — 见 [`scan-task-vuln-example.xml`](../../templates/xml/scan-task-vuln-example.xml)
 
 ---
 
 ## 附录 H · 扫描模板与报告模板
 
-平台预置模板，Partner **不直接编辑模板内容**；创建任务时通过 ID 引用。模板清单与 ID 由运营在 Partner 接入时提供。
+H.1 / H.2 定义**扫描策略**与**报告/外发**的数据结构。平台可预置模板（通过 ID 引用）；§5.1.1 亦可在 `file` 内以 **同名 XML 元素**内联填写，**不依赖平台内置模板**。
 
-### H.1 扫描模板 `scanTemplateId`
+| 用法 | §5.1.1（`file`） | §5.1.2（JSON） |
+|------|------------------|----------------|
+| 引用平台模板 | `scanTemplateId` + `reportTemplateId`（>0） | `scanTemplateId` + `reportTemplateId` |
+| 自定义内容 | `<scanTemplate>` + `<reportTemplate>`（结构见下） | **不支持** |
 
-扫描模板定义一次任务中 **存活探测 → 端口扫描 → 漏洞扫描 / 口令猜测** 各阶段是否启用及缺省参数。平台创建任务后按模板编排引擎执行。
+### H.1 扫描模板 `scanTemplateId` / `<scanTemplate>`
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| scanTemplateId | int | 模板主键；Partner 创建任务时传入 |
-| templateName | string | 模板名称（查询接口回显，创建时不传） |
-| applicableTypes | int[] | 适用的任务 `type`（1/2/3 子集） |
-| liveProbe | object | 存活探测：`enabled`、`icmp`、`tcp`、`tcpPorts` |
-| portScan | object | 端口扫描：`enabled`、`strategy`、`userPorts`、`tcpMode`、`udpEnabled` |
-| vulnScan | object | 漏洞扫描：`enabled`、`depth`、`expVerify` |
-| pwdGuess | object | 口令猜测（type **3**）：`enabled`、`threadNum`、`timeoutSec`、`services[]` |
+定义 **存活探测 → 端口扫描 → 漏洞扫描 / 口令猜测** 各阶段。内联时根元素为 `<scanTemplate>`（不含 ID 字段）。
 
-**匹配规则**
+| 字段 / XML 路径 | 类型 | 说明 |
+|-----------------|------|------|
+| liveProbe.enabled | bool | 存活探测开关 |
+| liveProbe.icmp · tcp · tcpPorts | | ICMP/TCP 及端口列表 |
+| portScan.enabled | bool | 端口扫描开关 |
+| portScan.strategy | enum | `standard` / `fast` / `user` / `all` |
+| portScan.userPorts · tcpMode · udpEnabled | | 端口策略 |
+| vulnScan.enabled · depth · expVerify | | 漏洞/Web 扫描 |
+| pwdGuess.enabled · threadNum · timeoutSec · services[] | | 口令猜测（type **3**） |
 
-| 场景 | 行为 |
-|------|------|
-| §5.1.2 · `scanTemplateId=0` | 平台按 `type` 选择 Partner 可见的**默认扫描模板** |
-| §5.1.2 · `scanTemplateId>0` | 按 ID 加载；须 `applicableTypes` 含当前 `type` |
-| §5.1.1 · `scanTemplateId>0` | 同 §5.1.2；XML 内可选 `scanPolicy` **覆盖**模板缺省项 |
-| §5.1.1 · `scanTemplateId=0` | **必须**在 XML 提供完整 `scanPolicy` |
+**§5.1.2 匹配规则**
 
-**示例（平台侧配置，非 Partner 提交）**
+| scanTemplateId | 行为 |
+|----------------|------|
+| **0**（缺省） | 按 `type` 选用平台默认扫描模板 |
+| **>0** | 按 ID 加载；须支持当前 `type` |
 
-| scanTemplateId | templateName | applicableTypes | 阶段摘要 |
-|----------------|--------------|-----------------|----------|
+**平台预置示例**
+
+| scanTemplateId | templateName | applicableTypes | 摘要 |
+|----------------|--------------|-----------------|------|
 | **1001** | 标准漏洞排查 | [1] | 存活 + 标准端口 + 漏洞扫描 |
-| **1002** | WEB 应用深度扫描 | [2] | 漏洞扫描 depth=4，POC 可选 |
-| **1003** | 主机口令猜测 | [3] | 存活 + SSH/SMB/TELNET 弱口令 |
+| **1002** | WEB 深度扫描 | [2] | vulnScan depth=4 |
+| **1003** | 主机口令猜测 | [3] | 存活 + 弱口令 |
 
-### H.2 报告模板 `reportTemplateId`
+### H.2 报告模板 `reportTemplateId` / `<reportTemplate>`
 
-报告模板定义任务结束后 **外发数据包的结构与序列化格式**（对应 §5.6 / §7）。与扫描模板解耦：同一扫描模板可搭配不同报告模板。
+定义任务结束 **外发数据包** 的序列化格式与字段剖面（§5.6 / §7）。内联时根元素为 `<reportTemplate>`。
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| reportTemplateId | int | 模板主键 |
-| templateName | string | 模板名称 |
-| format | enum | 输出物序列化格式：`json` / `xml` |
-| dataProfile | enum | 数据剖面：`MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` 等（见 §5.6.3） |
-| applicableTypes | int[] | 适用的任务 `type` |
+| 字段 / XML 路径 | 类型 | 说明 |
+|-----------------|------|------|
+| format | enum | `json` / `xml` |
+| dataProfile | enum | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` 等 |
 
-**匹配规则**
+**§5.1.2 匹配规则**
 
-| 场景 | 行为 |
-|------|------|
-| `reportTemplateId=0` | 平台按 `type` 选择默认报告模板 |
-| `reportTemplateId>0` | 按 ID 加载；决定外发 `format` 与字段集合 |
+| reportTemplateId | 行为 |
+|------------------|------|
+| **0**（缺省） | 按 `type` 选用默认报告模板 |
+| **>0** | 按 ID 加载 |
 
-**示例（平台侧配置）**
+**平台预置示例**
 
-| reportTemplateId | templateName | format | dataProfile | 说明 |
-|------------------|--------------|--------|-------------|------|
-| **2001** | 开放平台 JSON 整包 | json | MIXED | 默认：targets + 存活 + 端口 + 漏洞聚合 |
-| **2002** | 开放平台 XML 整包 | xml | MIXED | 与 JSON 同构，根元素 `TaskExport` |
-| **2003** | 仅漏洞实例 | json | SYSTEM_VULNERABILITY | 验证/修复核验阶段常用 |
+| reportTemplateId | templateName | format | dataProfile |
+|------------------|--------------|--------|-------------|
+| **2001** | 开放平台 JSON 整包 | json | MIXED |
+| **2002** | 开放平台 XML 整包 | xml | MIXED |
+| **2003** | 仅漏洞实例 | json | SYSTEM_VULNERABILITY |
 
-外发回显：`taskExport.export.reportTemplateId`、`taskExport.export.format` 分别回显实际使用的报告模板 ID 及其 `format`。
+外发回显：`taskExport.export.reportTemplateId`、`taskExport.export.format` 与创建任务一致（内联自定义时 `reportTemplateId` 回显 **0**，`format` / `dataProfile` 取自内联定义）。
 
 ---
