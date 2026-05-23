@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  开放平台 · 扫描任务配置（漏洞扫描 type=1，§5.1.1）
+  使用平台预置扫描模板 1001 + 报告模板 2001
+-->
+<ScanTask>
+  <targets>
+    <target>10.10.1.1</target>
+    <target>10.10.1.2</target>
+    <target>2001:db8::1</target>
+  </targets>
+  <scanTemplateId>1001</scanTemplateId>
+  <reportTemplateId>2001</reportTemplateId>
+  <priority>HIGH</priority>
+</ScanTask>

@@ -1,19 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  开放平台 · 扫描任务配置示例（WEB 应用扫描，对应 POST /tasks type=2）
-  规范见 docs/external/开放平台API接口规范.md 附录 G
+  开放平台 · 扫描任务配置（WEB 应用扫描 type=2，§5.1.1）
+  使用平台预置扫描模板 1002 + 报告模板 2001
 -->
 <ScanTask>
   <targets>
     <target>https://www.example.com/</target>
     <target>https://api.example.com/</target>
   </targets>
-  <scanTemplateId>0</scanTemplateId>
+  <scanTemplateId>1002</scanTemplateId>
+  <reportTemplateId>2001</reportTemplateId>
   <priority>MEDIUM</priority>
-  <options>
-    <webScan>
-      <depth>3</depth>
-      <expVerify>false</expVerify>
-    </webScan>
-  </options>
 </ScanTask>

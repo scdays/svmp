@@ -16,9 +16,13 @@
 
 | 文件 | 说明 |
 |------|------|
-| `scan-task-web-example.xml` | WEB 应用扫描（`type=2`） |
-| `scan-task-pwdguess-example.xml` | 口令猜测（`type=3`） |
-| `config.xml` | 某扫描引擎厂商原始配置样例（**非**开放平台标准格式，附录 G 提供字段映射） |
+| `scan-task-vuln-example.xml` | 漏洞扫描（`type=1`），引用模板 1001/2001 |
+| `scan-task-web-example.xml` | WEB 应用扫描（`type=2`），引用模板 1002/2001 |
+| `scan-task-pwdguess-example.xml` | 口令猜测（`type=3`），`scanTemplateId=0` + 自配 `scanPolicy` |
+| `scan-task-scanpolicy-reference.xml` | `scanPolicy` 全量结构参考 |
+| `config.xml` | 引擎厂商原始配置（非开放平台格式） |
+
+扫描/报告模板 ID 含义见接口规范 **附录 H**。
 
 ## 模板清单（yaml/）
 

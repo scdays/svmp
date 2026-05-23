@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  开放平台 · scanPolicy 全量结构参考（平台扫描模板 H.1 的 XML 等价物）
+  仅当 scanTemplateId=0 或需覆盖模板缺省项时使用
+-->
+<ScanTask>
+  <targets>
+    <target>10.10.1.1</target>
+  </targets>
+  <scanTemplateId>0</scanTemplateId>
+  <reportTemplateId>2002</reportTemplateId>
+  <priority>MEDIUM</priority>
+  <scanPolicy>
+    <liveProbe enabled="true">
+      <icmp>true</icmp>
+      <tcp>true</tcp>
+      <tcpPorts>21,22,80,443,3389</tcpPorts>
+    </liveProbe>
+    <portScan enabled="true">
+      <strategy>standard</strategy>
+      <tcpMode>SYN</tcpMode>
+      <udpEnabled>false</udpEnabled>
+    </portScan>
+    <vulnScan enabled="true">
+      <depth>3</depth>
+      <expVerify>false</expVerify>
+    </vulnScan>
+    <pwdGuess enabled="false">
+      <threadNum>5</threadNum>
+      <timeoutSec>30</timeoutSec>
+      <services>
+        <service protocol="SSH" ports="22"/>
+      </services>
+    </pwdGuess>
+  </scanPolicy>
+</ScanTask>
