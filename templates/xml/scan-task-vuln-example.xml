@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ScanTask>
+<scanTask>
   <task>
     <taskName><![CDATA[2026Q2-核心业务排查]]></taskName>
     <priority>HIGH</priority>
@@ -20,4 +20,4 @@
       <secResourceHash><![CDATA[8f3a2b1c9d4e5f60718293a4b5c6d7e8]]></secResourceHash>
     </secResourceHashes>
   </miitExt>
-</ScanTask>
+</scanTask>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ScanTask>
+<scanTask>
   <task>
     <taskName><![CDATA[scanTemplate-reportTemplate 结构参考]]></taskName>
     <priority>MEDIUM</priority>
@@ -35,4 +35,4 @@
     <format>xml</format>
     <dataProfile>MIXED</dataProfile>
   </reportTemplate>
-</ScanTask>
+</scanTask>

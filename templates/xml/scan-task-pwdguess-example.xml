@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ScanTask>
+<scanTask>
   <task>
     <taskName><![CDATA[2026Q2-口令猜测]]></taskName>
     <priority>MEDIUM</priority>
@@ -31,4 +31,4 @@
     <format>json</format>
     <dataProfile>MIXED</dataProfile>
   </reportTemplate>
-</ScanTask>
+</scanTask>

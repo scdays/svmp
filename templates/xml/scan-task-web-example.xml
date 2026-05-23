@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ScanTask>
+<scanTask>
   <task>
     <taskName><![CDATA[2026Q2-核心站点 WEB 扫描]]></taskName>
     <priority>MEDIUM</priority>
@@ -10,4 +10,4 @@
   </targets>
   <scanTemplateId>1002</scanTemplateId>
   <reportTemplateId>2001</reportTemplateId>
-</ScanTask>
+</scanTask>

@@ -31,7 +31,7 @@
 
 | 文件 | 说明 |
 |------|------|
-| [openapi/v1/openapi.yaml](./openapi/v1/openapi.yaml) | 开放平台 API **1.0.0**（OpenAPI 3.1） |
+| [openapi/v1/openapi.yaml](./openapi/v1/openapi.yaml) | 开放平台 API **1.0.1**（OpenAPI 3.1） |
 
 本地预览 OpenAPI（任选其一）：
 
