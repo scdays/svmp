@@ -1,14 +1,14 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 1.0.1
+  version: 1.0.2
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
     - 接口规范：[`docs/external/开放平台API接口规范.md`](../docs/external/开放平台API接口规范.md)
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
-    - 鉴权：**v1.0.1 仅支持** `Authorization: Bearer`（OAuth 2.0 Client Credentials）；API Key + HMAC 暂未开放
+    - 鉴权：**v1.0.2 仅支持** `Authorization: Bearer`（OAuth 2.0 Client Credentials）；API Key + HMAC 暂未开放
     - 响应包装：除特别说明外，HTTP 200 仍使用业务 `code` 区分成功/失败
     - 幂等：创建任务用 `extTaskId` 或 `Idempotency-Key`；实例写 `{动作}:{vulInfoID}:{clientRequestId}`；批量 `{动作}:batch:{clientBatchId}`（详见接口规范 §4.2，默认保留 24h）
     - 调 SVMP：`extTaskId` 不下发；查询进度仅 SVMP `taskId`
@@ -120,7 +120,7 @@ paths:
       operationId: createTaskByJson
       summary: 创建扫描任务（JSON 参数）
       description: |
-        需能力 `TASK_WRITE`。见接口规范 §5.1.2：提交 `type`（1/2/3）+ `targets`（字符串或对象）
+        需能力 `TASK_WRITE`。见接口规范 §5.1.2：提交 `type`（1/2/3）+ `targets`（`hosts` + 可选 `auth`）
         + `scanTemplateId` + `reportTemplateId`；仅引用平台模板，见附录 H。
         模板 ID 缺省 **0** 表示按 `type` 自动匹配。`extTaskId` 为 Partner 幂等键。
       parameters:
@@ -133,25 +133,25 @@ paths:
               $ref: '#/components/schemas/CreateScanTaskByJsonRequest'
             examples:
               createScanByJson:
-                summary: 创建漏洞扫描（type=1，富文本 targets + 平台模板）
+                summary: 创建漏洞扫描（type=1，targets.hosts + auth）
                 value:
                   extTaskId: EXT-TASK-2026-0001
                   taskName: 2026Q2-核心业务系统排查
                   type: 1
                   targets:
-                    - '10.10.1.2'
-                    - ip: 10.65.195.204
-                      protocol: SSH
-                      port: 22
-                      username: root
-                      password: Gp+CdzxD
-                      jumpHosts:
-                        - ip: 10.65.195.204
-                          protocol: SSH
-                          port: 22
-                          username: root
-                          password: Gp+CdzxD
-                      templates: []
+                    hosts: 10.10.1.2
+                    auth:
+                      - ip: 10.65.195.204
+                        protocol: SSH
+                        port: 22
+                        username: root
+                        password: Gp+CdzxD
+                        jumpHosts:
+                          - ip: 10.65.195.204
+                            protocol: SSH
+                            port: 22
+                            username: root
+                            password: Gp+CdzxD
                   scanTemplateId: 1001
                   reportTemplateId: 2001
                   srcMethod: 1021
@@ -954,7 +954,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Partner 访问令牌（v1.0.1 唯一支持的 REST 鉴权方式）
+      description: Partner 访问令牌（v1.0.2 唯一支持的 REST 鉴权方式）
 
   parameters:
     TaskId:
@@ -1201,6 +1201,43 @@ components:
             type: string
           description: 安全资源设备 hash（扫描器）；预留，后续开放查询接口
 
+    ScanTargetAuthEntry:
+      type: object
+      description: 登陆检查凭据，对应 XML 根级 targets/target（附录 G.2）
+      properties:
+        ip:
+          type: string
+          description: 目标 IP（IPv4/IPv6）
+        protocol:
+          type: string
+          description: SSH / SMB / Telnet / RDP 等
+        port:
+          type: integer
+          minimum: 0
+          maximum: 65535
+        username:
+          type: string
+        password:
+          type: string
+          description: 明文；须 HTTPS 传输，平台侧加密存储
+        jumpHosts:
+          type: array
+          items:
+            $ref: '#/components/schemas/JumpHost'
+
+    ScanTaskTargets:
+      type: object
+      required: [hosts]
+      properties:
+        hosts:
+          type: string
+          description: 扫描目标 ip / domain / url；多个以逗号或分号分隔，同 XML server/targets
+        auth:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanTargetAuthEntry'
+          description: 登陆检查凭据列表；无登陆检查时省略或传空数组
+
     ScanTargetDetail:
       type: object
       description: 与附录 G 富文本 target 同构
@@ -1272,11 +1309,8 @@ components:
           enum: [1, 2, 3]
           description: 任务类型，见接口规范附录 F
         targets:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/ScanTargetItem'
-          description: 简写字符串或对象（含登陆凭据、跳转机、BVS 模板），见附录 G.2
+          $ref: '#/components/schemas/ScanTaskTargets'
+          description: 扫描目标 hosts 与登陆检查 auth，见附录 G.2
         scanTemplateId:
           allOf:
             - $ref: '#/components/schemas/TemplateId'

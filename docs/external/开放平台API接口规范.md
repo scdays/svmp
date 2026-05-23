@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 |----|------|
-| API 版本 | **1.0.1** |
+| API 版本 | **1.0.2** |
 | 协议 | HTTPS · REST JSON |
 | Base Path | `/api/open/v1` |
 | OpenAPI | [`openapi/v1/openapi.yaml`](../../openapi/v1/openapi.yaml)（OpenAPI 3.1，可导入 Swagger UI / Postman / 代码生成） |
@@ -101,7 +101,7 @@
 
 ### 3.1 Bearer Token
 
-**v1.0.1 唯一支持的 REST 鉴权方式。**
+**v1.0.2 唯一支持的 REST 鉴权方式。**
 
 ```http
 Authorization: Bearer <accessToken>
@@ -112,7 +112,7 @@ Token 由平台登录服务签发（OAuth 2.0 Client Credentials）；`accessTok
 
 ### 3.2 方式二：API Key + 签名（暂未开放）
 
-`X-Api-Key` + `X-Signature`（HMAC-SHA256）鉴权**不在 v1.0.1 范围内**；调用 REST API 须使用 §3.1 Bearer Token。该方式计划于后续版本提供。
+`X-Api-Key` + `X-Signature`（HMAC-SHA256）鉴权**不在 v1.0.2 范围内**；调用 REST API 须使用 §3.1 Bearer Token。该方式计划于后续版本提供。
 
 ### 3.3 Webhook 验签（Partner 侧实现）
 
@@ -257,7 +257,7 @@ Idempotency-Key: remediate:batch:batch-20260518-001
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
-| Authorization | string | ✓ | `Bearer <accessToken>`（v1.0.1 仅支持 Bearer，见 §3.1） |
+| Authorization | string | ✓ | `Bearer <accessToken>`（v1.0.2 仅支持 Bearer，见 §3.1） |
 | Content-Type | string | ✓ | `application/json` |
 | Idempotency-Key | string | ○ | 写操作幂等，见 §4.2；创建任务可与 `extTaskId` 二选一 |
 
@@ -351,7 +351,7 @@ Idempotency-Key: idem-ext-2026-web-0001
 | extTaskId | string | ✓ | Partner 幂等键 |
 | taskName | string | ✓ | 任务名称 |
 | type | int | ✓ | 任务类型，见 [附录 F](#附录-f--任务类型-type)（**1** / **2** / **3**） |
-| targets | array | ✓ | 扫描目标列表；元素为 **字符串**（简写地址/URL）或 **对象**（含登陆凭据、跳转机、配置模板），见 [附录 G.2](#g2-元素与字段) |
+| targets | object | ✓ | 扫描目标；含 `hosts`（地址列表）与 `auth`（登陆凭据），见下表 |
 | scanTemplateId | int | ○ | 平台扫描模板 ID（[附录 H.1](#h1-扫描模板-scantemplateid)）；缺省 **`0`** 按 `type` 自动匹配 |
 | reportTemplateId | int | ○ | 平台报告模板 ID（[附录 H.2](#h2-报告模板-reporttemplateid)）；**缺省 `0`** 按 `type` 自动匹配 |
 | callbackUrl | string | ○ | 覆盖 Partner 默认回调 URL |
@@ -360,21 +360,25 @@ Idempotency-Key: idem-ext-2026-web-0001
 | vulIDs | string[] | ○ | 产品漏洞 ID 列表（部侧 `vulID`）；**预留**，后续开放查询接口 |
 | secResourceHashes | string[] | ○ | 安全资源设备 hash 列表（扫描器）；**预留**，后续开放查询接口 |
 
-**`targets[]` 对象字段**（与 XML 富文本 `<target>` 同构）：
+**`targets` 对象**
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
-| address | string | 条件 | 简写目标（IPv4/IPv6/URL）；与 `ip` / `url` 三选一 |
-| ip | string | 条件 | 主机 IP（IPv4/IPv6） |
-| url | string | 条件 | Web 目标 URL（`type=2`） |
+| hosts | string | ✓ | 扫描目标 ip / domain / url；多个以 **`,` 或 `;`** 分隔（同 XML `<server><targets>`） |
+| auth | array | ○ | 登陆检查凭据；无登陆检查时省略或 `[]`。元素字段见下表 |
+
+**`targets.auth[]` 元素**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| ip | string | ✓ | 目标 IP（IPv4/IPv6） |
 | protocol | string | ○ | 登陆协议：`SSH` / `SMB` / `Telnet` / `RDP` 等 |
 | port | int | ○ | 登陆端口 **0–65535** |
 | username | string | ○ | 登陆用户名 |
 | password | string | ○ | 登陆密码（明文；传输须 HTTPS，平台侧加密存储） |
-| jumpHosts | array | ○ | 跳转机列表，元素字段同本表 `ip`/`protocol`/`port`/`username`/`password` |
-| templates | array | ○ | 配置核查模板参数，见 [附录 G.2](#g2-元素与字段) |
+| jumpHosts | array | ○ | 跳转机列表，元素含 `ip` / `protocol` / `port` / `username` / `password` |
 
-> **IPv6 提示**：`targets` 含 IPv6 时，写法多样（全写、压缩、`[]` 包裹等）。Partner 入参与平台响应/外发回显的字符串形式**可能不一致**。建议统一采用 **RFC 5952 规范格式**（全小写、最长零压缩，如 `2001:db8::1`），并在联调阶段比对「请求 targets ↔ 任务详情 ↔ 外发 targets[]」是否一致。
+> **IPv6 提示**：`hosts` 含 IPv6 时，写法多样（全写、压缩、`[]` 包裹等）。Partner 入参与平台响应/外发回显的字符串形式**可能不一致**。建议统一采用 **RFC 5952 规范格式**（全小写、最长零压缩，如 `2001:db8::1`），并在联调阶段比对「请求 `targets.hosts` ↔ 任务详情 ↔ 外发 `targets[]`」是否一致。
 
 **响应 data**：
 
@@ -400,26 +404,27 @@ Idempotency-Key: idem-ext-2026-0001
   "extTaskId": "EXT-TASK-2026-0001",
   "taskName": "2026Q2-核心业务系统排查",
   "type": 1,
-  "targets": [
-    "10.10.1.2",
-    {
-      "ip": "10.65.195.204",
-      "protocol": "SSH",
-      "port": 22,
-      "username": "root",
-      "password": "Gp+CdzxD",
-      "jumpHosts": [
-        {
-          "ip": "10.65.195.204",
-          "protocol": "SSH",
-          "port": 22,
-          "username": "root",
-          "password": "Gp+CdzxD"
-        }
-      ],
-      "templates": []
-    }
-  ],
+  "targets": {
+    "hosts": "10.10.1.2",
+    "auth": [
+      {
+        "ip": "10.65.195.204",
+        "protocol": "SSH",
+        "port": 22,
+        "username": "root",
+        "password": "Gp+CdzxD",
+        "jumpHosts": [
+          {
+            "ip": "10.65.195.204",
+            "protocol": "SSH",
+            "port": 22,
+            "username": "root",
+            "password": "Gp+CdzxD"
+          }
+        ]
+      }
+    ]
+  },
   "scanTemplateId": 1001,
   "reportTemplateId": 2001,
   "srcMethod": 1021,
@@ -1878,8 +1883,8 @@ TaskExport / taskExport
 
 | 项 | §5.1.1（`POST /tasks/file`） | §5.1.2（`POST /tasks/vul`） |
 |----|------------------|----------------|
-| 扫描目标 | XML `<server><targets>` 文本（ip/domain/url，逗号或分号分隔） | JSON `targets[]`，字符串或对象 |
-| 登陆检查 | 根级 `<targets>` 容器（始终存在，可为空 `<targets/>`） | JSON `targets[]` 对象字段（`protocol` / `username` 等） |
+| 扫描目标 | XML `<server><targets>` 文本（ip/domain/url，逗号或分号分隔） | JSON `targets.hosts` 字符串（格式同上） |
+| 登陆检查 | 根级 `<targets>` 容器（始终存在，可为空 `<targets/>`） | JSON `targets.auth[]`（无登陆检查时省略或 `[]`） |
 | 扫描/报告策略 | **引用平台模板 ID**，或 **内联扫描阶段于 `<server>` + `<report>`**（自定义，不用平台内置） | **仅** `scanTemplateId` / `reportTemplateId` |
 
 ### G.1 结构约定
@@ -1916,7 +1921,7 @@ TaskExport / taskExport
 | 存在性 | **必须**出现 `<targets>` 标签；无登陆检查时写 **`<targets/>`** |
 | 内容 | 每条 `<target>` 为富文本登陆信息（见下表）；与 `<server><targets>` 扫描地址列表 **独立** |
 
-**富文本 `<target>` 子元素**（登陆检查）
+**富文本 `<target>` 子元素**（登陆检查；JSON §5.1.2 对应 `targets.auth[]`）
 
 | 路径 | 类型 | 必填 | 说明 |
 |------|------|:---:|------|
@@ -2141,6 +2146,7 @@ H.1 / H.2 定义扫描策略与报告/外发的数据结构。平台可预置模
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| **1.0.2** | 2026-05-23 | §5.1.2 `targets` 改为对象：`hosts`（扫描地址）+ `auth[]`（登陆凭据） |
 | **1.0.1** | 2026-05-19 | §5.1.1 / §5.1.2 创建任务路径拆分：`POST /tasks/file`（XML）、`POST /tasks/vul`（JSON）； |
 | **1.0.0** | 2026-05-17 | 首版发布：开放平台 REST API、Webhook、扫描结果外发（XML/JSON）、能力码与业务错误码 |
 
