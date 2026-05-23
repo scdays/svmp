@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  开放平台 · 模式 B：口令猜测 type=3，内联 scanTemplate/reportTemplate
--->
 <ScanTask>
+  <task>
+    <taskName><![CDATA[2026Q2-口令猜测]]></taskName>
+    <priority>MEDIUM</priority>
+  </task>
   <targets>
     <target>
       <ip><![CDATA[10.10.1.1]]></ip>
@@ -11,12 +12,10 @@
       <ip><![CDATA[10.10.1.2]]></ip>
     </target>
   </targets>
-  <priority>MEDIUM</priority>
   <scanTemplate>
     <liveProbe enabled="true">
       <icmp>true</icmp>
       <tcp>true</tcp>
-      <tcpPorts>21,22,80,443</tcpPorts>
     </liveProbe>
     <pwdGuess enabled="true">
       <threadNum>5</threadNum>

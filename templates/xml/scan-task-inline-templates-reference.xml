@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  开放平台 · 内联 scanTemplate / reportTemplate 全量结构参考（附录 H，§5.1.1 模式 B）
--->
 <ScanTask>
+  <task>
+    <taskName><![CDATA[scanTemplate-reportTemplate 结构参考]]></taskName>
+    <priority>MEDIUM</priority>
+  </task>
   <targets>
     <target>10.10.1.1</target>
   </targets>
-  <priority>MEDIUM</priority>
   <scanTemplate>
     <liveProbe enabled="true">
       <icmp>true</icmp>
       <tcp>true</tcp>
-      <tcpPorts>21,22,80,443,3389</tcpPorts>
+      <tcpPorts>1-65535</tcpPorts>
     </liveProbe>
     <portScan enabled="true">
       <strategy>standard</strategy>

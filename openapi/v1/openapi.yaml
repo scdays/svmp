@@ -47,15 +47,15 @@ security:
   - bearerAuth: []
 
 paths:
-  /tasks:
+  /tasks/file:
     post:
       tags: [tasks]
-      operationId: createTask
-      summary: 创建扫描任务
+      operationId: createTaskByFile
+      summary: 创建扫描任务（XML 配置）
       description: |
-        需能力 `TASK_WRITE`。同一 `POST /tasks` 支持两种请求体（见接口规范 §5.1.1 / §5.1.2）：
-        - **XML 配置（§5.1.1）**：`type`（1/2/3）+ `file`；可引用平台模板 ID，或内联 scanTemplate/reportTemplate，见附录 G
-        - **JSON 参数（§5.1.2）**：`type`（1/2/3）+ `targets`（字符串或对象）+ `scanTemplateId` + `reportTemplateId`；仅引用平台模板，见附录 H
+        需能力 `TASK_WRITE`。见接口规范 §5.1.1：提交 `type`（1/2/3）+ `file` XML。
+        `file` 根元素 `<ScanTask>` 须含 `<task>`（`taskName` / `priority` / 可选 `callbackUrl`）。
+        可引用平台模板 ID，或内联 `scanTemplate` / `reportTemplate`，见附录 G。
         模板 ID 缺省 **0** 表示按 `type` 自动匹配。`extTaskId` 为 Partner 幂等键。
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -64,17 +64,74 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-                - $ref: '#/components/schemas/CreateScanTaskByFileRequest'
-                - $ref: '#/components/schemas/CreateScanTaskByJsonRequest'
+              $ref: '#/components/schemas/CreateScanTaskByFileRequest'
             examples:
               createScanByFile:
                 summary: 创建 WEB 应用扫描（type=2 + file，引用模板）
                 value:
                   extTaskId: EXT-TASK-2026-WEB-0001
-                  taskName: 2026Q2-核心站点 WEB 扫描
                   type: 2
-                  file: '<?xml version="1.0" encoding="UTF-8"?><ScanTask><targets><target>https://www.example.com/</target></targets><scanTemplateId>1002</scanTemplateId><reportTemplateId>2001</reportTemplateId><priority>MEDIUM</priority></ScanTask>'
+                  file: '<?xml version="1.0" encoding="UTF-8"?><ScanTask><task><taskName>2026Q2-核心站点 WEB 扫描</taskName><priority>MEDIUM</priority></task><targets><target>https://www.example.com/</target></targets><scanTemplateId>1002</scanTemplateId><reportTemplateId>2001</reportTemplateId></ScanTask>'
+      responses:
+        '200':
+          description: 业务响应（检查 body.code）
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CreateTaskResponse'
+              examples:
+                success:
+                  summary: 创建成功
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260517-t001
+                    data:
+                      extTaskId: EXT-TASK-2026-WEB-0001
+                      taskId: TASK-7f3a2b1c
+                      status: ACCEPTED
+                      createdAt: '2026-05-17T08:00:00Z'
+                idempotentConflict:
+                  summary: extTaskId 幂等重复（40901，仍返回已有 taskId）
+                  value:
+                    code: 40901
+                    message: extTaskId 已存在
+                    requestId: req-20260517-t002
+                    data:
+                      extTaskId: EXT-TASK-2026-WEB-0001
+                      taskId: TASK-7f3a2b1c
+                      status: ACCEPTED
+                      createdAt: '2026-05-17T08:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /tasks:
+    post:
+      tags: [tasks]
+      operationId: createTaskByJson
+      summary: 创建扫描任务（JSON 参数）
+      description: |
+        需能力 `TASK_WRITE`。见接口规范 §5.1.2：提交 `type`（1/2/3）+ `targets`（字符串或对象）
+        + `scanTemplateId` + `reportTemplateId`；仅引用平台模板，见附录 H。
+        模板 ID 缺省 **0** 表示按 `type` 自动匹配。`extTaskId` 为 Partner 幂等键。
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScanTaskByJsonRequest'
+            examples:
               createScanByJson:
                 summary: 创建漏洞扫描（type=1，富文本 targets + 平台模板）
                 value:
@@ -88,7 +145,7 @@ paths:
                       port: 22
                       username: root
                       password: Gp+CdzxD
-                      jumphosts:
+                      jumpHosts:
                         - ip: 10.65.195.204
                           protocol: SSH
                           port: 22
@@ -1107,7 +1164,7 @@ components:
           type: string
         description:
           type: string
-        typefield:
+        typeField:
           type: string
           enum: [text, password]
         value:
@@ -1165,7 +1222,7 @@ components:
           type: string
         password:
           type: string
-        jumphosts:
+        jumpHosts:
           type: array
           items:
             $ref: '#/components/schemas/JumpHost'
@@ -1182,14 +1239,11 @@ components:
 
     CreateScanTaskByFileRequest:
       type: object
-      required: [extTaskId, taskName, type, file]
+      required: [extTaskId, type, file]
       properties:
         extTaskId:
           type: string
           maxLength: 128
-        taskName:
-          type: string
-          maxLength: 256
         type:
           type: integer
           enum: [1, 2, 3]
@@ -1197,10 +1251,8 @@ components:
         file:
           type: string
           description: |
-            任务配置 XML（UTF-8），根元素 ScanTask。
-            目标支持简写或富文本（ip/protocol/port/凭据/jumphosts/templates）；
-            模板模式 A：scanTemplateId+reportTemplateId；模式 B：内联 scanTemplate+reportTemplate；
-            部侧扩展 miitExt 见附录 I。
+            任务配置 XML（UTF-8），根元素 ScanTask，须含 task 元素（taskName/priority/callbackUrl）。
+            元素命名严格 camelCase；见接口规范附录 G。
 
     CreateScanTaskByJsonRequest:
       type: object

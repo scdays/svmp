@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  开放平台 · 模式 A：引用平台模板（type=1，§5.1.1）
--->
 <ScanTask>
+  <task>
+    <taskName><![CDATA[2026Q2-核心业务排查]]></taskName>
+    <priority>HIGH</priority>
+    <callbackUrl><![CDATA[https://partner.example.com/hooks/vuln]]></callbackUrl>
+  </task>
   <targets>
     <target>10.10.1.1</target>
     <target>10.10.1.2</target>
@@ -12,11 +14,10 @@
   <miitExt>
     <srcMethod>1021</srcMethod>
     <vulIDs>
-      <vulID><![CDATA[MVM-2019-1696145560773468160]]></vulID>
+      <vulId><![CDATA[MVM-2019-1696145560773468160]]></vulId>
     </vulIDs>
     <secResourceHashes>
-      <hash><![CDATA[8f3a2b1c9d4e5f60718293a4b5c6d7e8]]></hash>
+      <secResourceHash><![CDATA[8f3a2b1c9d4e5f60718293a4b5c6d7e8]]></secResourceHash>
     </secResourceHashes>
   </miitExt>
-  <priority>HIGH</priority>
 </ScanTask>

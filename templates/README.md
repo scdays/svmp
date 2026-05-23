@@ -12,7 +12,7 @@
 | `schemas/` | 扫描结果 XML schema |
 | `xml/` | §5.1.1 扫描任务配置（`ScanTask` 示例） |
 
-## 扫描任务配置（xml/ · §5.1.1 `file`）
+## 扫描任务配置（xml/ · `POST /tasks/file`）
 
 | 文件 | 说明 |
 |------|------|

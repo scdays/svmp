@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  开放平台 · 扫描任务配置（WEB 应用扫描 type=2，§5.1.1）
-  使用平台预置扫描模板 1002 + 报告模板 2001
--->
 <ScanTask>
+  <task>
+    <taskName><![CDATA[2026Q2-核心站点 WEB 扫描]]></taskName>
+    <priority>MEDIUM</priority>
+  </task>
   <targets>
     <target>https://www.example.com/</target>
     <target>https://api.example.com/</target>
   </targets>
   <scanTemplateId>1002</scanTemplateId>
   <reportTemplateId>2001</reportTemplateId>
-  <priority>MEDIUM</priority>
 </ScanTask>
