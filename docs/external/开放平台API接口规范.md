@@ -283,8 +283,10 @@ Idempotency-Key: remediate:batch:batch-20260518-001
 |------|------|:---:|------|
 | extTaskId | string | ✓ | Partner 幂等键 |
 | taskName | string | ✓ | 任务名称 |
-| type | int | ✓ | 任务类型，见 [附录 F](#附录-f--任务类型-type)（如 **32**=WEB 应用扫描、**3**=口令猜测） |
+| type | int | ✓ | 任务类型，见 [附录 F](#附录-f--任务类型-type)（如 **2**=WEB 应用扫描、**3**=口令猜测） |
 | file | string | ✓ | 任务配置 XML 正文（UTF-8）；字段结构与取值须符合平台提供的 **XML 模板**（向运营获取模板文件） |
+| srcMethod | int | ○ | 资产扫描/处置方式，见 [附录 D](#附录-d--漏洞管理处置方式-srcmethod) |
+| exportTemplateId | int | ○ | 扫描结果外发格式；**默认 `0`**=JSON，**`1`**=XML |
 | callbackUrl | string | ○ | 覆盖 Partner 默认回调 URL |
 
 **响应 data**：同 §5.1.2（`extTaskId`、`taskId`、`status`、`createdAt`、`message`）。
@@ -302,8 +304,10 @@ Idempotency-Key: idem-ext-2026-web-0001
 {
   "extTaskId": "EXT-TASK-2026-WEB-0001",
   "taskName": "2026Q2-核心站点 WEB 扫描",
-  "type": 32,
+  "type": 2,
   "file": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><scanTask>...</scanTask>",
+  "srcMethod": 1022,
+  "exportTemplateId": 0,
   "callbackUrl": "https://partner.example.com/hooks/vuln"
 }
 ```
@@ -325,13 +329,12 @@ Idempotency-Key: idem-ext-2026-web-0001
 |------|------|:---:|------|
 | extTaskId | string | ✓ | Partner 幂等键 |
 | taskName | string | ✓ | 任务名称 |
-| type | int | ○ | 固定为 **1**（漏洞扫描）；省略时默认为 **1** |
+| type | int | ✓ | 任务类型，见 [附录 F](#附录-f--任务类型-type)；本接口为 **1**（漏洞扫描） |
 | targets | string[] | ✓ | 扫描目标列表（IPv4 / IPv6 / URL；平台按条目自动识别类型） |
-| vulnType | int | ✓ | **1**=系统漏洞，**2**=Web 漏洞 |
 | callbackUrl | string | ○ | 覆盖 Partner 默认回调 URL |
-| scanTemplateId | int | ○ | 扫描模板 ID；**默认 `0`** 表示由平台按目标与 `vulnType` **自动匹配**扫描策略；非 `0` 时使用指定模板 |
+| scanTemplateId | int | ○ | 扫描模板 ID；**缺省 `0`** 表示由平台按 **`type` 自动匹配**扫描策略；非 `0` 时使用指定模板 |
 | srcMethod | int | ○ | 资产扫描/处置方式，见 [附录 D](#附录-d--漏洞管理处置方式-srcmethod)；若传入则**覆盖** `scanTemplateId` 默认处置方式 |
-| exportTemplateId | string | ○ | 扫描结果外发模板（如 `tpl-svmp-xml-scan-bundle`） |
+| exportTemplateId | int | ○ | 扫描结果外发格式；**缺省 `0`**=JSON，**`1`**=XML |
 | priority | enum | ○ | `LOW` / `MEDIUM` / `HIGH` |
 | options.portScope | string | ○ | 端口范围，如 `1-65535` |
 | options.isLiveProbe | bool | ○ | 是否存活探测 |
@@ -364,11 +367,10 @@ Idempotency-Key: idem-ext-2026-0001
   "taskName": "2026Q2-核心业务系统排查",
   "type": 1,
   "targets": ["10.10.1.1", "10.10.1.2", "2001:db8::1"],
-  "vulnType": 1,
   "callbackUrl": "https://partner.example.com/hooks/vuln",
   "scanTemplateId": 0,
   "srcMethod": 1021,
-  "exportTemplateId": "tpl-svmp-xml-scan-bundle",
+  "exportTemplateId": 0,
   "priority": "HIGH",
   "options": {
     "portScope": "1-65535",
@@ -970,7 +972,7 @@ TaskExport / taskExport
 |-----------|----------|------|:---:|------|
 | `taskExport.export.exportId` | `/TaskExport/export/exportId` | string | ✓ | 外发记录 ID |
 | `taskExport.export.format` | `/TaskExport/export/format` | enum | ✓ | `xml` / `json` |
-| `taskExport.export.exportTemplateId` | `/TaskExport/export/exportTemplateId` | string | ○ | 外发模板 ID |
+| `taskExport.export.exportTemplateId` | `/TaskExport/export/exportTemplateId` | int | ○ | 外发序列化格式；**0**=JSON，**1**=XML；与创建任务 `exportTemplateId` 一致 |
 | `taskExport.export.exportStage` | `/TaskExport/export/exportStage` | enum | ✓ | `TASK_COMPLETED` / `VERIFY_SCAN` / `VERIFY_FIX_SCAN` |
 | `taskExport.export.dataType` | `/TaskExport/export/dataType` | enum | ✓ | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` |
 | `taskExport.export.generatedAt` | `/TaskExport/export/generatedAt` | datetime | ✓ | 生成时间 |
@@ -980,7 +982,7 @@ TaskExport / taskExport
 | `taskExport.task.extTaskId` | `/TaskExport/task/extTaskId` | string | ○ | Partner 幂等键 |
 | `taskExport.task.taskName` | `/TaskExport/task/taskName` | string | ✓ | 任务名称 |
 | `taskExport.task.targetType` | `/TaskExport/task/targetType` | enum | ✓ | `IPV4` / `IPV6` / `URL` |
-| `taskExport.task.vulnType` | `/TaskExport/task/vulnType` | int | ✓ | **1**=系统漏洞，**2**=Web 漏洞 |
+| `taskExport.task.type` | `/TaskExport/task/type` | int | ✓ | 任务类型，见 [附录 F](#附录-f--任务类型-type) |
 | `taskExport.task.scanTemplateId` | `/TaskExport/task/scanTemplateId` | int | ○ | 扫描模板 ID |
 | `taskExport.task.status` | `/TaskExport/task/status` | enum | ✓ | `FINISHED` / `FAILED` 等任务状态 |
 | `taskExport.task.startedAt` | `/TaskExport/task/startedAt` | datetime | ○ | 任务开始时间 |
@@ -1104,7 +1106,7 @@ TaskExport / taskExport
 | exportId | string | 外发记录 ID |
 | taskId | string | 平台任务 ID |
 | extTaskId | string | Partner 任务键 |
-| exportTemplateId | string | 外发模板 |
+| exportTemplateId | int | 外发序列化格式；**0**=JSON，**1**=XML |
 | format | string | `xml` / `json` |
 | exportStage | enum | `TASK_COMPLETED` / `VERIFY_SCAN` / `VERIFY_FIX_SCAN` |
 | dataType | enum | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` |
@@ -1182,7 +1184,7 @@ TaskExport / taskExport
 | exportId | string | ✓ | 外发记录 ID |
 | taskId | string | ✓ | 平台任务 ID |
 | extTaskId | string | ○ | Partner 任务键 |
-| exportTemplateId | string | ○ | 外发模板 |
+| exportTemplateId | int | ○ | 外发序列化格式；**0**=JSON，**1**=XML |
 | format | string | ✓ | 外发格式 |
 | exportStage | string | ✓ | `TASK_COMPLETED` / `VERIFY_SCAN` / `VERIFY_FIX_SCAN` |
 | dataType | string | ✓ | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` |
@@ -1238,7 +1240,7 @@ TaskExport / taskExport
     "exportId": "EXP-20260518-7f3a",
     "taskId": "TASK-7f3a2b1c",
     "extTaskId": "EXT-TASK-2026-0001",
-    "exportTemplateId": "tpl-svmp-xml-scan-bundle",
+    "exportTemplateId": 1,
     "format": "xml",
     "exportStage": "TASK_COMPLETED",
     "dataType": "MIXED",
@@ -1275,7 +1277,7 @@ TaskExport / taskExport
     "export": {
       "exportId": "EXP-20260518-7f3a",
       "format": "json",
-      "exportTemplateId": "tpl-svmp-xml-scan-bundle",
+      "exportTemplateId": 0,
       "exportStage": "TASK_COMPLETED",
       "dataType": "MIXED",
       "generatedAt": "2026-05-18T14:05:00Z",
@@ -1286,8 +1288,8 @@ TaskExport / taskExport
       "taskId": "TASK-7f3a2b1c",
       "extTaskId": "EXT-TASK-2026-0001",
       "taskName": "2026Q2-核心业务系统排查",
-      "vulnType": 1,
-      "scanTemplateId": 10086,
+      "type": 1,
+      "scanTemplateId": 0,
       "status": "FINISHED",
       "startedAt": "2026-05-18T08:00:00Z",
       "finishedAt": "2026-05-18T14:00:00Z"
@@ -1434,7 +1436,7 @@ TaskExport / taskExport
   <export>
     <exportId>EXP-20260518-7f3a</exportId>
     <format>xml</format>
-    <exportTemplateId>tpl-svmp-xml-scan-bundle</exportTemplateId>
+    <exportTemplateId>0</exportTemplateId>
     <exportStage>TASK_COMPLETED</exportStage>
     <dataType>MIXED</dataType>
     <generatedAt>2026-05-18T14:05:00Z</generatedAt>
@@ -1445,8 +1447,8 @@ TaskExport / taskExport
     <taskId>TASK-7f3a2b1c</taskId>
     <extTaskId>EXT-TASK-2026-0001</extTaskId>
     <taskName>2026Q2-核心业务系统排查</taskName>
-    <vulnType>1</vulnType>
-    <scanTemplateId>10086</scanTemplateId>
+    <type>1</type>
+    <scanTemplateId>0</scanTemplateId>
     <status>FINISHED</status>
     <startedAt>2026-05-18T08:00:00Z</startedAt>
     <finishedAt>2026-05-18T14:00:00Z</finishedAt>
@@ -1802,9 +1804,11 @@ TaskExport / taskExport
 
 | 类型码 | 说明 | 创建方式 |
 |--------|------|----------|
-| **1** | 漏洞扫描 | §5.1.2 JSON 参数（`targets`、`scanTemplateId` 等） |
-| **32** | WEB 应用扫描 | §5.1.1 XML 配置文件（`file`） |
-| **3** | 口令猜测 | §5.1.1 XML 配置文件（`file`） |
+| **1** | 漏洞扫描 | §5.1.2 JSON 参数（`type=1`、`targets`、`scanTemplateId` 等） |
+| **2** | WEB 应用扫描 | §5.1.1 XML 配置文件（`type=2`、`file`） |
+| **3** | 口令猜测 | §5.1.1 XML 配置文件（`type=3`、`file`） |
+
+**`exportTemplateId`（创建任务）**：**0**=外发 JSON 格式，**1**=外发 XML 格式；缺省为 **0**。
 
 非法 `type` 返回 **40004**。
 

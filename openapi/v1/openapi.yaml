@@ -54,8 +54,9 @@ paths:
       summary: 创建扫描任务
       description: |
         需能力 `TASK_WRITE`。同一 `POST /tasks` 支持两种请求体（见接口规范 §5.1.1 / §5.1.2）：
-        - **XML 配置**：`type` + `file`（WEB 应用扫描 32、口令猜测 3）
-        - **漏洞扫描 JSON**：`type=1`（可省略），含 `targets`、`scanTemplateId` 等；`scanTemplateId` 默认 **0** 自动匹配
+        - **XML 配置**：`type` + `file`（WEB 应用扫描 **2**、口令猜测 **3**）
+        - **漏洞扫描 JSON**：`type=1`，含 `targets`、`scanTemplateId` 等；`scanTemplateId` 缺省 **0** 按 `type` 自动匹配
+        `exportTemplateId`：**0**=JSON 外发，**1**=XML 外发（缺省 0）
         `extTaskId` 为 Partner 幂等键；漏洞扫描成功后新实例默认 `vulInfoStat = 1`。
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -69,12 +70,14 @@ paths:
                 - $ref: '#/components/schemas/CreateVulnScanTaskRequest'
             examples:
               createScanByFile:
-                summary: 创建 WEB 应用扫描（type=32 + file）
+                summary: 创建 WEB 应用扫描（type=2 + file）
                 value:
                   extTaskId: EXT-TASK-2026-WEB-0001
                   taskName: 2026Q2-核心站点 WEB 扫描
-                  type: 32
+                  type: 2
                   file: '<?xml version="1.0" encoding="UTF-8"?><scanTask>...</scanTask>'
+                  srcMethod: 1022
+                  exportTemplateId: 0
                   callbackUrl: https://partner.example.com/hooks/vuln
               createVulnScan:
                 summary: 创建漏洞扫描任务（type=1）
@@ -83,11 +86,10 @@ paths:
                   taskName: 2026Q2-核心业务系统排查
                   type: 1
                   targets: ['10.10.1.1', '10.10.1.2', '2001:db8::1']
-                  vulnType: 1
                   callbackUrl: https://partner.example.com/hooks/vuln
                   scanTemplateId: 0
                   srcMethod: 1021
-                  exportTemplateId: tpl-svmp-xml-scan-bundle
+                  exportTemplateId: 0
                   priority: HIGH
                   options:
                     portScope: '1-65535'
@@ -716,7 +718,7 @@ paths:
                       exportId: EXP-20260518-7f3a
                       taskId: TASK-7f3a2b1c
                       extTaskId: EXT-TASK-2026-0001
-                      exportTemplateId: tpl-svmp-xml-scan-bundle
+                      exportTemplateId: 1
                       format: xml
                       exportStage: TASK_COMPLETED
                       dataType: MIXED
@@ -855,7 +857,7 @@ webhooks:
                     exportId: EXP-20260518-7f3a
                     taskId: TASK-7f3a2b1c
                     extTaskId: EXT-TASK-2026-0001
-                    exportTemplateId: tpl-svmp-xml-scan-bundle
+                    exportTemplateId: 1
                     format: xml
                     exportStage: TASK_COMPLETED
                     dataType: MIXED
@@ -1056,7 +1058,13 @@ components:
     TaskType:
       type: integer
       description: 任务类型，见接口规范附录 F
-      enum: [1, 3, 32]
+      enum: [1, 2, 3]
+
+    ExportFormatId:
+      type: integer
+      description: 扫描结果外发序列化格式；0=JSON，1=XML
+      enum: [0, 1]
+      default: 0
 
     CreateScanTaskByFileRequest:
       type: object
@@ -1070,18 +1078,23 @@ components:
           maxLength: 256
         type:
           type: integer
-          enum: [3, 32]
-          description: 3=口令猜测，32=WEB 应用扫描
+          enum: [2, 3]
+          description: 2=WEB 应用扫描，3=口令猜测
         file:
           type: string
           description: 任务配置 XML 正文（UTF-8），须符合平台提供的 XML 模板
+        srcMethod:
+          type: integer
+          description: 资产扫描/处置方式，见接口规范附录 D
+        exportTemplateId:
+          $ref: '#/components/schemas/ExportFormatId'
         callbackUrl:
           type: string
           format: uri
 
     CreateVulnScanTaskRequest:
       type: object
-      required: [extTaskId, taskName, targets, vulnType]
+      required: [extTaskId, taskName, type, targets]
       properties:
         extTaskId:
           type: string
@@ -1093,8 +1106,7 @@ components:
         type:
           type: integer
           enum: [1]
-          default: 1
-          description: 漏洞扫描
+          description: 漏洞扫描，见接口规范附录 F
         targets:
           type: array
           minItems: 1
@@ -1103,8 +1115,6 @@ components:
           description: |
             扫描目标（IPv4/IPv6/URL，平台自动识别）。
             含 IPv6 时建议 RFC 5952 规范格式；入参与回显可能不一致。
-        vulnType:
-          $ref: '#/components/schemas/VulnType'
         callbackUrl:
           type: string
           format: uri
@@ -1112,15 +1122,12 @@ components:
         scanTemplateId:
           type: integer
           default: 0
-          description: 默认 0 表示平台自动匹配扫描策略；非 0 时使用指定模板 ID
+          description: 缺省 0 表示按 type 自动匹配扫描策略；非 0 时使用指定模板 ID
         srcMethod:
           type: integer
           description: 资产扫描/处置方式，见接口规范附录 D；传入则覆盖 scanTemplateId 默认处置方式
         exportTemplateId:
-          type: string
-          description: |
-            扫描结果外发模板 ID（如 tpl-svmp-xml-scan-bundle）。
-            缺省按 scanTemplateId 与能力匹配规则选择。
+          $ref: '#/components/schemas/ExportFormatId'
         priority:
           $ref: '#/components/schemas/TaskPriority'
         options:
@@ -1639,7 +1646,7 @@ components:
               type: string
               enum: [xml, json]
             exportTemplateId:
-              type: string
+              $ref: '#/components/schemas/ExportFormatId'
             exportStage:
               $ref: '#/components/schemas/ExportStage'
             dataType:
@@ -1654,7 +1661,7 @@ components:
               type: integer
         task:
           type: object
-          required: [taskId, taskName, targetType, vulnType, status]
+          required: [taskId, taskName, type, status]
           properties:
             taskId:
               type: string
@@ -1665,8 +1672,8 @@ components:
             targetType:
               type: string
               enum: [IPV4, IPV6, URL]
-            vulnType:
-              $ref: '#/components/schemas/VulnType'
+            type:
+              $ref: '#/components/schemas/TaskType'
             scanTemplateId:
               type: integer
             status:
@@ -1936,7 +1943,7 @@ components:
         extTaskId:
           type: string
         exportTemplateId:
-          type: string
+          $ref: '#/components/schemas/ExportFormatId'
         format:
           type: string
           description: 扫描结果外发输出物格式；xml 与 json 使用相同规范化字段。
@@ -1965,7 +1972,7 @@ components:
         extTaskId:
           type: string
         exportTemplateId:
-          type: string
+          $ref: '#/components/schemas/ExportFormatId'
         format:
           type: string
           description: 扫描结果外发输出物格式；取值为 xml 或 json。
