@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 |----|------|
-| API 版本 | **1.0.2** |
+| API 版本 | **1.0.1** |
 | 协议 | HTTPS · REST JSON |
 | Base Path | `/api/open/v1` |
 | OpenAPI | [`openapi/v1/openapi.yaml`](../../openapi/v1/openapi.yaml)（OpenAPI 3.1，可导入 Swagger UI / Postman / 代码生成） |
@@ -2146,7 +2146,6 @@ H.1 / H.2 定义扫描策略与报告/外发的数据结构。平台可预置模
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
-| **1.0.2** | 2026-05-23 | §5.1.2 `targets` 改为对象：`hosts`（扫描地址）+ `auth[]`（登陆凭据） |
 | **1.0.1** | 2026-05-19 | §5.1.1 / §5.1.2 创建任务路径拆分：`POST /tasks/file`（XML）、`POST /tasks/vul`（JSON）； |
 | **1.0.0** | 2026-05-17 | 首版发布：开放平台 REST API、Webhook、扫描结果外发（XML/JSON）、能力码与业务错误码 |
 
