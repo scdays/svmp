@@ -6,6 +6,6 @@
     <targets><![CDATA[https://www.example.com/,https://api.example.com/]]></targets>
   </server>
   <targets/>
-  <scanTemplateId>1002</scanTemplateId>
+  <scanTemplateId>1001</scanTemplateId>
   <reportTemplateId>2001</reportTemplateId>
 </scanTask>

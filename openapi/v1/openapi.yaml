@@ -1,14 +1,14 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 1.0.2
+  version: 1.0.1
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
     - 接口规范：[`docs/external/开放平台API接口规范.md`](../docs/external/开放平台API接口规范.md)
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
-    - 鉴权：**v1.0.2 仅支持** `Authorization: Bearer`（OAuth 2.0 Client Credentials）；API Key + HMAC 暂未开放
+    - 鉴权：**v1.0.1 仅支持** `Authorization: Bearer`（OAuth 2.0 Client Credentials）；API Key + HMAC 暂未开放
     - 响应包装：除特别说明外，HTTP 200 仍使用业务 `code` 区分成功/失败
     - 幂等：创建任务用 `extTaskId` 或 `Idempotency-Key`；实例写 `{动作}:{vulInfoID}:{clientRequestId}`；批量 `{动作}:batch:{clientBatchId}`（详见接口规范 §4.2，默认保留 24h）
     - 调 SVMP：`extTaskId` 不下发；查询进度仅 SVMP `taskId`
@@ -71,7 +71,7 @@ paths:
                 value:
                   extTaskId: EXT-TASK-2026-WEB-0001
                   type: 2
-                  file: '<?xml version="1.0" encoding="UTF-8"?><scanTask><server><taskName>2026Q2-核心站点 WEB 扫描</taskName><priority>MEDIUM</priority><targets>https://www.example.com/</targets></server><targets/><scanTemplateId>1002</scanTemplateId><reportTemplateId>2001</reportTemplateId></scanTask>'
+                  file: '<?xml version="1.0" encoding="UTF-8"?><scanTask><server><taskName>2026Q2-核心站点 WEB 扫描</taskName><priority>MEDIUM</priority><targets>https://www.example.com/</targets></server><targets/><scanTemplateId>1001</scanTemplateId><reportTemplateId>2001</reportTemplateId></scanTask>'
       responses:
         '200':
           description: 业务响应（检查 body.code）
@@ -954,7 +954,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Partner 访问令牌（v1.0.2 唯一支持的 REST 鉴权方式）
+      description: Partner 访问令牌（v1.0.1 唯一支持的 REST 鉴权方式）
 
   parameters:
     TaskId:
@@ -1281,7 +1281,7 @@ components:
           allOf:
             - $ref: '#/components/schemas/TemplateId'
             - type: integer
-              description: 平台扫描模板 ID（附录 H.1）；须同时支持存活探测、端口扫描、标准漏洞排查三项
+              description: 平台扫描模板 ID（附录 H.1）；缺省 0 按 type 自动匹配
         reportTemplateId:
           $ref: '#/components/schemas/TemplateId'
         srcMethod:

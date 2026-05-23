@@ -18,7 +18,7 @@
 |------|------|
 | `scan-task-vuln-example.xml` | 模式 A：type=1，引用平台模板 1001/2001 |
 | `scan-task-vuln-inline-example.xml` | 模式 B：`<server>` 内联扫描阶段 + 登陆检查 `<targets>` + `<report>` |
-| `scan-task-web-example.xml` | 模式 A：type=2，引用平台模板 1002/2001 |
+| `scan-task-web-example.xml` | 模式 A：type=2，引用平台模板 1001/2001 |
 | `scan-task-pwdguess-example.xml` | 模式 B：type=3，`<server>` 内联 pwdGuess + `<report>` |
 | `scan-task-inline-templates-reference.xml` | `<server>` 内联扫描阶段 + `<report>` 全量结构 |
 
