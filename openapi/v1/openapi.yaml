@@ -1278,7 +1278,10 @@ components:
             $ref: '#/components/schemas/ScanTargetItem'
           description: 简写字符串或对象（含登陆凭据、跳转机、BVS 模板），见附录 G.2
         scanTemplateId:
-          $ref: '#/components/schemas/TemplateId'
+          allOf:
+            - $ref: '#/components/schemas/TemplateId'
+            - type: integer
+              description: 平台扫描模板 ID（附录 H.1）；须同时支持存活探测、端口扫描、标准漏洞排查三项
         reportTemplateId:
           $ref: '#/components/schemas/TemplateId'
         srcMethod:
