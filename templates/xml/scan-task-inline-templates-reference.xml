@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <scanTask>
-  <task>
-    <taskName><![CDATA[scanTemplate-reportTemplate 结构参考]]></taskName>
+  <server>
+    <taskName><![CDATA[server 内联扫描策略与 report 结构参考]]></taskName>
     <priority>MEDIUM</priority>
-  </task>
-  <targets>
-    <target>10.10.1.1</target>
-  </targets>
-  <scanTemplate>
+    <targets><![CDATA[10.10.1.1]]></targets>
     <liveProbe enabled="true">
       <icmp>true</icmp>
       <tcp>true</tcp>
@@ -30,9 +26,10 @@
         <service protocol="SSH" ports="22"/>
       </services>
     </pwdGuess>
-  </scanTemplate>
-  <reportTemplate>
+  </server>
+  <targets/>
+  <report>
     <format>xml</format>
     <dataProfile>MIXED</dataProfile>
-  </reportTemplate>
+  </report>
 </scanTask>

@@ -1,14 +1,14 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 1.0.1
+  version: 1.0.2
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
     - 接口规范：[`docs/external/开放平台API接口规范.md`](../docs/external/开放平台API接口规范.md)
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
-    - 鉴权：**v1.0.1 仅支持** `Authorization: Bearer`（OAuth 2.0 Client Credentials）；API Key + HMAC 暂未开放
+    - 鉴权：**v1.0.2 仅支持** `Authorization: Bearer`（OAuth 2.0 Client Credentials）；API Key + HMAC 暂未开放
     - 响应包装：除特别说明外，HTTP 200 仍使用业务 `code` 区分成功/失败
     - 幂等：创建任务用 `extTaskId` 或 `Idempotency-Key`；实例写 `{动作}:{vulInfoID}:{clientRequestId}`；批量 `{动作}:batch:{clientBatchId}`（详见接口规范 §4.2，默认保留 24h）
     - 调 SVMP：`extTaskId` 不下发；查询进度仅 SVMP `taskId`
@@ -54,8 +54,8 @@ paths:
       summary: 创建扫描任务（XML 配置）
       description: |
         需能力 `TASK_WRITE`。见接口规范 §5.1.1：提交 `type`（1/2/3）+ `file` XML。
-        `file` 根元素 `<scanTask>` 须含 `<task>`（`taskName` / `priority` / 可选 `callbackUrl`）。
-        可引用平台模板 ID，或内联 `scanTemplate` / `reportTemplate`，见附录 G。
+        `file` 根元素 `<scanTask>` 须含 `<server>`（`taskName` / `priority` / `targets` / 可选 `callbackUrl`）及根级 `<targets>`（登陆检查，可为空）。
+        可引用平台模板 ID，或内联扫描阶段于 `<server>` + 根级 `<report>`，见附录 G。
         模板 ID 缺省 **0** 表示按 `type` 自动匹配。`extTaskId` 为 Partner 幂等键。
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -71,7 +71,7 @@ paths:
                 value:
                   extTaskId: EXT-TASK-2026-WEB-0001
                   type: 2
-                  file: '<?xml version="1.0" encoding="UTF-8"?><scanTask><task><taskName>2026Q2-核心站点 WEB 扫描</taskName><priority>MEDIUM</priority></task><targets><target>https://www.example.com/</target></targets><scanTemplateId>1002</scanTemplateId><reportTemplateId>2001</reportTemplateId></scanTask>'
+                  file: '<?xml version="1.0" encoding="UTF-8"?><scanTask><server><taskName>2026Q2-核心站点 WEB 扫描</taskName><priority>MEDIUM</priority><targets>https://www.example.com/</targets></server><targets/><scanTemplateId>1002</scanTemplateId><reportTemplateId>2001</reportTemplateId></scanTask>'
       responses:
         '200':
           description: 业务响应（检查 body.code）
@@ -954,7 +954,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Partner 访问令牌（v1.0.1 唯一支持的 REST 鉴权方式）
+      description: Partner 访问令牌（v1.0.2 唯一支持的 REST 鉴权方式）
 
   parameters:
     TaskId:
@@ -1253,7 +1253,7 @@ components:
         file:
           type: string
           description: |
-            任务配置 XML（UTF-8），根元素 scanTask，须含 task 元素（taskName/priority/callbackUrl）。
+            任务配置 XML（UTF-8），根元素 scanTask，须含 server 元素（taskName/priority/targets 等）及根级 targets（登陆检查，可为空）。
             元素命名严格 camelCase；见接口规范附录 G。
 
     CreateScanTaskByJsonRequest:

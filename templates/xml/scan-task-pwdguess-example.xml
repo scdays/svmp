@@ -1,18 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <scanTask>
-  <task>
+  <server>
     <taskName><![CDATA[2026Q2-口令猜测]]></taskName>
     <priority>MEDIUM</priority>
-  </task>
-  <targets>
-    <target>
-      <ip><![CDATA[10.10.1.1]]></ip>
-    </target>
-    <target>
-      <ip><![CDATA[10.10.1.2]]></ip>
-    </target>
-  </targets>
-  <scanTemplate>
+    <targets><![CDATA[10.10.1.1;10.10.1.2]]></targets>
     <liveProbe enabled="true">
       <icmp>true</icmp>
       <tcp>true</tcp>
@@ -26,9 +17,10 @@
         <service protocol="TELNET" ports="23"/>
       </services>
     </pwdGuess>
-  </scanTemplate>
-  <reportTemplate>
+  </server>
+  <targets/>
+  <report>
     <format>json</format>
     <dataProfile>MIXED</dataProfile>
-  </reportTemplate>
+  </report>
 </scanTask>

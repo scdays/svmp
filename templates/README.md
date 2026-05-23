@@ -17,13 +17,15 @@
 | 文件 | 说明 |
 |------|------|
 | `scan-task-vuln-example.xml` | 模式 A：type=1，引用平台模板 1001/2001 |
-| `scan-task-vuln-inline-example.xml` | 模式 B：富文本 target + 内联 scanTemplate/reportTemplate |
+| `scan-task-vuln-inline-example.xml` | 模式 B：`<server>` 内联扫描阶段 + 登陆检查 `<targets>` + `<report>` |
 | `scan-task-web-example.xml` | 模式 A：type=2，引用平台模板 1002/2001 |
-| `scan-task-pwdguess-example.xml` | 模式 B：type=3，内联模板 |
-| `scan-task-inline-templates-reference.xml` | 内联 scanTemplate/reportTemplate 全量结构 |
+| `scan-task-pwdguess-example.xml` | 模式 B：type=3，`<server>` 内联 pwdGuess + `<report>` |
+| `scan-task-inline-templates-reference.xml` | `<server>` 内联扫描阶段 + `<report>` 全量结构 |
 
+**`<server>`**：`taskName` / `priority` / **`targets`**（扫描地址，`,` 或 `;` 分隔）及内联扫描阶段（模式 B）。  
+**根级 `<targets>`**：登陆检查信息，**始终存在**；无登陆检查时写 `<targets/>`。  
 **模式 A**：`scanTemplateId` + `reportTemplateId`（引用平台附录 H）。  
-**模式 B**：`<scanTemplate>` + `<reportTemplate>`（自定义，不使用平台内置模板）。  
+**模式 B**：扫描阶段内联于 `<server>` + 根级 `<report>`（自定义，不使用平台内置模板）。  
 部侧扩展参数见接口规范 **附录 I**（XML 元素 `<miitExt>`）。
 
 ## 模板清单（yaml/）
