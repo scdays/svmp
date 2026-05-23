@@ -26,6 +26,7 @@
 - [附录 D · 漏洞管理处置方式](#附录-d--漏洞管理处置方式-srcmethod)
 - [附录 E · 未修复原因](#附录-e--未修复原因-lvrsn)
 - [附录 F · 任务类型](#附录-f--任务类型-type)
+- [附录 G · 扫描任务配置文件 `file`](#附录-g--扫描任务配置文件-file)
 
 ---
 
@@ -284,14 +285,19 @@ Idempotency-Key: remediate:batch:batch-20260518-001
 | extTaskId | string | ✓ | Partner 幂等键 |
 | taskName | string | ✓ | 任务名称 |
 | type | int | ✓ | 任务类型，见 [附录 F](#附录-f--任务类型-type)（如 **2**=WEB 应用扫描、**3**=口令猜测） |
-| file | string | ✓ | 任务配置 XML 正文（UTF-8）；字段结构与取值须符合平台提供的 **XML 模板**（向运营获取模板文件） |
-| srcMethod | int | ○ | 资产扫描/处置方式，见 [附录 D](#附录-d--漏洞管理处置方式-srcmethod) |
-| exportTemplateId | int | ○ | 扫描结果外发格式；**默认 `0`**=JSON，**`1`**=XML |
-| callbackUrl | string | ○ | 覆盖 Partner 默认回调 URL |
+| file | string | ✓ | 任务配置 XML 正文（UTF-8）；根元素 `<ScanTask>`，结构见 [附录 G](#附录-g--扫描任务配置文件-file) |
 
-**响应 data**：同 §5.1.2（`extTaskId`、`taskId`、`status`、`createdAt`、`message`）。
+**响应 data**：
 
-**状态约束**：相同 `extTaskId` 重复提交 → **40901** 或 **200** 且返回已有 `taskId`；`type` 非法 → **40004**；`file` 不符合模板 → **40001**。
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| extTaskId | string | ✓ | 回显 |
+| taskId | string | ✓ | 平台任务 ID（后续均用此字段） |
+| status | enum | ✓ | `ACCEPTED` / `QUEUED` / `REJECTED` |
+| createdAt | datetime | ✓ | 创建时间 |
+| message | string | ○ | `REJECTED` 时原因 |
+
+**状态约束**：相同 `extTaskId` 重复提交 → **40901** 或 **200** 且返回已有 `taskId`；`type` 非法 → **40004**；`file` 不符合 [附录 G](#附录-g--扫描任务配置文件-file) → **40001**。
 
 **请求示例（WEB 应用扫描）**
 
@@ -305,10 +311,23 @@ Idempotency-Key: idem-ext-2026-web-0001
   "extTaskId": "EXT-TASK-2026-WEB-0001",
   "taskName": "2026Q2-核心站点 WEB 扫描",
   "type": 2,
-  "file": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><scanTask>...</scanTask>",
-  "srcMethod": 1022,
-  "exportTemplateId": 0,
-  "callbackUrl": "https://partner.example.com/hooks/vuln"
+  "file": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ScanTask>...</ScanTask>"
+}
+```
+
+**响应示例（成功）**
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "requestId": "req-20260518-w001",
+  "data": {
+    "extTaskId": "EXT-TASK-2026-WEB-0001",
+    "taskId": "TASK-a1b2c3d4",
+    "status": "ACCEPTED",
+    "createdAt": "2026-05-18T08:00:00Z"
+  }
 }
 ```
 
@@ -1701,6 +1720,9 @@ TaskExport / taskExport
 | 资源 | 路径 |
 |------|------|
 | OpenAPI 3.1 | [`openapi/v1/openapi.yaml`](../../openapi/v1/openapi.yaml) |
+| 扫描任务配置示例（WEB） | [`templates/xml/scan-task-web-example.xml`](../../templates/xml/scan-task-web-example.xml) |
+| 扫描任务配置示例（口令猜测） | [`templates/xml/scan-task-pwdguess-example.xml`](../../templates/xml/scan-task-pwdguess-example.xml) |
+| 引擎厂商配置参考样例 | [`templates/xml/config.xml`](../../templates/xml/config.xml)（非开放平台标准格式，仅供映射对照） |
 | 部侧接口规范原文 | [`docs/standards/基础电信企业网络安全漏洞管理平台接口规范(2025年版).docx`](../standards/基础电信企业网络安全漏洞管理平台接口规范(2025年版).docx) |
 
 **本地预览**（Redocly CLI 2.x）：`npx @redocly/cli build-docs openapi/v1/openapi.yaml -o openapi/v1/api-docs.html`，用浏览器打开生成的 HTML。需要 **Node.js ≥ 20.19**。亦可使用 https://editor.swagger.io 导入该 YAML。
@@ -1808,8 +1830,125 @@ TaskExport / taskExport
 | **2** | WEB 应用扫描 | §5.1.1 XML 配置文件（`type=2`、`file`） |
 | **3** | 口令猜测 | §5.1.1 XML 配置文件（`type=3`、`file`） |
 
-**`exportTemplateId`（创建任务）**：**0**=外发 JSON 格式，**1**=外发 XML 格式；缺省为 **0**。
+**`exportTemplateId`（§5.1.2 创建漏洞扫描）**：**0**=外发 JSON 格式，**1**=外发 XML 格式；缺省为 **0**。
 
 非法 `type` 返回 **40004**。
+
+---
+
+## 附录 G · 扫描任务配置文件 `file`
+
+§5.1.1 请求体 `file` 字段承载 **UTF-8 XML 正文**（非 Base64）。Partner 将 XML 作为 JSON 字符串转义后提交。
+
+### G.1 设计说明
+
+| 项 | 约定 |
+|----|------|
+| 根元素 | **`<ScanTask>`**（开放平台规范化格式） |
+| 任务类型 | 由 JSON 请求体 **`type`** 指定（**2**=WEB、**3**=口令猜测），**不在 XML 内重复** |
+| 任务名称 | 由 JSON **`taskName`** 指定，**不在 XML 内重复** |
+| 参考样例 | 引擎厂商原始配置见 [`templates/xml/config.xml`](../../templates/xml/config.xml)；开放平台仅保留扫描目标与必要策略项，**不包含**登陆检查、跳转机、报表生成、邮件/FTP 投递等引擎侧能力 |
+
+与厂商 `config.xml` 的主要映射（供联调理解，Partner **无需**提交厂商格式）：
+
+| 厂商 `config.xml` | 开放平台 `<ScanTask>` |
+|-------------------|------------------------|
+| `<server><key name="targets" …/>` | `<targets><target>…</target></targets>` |
+| `<plugin_template_id>` | `<scanTemplateId>`（**0**=按 `type` 自动匹配） |
+| `<scanpri>`（1–3） | `<priority>`（`LOW` / `MEDIUM` / `HIGH`） |
+| `<server><key name="live" …/>` | `<options><liveProbe>` |
+| `<server><key name="scan_level" …/>` | `<options><webScan><depth>`（1–5） |
+| `<server><key name="exp_verify" …/>` | `<options><webScan><expVerify>` |
+| `<pwdguess>` 各服务 `pwdguess:*` | `<options><pwdGuess><services><service>` |
+
+### G.2 元素与字段
+
+**根 `<ScanTask>`**
+
+| 路径 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| `/ScanTask/targets` | 容器 | ✓ | 扫描目标列表 |
+| `/ScanTask/targets/target` | string | ✓ | 至少 1 条；多条重复 `<target>` 元素 |
+| `/ScanTask/scanTemplateId` | int | ○ | 扫描模板 ID；**缺省或 `0`** 表示按 JSON **`type` 自动匹配** |
+| `/ScanTask/priority` | enum | ○ | `LOW` / `MEDIUM` / `HIGH`；缺省 `MEDIUM` |
+| `/ScanTask/options` | 容器 | ○ | 扫描策略；子节点按 `type` 选用 |
+
+**`<options>` 公共**
+
+| 路径 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| `…/liveProbe` | bool | ○ | 是否主机存活探测；口令猜测缺省 **true** |
+
+**`<options><webScan>`（`type=2` 时可用）**
+
+| 路径 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| `…/webScan/depth` | int | ○ | 扫描深度 **1–5**；缺省 **3** |
+| `…/webScan/expVerify` | bool | ○ | 是否启用漏洞验证（POC）；缺省 **false** |
+
+**`<options><pwdGuess>`（`type=3` 时必填）**
+
+| 路径 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| `…/pwdGuess/threadNum` | int | ○ | 并发线程数；缺省 **5** |
+| `…/pwdGuess/timeoutSec` | int | ○ | 单目标超时（秒）；缺省 **30** |
+| `…/pwdGuess/services` | 容器 | ✓ | 待猜测服务列表 |
+| `…/pwdGuess/services/service/@protocol` | string | ✓ | 协议/服务名，如 `SSH`、`SMB`、`TELNET` |
+| `…/pwdGuess/services/service/@ports` | string | ✓ | 端口列表，逗号分隔，如 `22` 或 `139,445` |
+
+### G.3 类型约束
+
+| JSON `type` | `targets/target` 取值 | 必填 `options` 节点 |
+|-------------|----------------------|---------------------|
+| **2** WEB 应用扫描 | **URL**（`http://` / `https://`）；平台识别为 Web 目标 | 可选 `webScan`；**不得**含 `pwdGuess` |
+| **3** 口令猜测 | **IPv4 / IPv6**；多条目标或单条内不混用 URL | **必填** `pwdGuess`；目标不得为 URL |
+
+校验失败返回 **40001**，`message` 说明具体字段或类型冲突。
+
+### G.4 示例
+
+**WEB 应用扫描（`type=2`）** — 完整示例见 [`templates/xml/scan-task-web-example.xml`](../../templates/xml/scan-task-web-example.xml)：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<ScanTask>
+  <targets>
+    <target>https://www.example.com/</target>
+  </targets>
+  <scanTemplateId>0</scanTemplateId>
+  <priority>MEDIUM</priority>
+  <options>
+    <webScan>
+      <depth>3</depth>
+      <expVerify>false</expVerify>
+    </webScan>
+  </options>
+</ScanTask>
+```
+
+**口令猜测（`type=3`）** — 完整示例见 [`templates/xml/scan-task-pwdguess-example.xml`](../../templates/xml/scan-task-pwdguess-example.xml)：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<ScanTask>
+  <targets>
+    <target>10.10.1.1</target>
+    <target>10.10.1.2</target>
+  </targets>
+  <scanTemplateId>0</scanTemplateId>
+  <priority>MEDIUM</priority>
+  <options>
+    <liveProbe>true</liveProbe>
+    <pwdGuess>
+      <threadNum>5</threadNum>
+      <timeoutSec>30</timeoutSec>
+      <services>
+        <service protocol="SSH" ports="22"/>
+        <service protocol="SMB" ports="139,445"/>
+      </services>
+    </pwdGuess>
+  </options>
+</ScanTask>
+```
 
 ---

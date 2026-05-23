@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  开放平台 · 扫描任务配置示例（口令猜测，对应 POST /tasks type=3）
+  规范见 docs/external/开放平台API接口规范.md 附录 G
+-->
+<ScanTask>
+  <targets>
+    <target>10.10.1.1</target>
+    <target>10.10.1.2</target>
+  </targets>
+  <scanTemplateId>0</scanTemplateId>
+  <priority>MEDIUM</priority>
+  <options>
+    <liveProbe>true</liveProbe>
+    <pwdGuess>
+      <threadNum>5</threadNum>
+      <timeoutSec>30</timeoutSec>
+      <services>
+        <service protocol="SSH" ports="22"/>
+        <service protocol="SMB" ports="139,445"/>
+        <service protocol="TELNET" ports="23"/>
+      </services>
+    </pwdGuess>
+  </options>
+</ScanTask>

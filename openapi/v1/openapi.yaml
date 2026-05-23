@@ -54,7 +54,7 @@ paths:
       summary: 创建扫描任务
       description: |
         需能力 `TASK_WRITE`。同一 `POST /tasks` 支持两种请求体（见接口规范 §5.1.1 / §5.1.2）：
-        - **XML 配置**：`type` + `file`（WEB 应用扫描 **2**、口令猜测 **3**）
+        - **XML 配置**：`type` + `file`（WEB 应用扫描 **2**、口令猜测 **3**）；`file` 为 `<ScanTask>` XML，见接口规范附录 G
         - **漏洞扫描 JSON**：`type=1`，含 `targets`、`scanTemplateId` 等；`scanTemplateId` 缺省 **0** 按 `type` 自动匹配
         `exportTemplateId`：**0**=JSON 外发，**1**=XML 外发（缺省 0）
         `extTaskId` 为 Partner 幂等键；漏洞扫描成功后新实例默认 `vulInfoStat = 1`。
@@ -75,10 +75,7 @@ paths:
                   extTaskId: EXT-TASK-2026-WEB-0001
                   taskName: 2026Q2-核心站点 WEB 扫描
                   type: 2
-                  file: '<?xml version="1.0" encoding="UTF-8"?><scanTask>...</scanTask>'
-                  srcMethod: 1022
-                  exportTemplateId: 0
-                  callbackUrl: https://partner.example.com/hooks/vuln
+                  file: '<?xml version="1.0" encoding="UTF-8"?><ScanTask><targets><target>https://www.example.com/</target></targets><scanTemplateId>0</scanTemplateId><priority>MEDIUM</priority><options><webScan><depth>3</depth><expVerify>false</expVerify></webScan></options></ScanTask>'
               createVulnScan:
                 summary: 创建漏洞扫描任务（type=1）
                 value:
@@ -1082,15 +1079,9 @@ components:
           description: 2=WEB 应用扫描，3=口令猜测
         file:
           type: string
-          description: 任务配置 XML 正文（UTF-8），须符合平台提供的 XML 模板
-        srcMethod:
-          type: integer
-          description: 资产扫描/处置方式，见接口规范附录 D
-        exportTemplateId:
-          $ref: '#/components/schemas/ExportFormatId'
-        callbackUrl:
-          type: string
-          format: uri
+          description: |
+            任务配置 XML 正文（UTF-8），根元素 ScanTask。
+            结构与校验规则见接口规范附录 G；示例见 templates/xml/scan-task-*-example.xml。
 
     CreateVulnScanTaskRequest:
       type: object

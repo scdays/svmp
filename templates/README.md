@@ -10,6 +10,15 @@
 | `catalogs/` | `field-catalog.json`、`phase-field-catalog.json` |
 | `engine/` | 引擎正式 Aurora 样本 XML、`数据外发字段说明.html` |
 | `schemas/` | `aurora-report.schema.json` 与结构说明 |
+| `xml/` | §5.1.1 扫描任务配置（`ScanTask` 示例）及引擎厂商参考 `config.xml` |
+
+## 扫描任务配置（xml/ · §5.1.1 `file`）
+
+| 文件 | 说明 |
+|------|------|
+| `scan-task-web-example.xml` | WEB 应用扫描（`type=2`） |
+| `scan-task-pwdguess-example.xml` | 口令猜测（`type=3`） |
+| `config.xml` | 某扫描引擎厂商原始配置样例（**非**开放平台标准格式，附录 G 提供字段映射） |
 
 ## 模板清单（yaml/）
 
