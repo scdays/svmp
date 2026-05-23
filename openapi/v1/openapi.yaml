@@ -97,6 +97,11 @@ paths:
                       templates: []
                   scanTemplateId: 1001
                   reportTemplateId: 2001
+                  srcMethod: 1021
+                  vulIDs:
+                    - MVM-2019-1696145560773468160
+                  secResourceHashes:
+                    - 8f3a2b1c9d4e5f60718293a4b5c6d7e8
                   callbackUrl: https://partner.example.com/hooks/vuln
                   priority: HIGH
       responses:
@@ -1108,19 +1113,34 @@ components:
         value:
           type: string
 
-    ScanTargetBvsTemplate:
+    ScanTargetConfigTemplate:
       type: object
-      required: [uuid, engine]
+      required: [uuid]
       properties:
         uuid:
           type: string
-        engine:
-          type: string
-          example: bvs
         params:
           type: array
           items:
             $ref: '#/components/schemas/ScanTargetBvsParam'
+
+    MiitTaskExt:
+      type: object
+      description: 部侧排查扩展参数，见接口规范附录 I
+      properties:
+        srcMethod:
+          type: integer
+          description: 技术处置方式，见附录 D；排查类典型 1020-1026
+        vulIDs:
+          type: array
+          items:
+            type: string
+          description: 产品漏洞 ID（部侧 vulID）；预留，后续开放查询接口
+        secResourceHashes:
+          type: array
+          items:
+            type: string
+          description: 安全资源设备 hash（扫描器）；预留，后续开放查询接口
 
     ScanTargetDetail:
       type: object
@@ -1152,7 +1172,7 @@ components:
         templates:
           type: array
           items:
-            $ref: '#/components/schemas/ScanTargetBvsTemplate'
+            $ref: '#/components/schemas/ScanTargetConfigTemplate'
 
     ScanTargetItem:
       oneOf:
@@ -1179,7 +1199,8 @@ components:
           description: |
             任务配置 XML（UTF-8），根元素 ScanTask。
             目标支持简写或富文本（ip/protocol/port/凭据/jumphosts/templates）；
-            模板模式 A：scanTemplateId+reportTemplateId；模式 B：内联 scanTemplate+reportTemplate（附录 G/H）。
+            模板模式 A：scanTemplateId+reportTemplateId；模式 B：内联 scanTemplate+reportTemplate；
+            部侧扩展 miitExt 见附录 I。
 
     CreateScanTaskByJsonRequest:
       type: object
@@ -1206,6 +1227,19 @@ components:
           $ref: '#/components/schemas/TemplateId'
         reportTemplateId:
           $ref: '#/components/schemas/TemplateId'
+        srcMethod:
+          type: integer
+          description: 技术处置方式，见接口规范附录 D、I
+        vulIDs:
+          type: array
+          items:
+            type: string
+          description: 产品漏洞 ID（部侧 vulID）；预留
+        secResourceHashes:
+          type: array
+          items:
+            type: string
+          description: 安全资源设备 hash（扫描器）；预留
         callbackUrl:
           type: string
           format: uri

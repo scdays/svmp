@@ -24,6 +24,15 @@
     </target>
   </targets>
   <priority>HIGH</priority>
+  <miitExt>
+    <srcMethod>1021</srcMethod>
+    <vulIDs>
+      <vulID><![CDATA[MVM-2019-1696145560773468160]]></vulID>
+    </vulIDs>
+    <secResourceHashes>
+      <hash><![CDATA[8f3a2b1c9d4e5f60718293a4b5c6d7e8]]></hash>
+    </secResourceHashes>
+  </miitExt>
   <scanTemplate>
     <liveProbe enabled="true">
       <icmp>true</icmp>
