@@ -25,6 +25,7 @@
 - [附录 C · 平台用户角色](#附录-c--平台用户角色-srctktrole--dsttktrole)
 - [附录 D · 漏洞管理处置方式](#附录-d--漏洞管理处置方式-srcmethod)
 - [附录 E · 未修复原因](#附录-e--未修复原因-lvrsn)
+- [附录 F · 任务类型](#附录-f--任务类型-type)
 
 ---
 
@@ -272,7 +273,7 @@ Idempotency-Key: remediate:batch:batch-20260518-001
 | 项 | 值 |
 |----|-----|
 | 能力 | `TASK_WRITE` |
-| 说明 | 排查入口；新发现实例默认 `vulInfoStat = 1` |
+| 说明 | 基于 **XML 任务配置文件** 创建扫描任务；适用于 [附录 F](#附录-f--任务类型-type) 中 **WEB 应用扫描**、**口令猜测** 等类型 |
 
 **路径参数**：— · **查询参数**：—
 
@@ -282,10 +283,53 @@ Idempotency-Key: remediate:batch:batch-20260518-001
 |------|------|:---:|------|
 | extTaskId | string | ✓ | Partner 幂等键 |
 | taskName | string | ✓ | 任务名称 |
+| type | int | ✓ | 任务类型，见 [附录 F](#附录-f--任务类型-type)（如 **32**=WEB 应用扫描、**3**=口令猜测） |
+| file | string | ✓ | 任务配置 XML 正文（UTF-8）；字段结构与取值须符合平台提供的 **XML 模板**（向运营获取模板文件） |
+| callbackUrl | string | ○ | 覆盖 Partner 默认回调 URL |
+
+**响应 data**：同 §5.1.2（`extTaskId`、`taskId`、`status`、`createdAt`、`message`）。
+
+**状态约束**：相同 `extTaskId` 重复提交 → **40901** 或 **200** 且返回已有 `taskId`；`type` 非法 → **40004**；`file` 不符合模板 → **40001**。
+
+**请求示例（WEB 应用扫描）**
+
+```http
+POST /api/open/v1/tasks HTTP/1.1
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+Idempotency-Key: idem-ext-2026-web-0001
+
+{
+  "extTaskId": "EXT-TASK-2026-WEB-0001",
+  "taskName": "2026Q2-核心站点 WEB 扫描",
+  "type": 32,
+  "file": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><scanTask>...</scanTask>",
+  "callbackUrl": "https://partner.example.com/hooks/vuln"
+}
+```
+
+---
+
+#### 5.1.2 `POST /tasks` — 创建漏洞扫描任务
+
+| 项 | 值 |
+|----|-----|
+| 能力 | `TASK_WRITE` |
+| 说明 | 排查入口（任务类型 **1**=漏洞扫描）；新发现实例默认 `vulInfoStat = 1` |
+
+**路径参数**：— · **查询参数**：—
+
+**请求体**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|:---:|------|
+| extTaskId | string | ✓ | Partner 幂等键 |
+| taskName | string | ✓ | 任务名称 |
+| type | int | ○ | 固定为 **1**（漏洞扫描）；省略时默认为 **1** |
 | targets | string[] | ✓ | 扫描目标列表（IPv4 / IPv6 / URL；平台按条目自动识别类型） |
 | vulnType | int | ✓ | **1**=系统漏洞，**2**=Web 漏洞 |
 | callbackUrl | string | ○ | 覆盖 Partner 默认回调 URL |
-| scanTemplateId | int | ○ | 扫描模板 ID；支持 **漏洞扫描**、**存活探测**、**端口扫描** 及组合（由模板定义） |
+| scanTemplateId | int | ○ | 扫描模板 ID；**默认 `0`** 表示由平台按目标与 `vulnType` **自动匹配**扫描策略；非 `0` 时使用指定模板 |
 | srcMethod | int | ○ | 资产扫描/处置方式，见 [附录 D](#附录-d--漏洞管理处置方式-srcmethod)；若传入则**覆盖** `scanTemplateId` 默认处置方式 |
 | exportTemplateId | string | ○ | 扫描结果外发模板（如 `tpl-svmp-xml-scan-bundle`） |
 | priority | enum | ○ | `LOW` / `MEDIUM` / `HIGH` |
@@ -318,10 +362,11 @@ Idempotency-Key: idem-ext-2026-0001
 {
   "extTaskId": "EXT-TASK-2026-0001",
   "taskName": "2026Q2-核心业务系统排查",
+  "type": 1,
   "targets": ["10.10.1.1", "10.10.1.2", "2001:db8::1"],
   "vulnType": 1,
   "callbackUrl": "https://partner.example.com/hooks/vuln",
-  "scanTemplateId": 10086,
+  "scanTemplateId": 0,
   "srcMethod": 1021,
   "exportTemplateId": "tpl-svmp-xml-scan-bundle",
   "priority": "HIGH",
@@ -351,7 +396,7 @@ Idempotency-Key: idem-ext-2026-0001
 
 ---
 
-#### 5.1.2 `GET /tasks/{taskId}` — 查询任务进度
+#### 5.1.3 `GET /tasks/{taskId}` — 查询任务进度
 
 | 项 | 值 |
 |----|-----|
@@ -404,7 +449,7 @@ Authorization: Bearer <accessToken>
 
 ---
 
-#### 5.1.3 `GET /tasks` — 分页查询任务列表
+#### 5.1.4 `GET /tasks` — 分页查询任务列表
 
 | 项 | 值 |
 |----|-----|
@@ -1616,7 +1661,7 @@ TaskExport / taskExport
 ## 10. 典型集成流程
 
 ```text
-1. POST /tasks（extTaskId 幂等）→ 保存 taskId
+1. POST /tasks（§5.1.1 XML 配置或 §5.1.2 漏洞扫描 JSON；`extTaskId` 幂等）→ 保存 taskId
 2. 轮询 GET /tasks/{taskId} 或等待 Webhook TASK_COMPLETED
 3. 收到 EXPORT_READY → GET /exports/{exportId}/download → 按 `format` 解析 XML 或 JSON
 4. POST /instances/search?taskId=... → 入库漏洞实例
@@ -1684,7 +1729,7 @@ TaskExport / taskExport
 
 ## 附录 D · 漏洞管理处置方式 `srcMethod`
 
-摘自部侧规范 **A.10 漏洞管理处置方式码表**。开放平台在创建任务（§5.1.1）、验证（§5.3）、处置（§5.4）等接口中以 `srcMethod` 传递**处置代码**列取值。
+摘自部侧规范 **A.10 漏洞管理处置方式码表**。开放平台在创建漏洞扫描任务（§5.1.2）、验证（§5.3）、处置（§5.4）等接口中以 `srcMethod` 传递**处置代码**列取值。
 
 | 处置代码 | 技术处置方式 | 漏洞管理类型 | 台账类别 |
 |----------|--------------|--------------|----------|
@@ -1748,5 +1793,19 @@ TaskExport / taskExport
 | 108 | VPT 无危害 |
 | 109 | 接受风险 |
 | 999 | 其他 |
+
+---
+
+## 附录 F · 任务类型 `type`
+
+创建扫描任务（§5.1.1 / §5.1.2）使用的任务类型码表。
+
+| 类型码 | 说明 | 创建方式 |
+|--------|------|----------|
+| **1** | 漏洞扫描 | §5.1.2 JSON 参数（`targets`、`scanTemplateId` 等） |
+| **32** | WEB 应用扫描 | §5.1.1 XML 配置文件（`file`） |
+| **3** | 口令猜测 | §5.1.1 XML 配置文件（`file`） |
+
+非法 `type` 返回 **40004**。
 
 ---
