@@ -5,6 +5,8 @@ info:
   description: |
     对外第三方集成统一契约（Partner 接入）。
 
+    所属系统：**网络安全漏洞管理平台**（非独立漏扫平台）；本 OpenAPI 描述其开放平台 REST 接口 `/api/open/v1`。
+
     - 接口规范：[`docs/external/开放平台API接口规范.md`](../docs/external/开放平台API接口规范.md)
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
