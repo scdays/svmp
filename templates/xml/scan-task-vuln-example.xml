@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scanTask>
+  <server>
+    <taskName><![CDATA[2026Q2-核心业务排查]]></taskName>
+    <priority>HIGH</priority>
+    <callbackUrl><![CDATA[https://partner.example.com/hooks/vuln]]></callbackUrl>
+    <targets><![CDATA[10.10.1.1,10.10.1.2]]></targets>
+  </server>
+  <targets/>
+  <scanTemplateId>1001</scanTemplateId>
+  <reportTemplateId>2001</reportTemplateId>
+  <miitExt>
+    <srcMethod>1021</srcMethod>
+    <vulIDs>
+      <vulId><![CDATA[MVM-2019-1696145560773468160]]></vulId>
+    </vulIDs>
+    <secResourceHashes>
+      <secResourceHash><![CDATA[8f3a2b1c9d4e5f60718293a4b5c6d7e8]]></secResourceHash>
+    </secResourceHashes>
+  </miitExt>
+</scanTask>

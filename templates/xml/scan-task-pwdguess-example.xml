@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scanTask>
+  <server>
+    <taskName><![CDATA[2026Q2-口令猜测]]></taskName>
+    <priority>MEDIUM</priority>
+    <targets><![CDATA[10.10.1.1;10.10.1.2]]></targets>
+    <liveProbe enabled="true">
+      <icmp>true</icmp>
+      <tcp>true</tcp>
+    </liveProbe>
+    <pwdGuess enabled="true">
+      <threadNum>5</threadNum>
+      <timeoutSec>30</timeoutSec>
+      <services>
+        <service protocol="SSH" ports="22"/>
+        <service protocol="SMB" ports="139,445"/>
+        <service protocol="TELNET" ports="23"/>
+      </services>
+    </pwdGuess>
+  </server>
+  <targets/>
+  <report>
+    <format>json</format>
+    <dataProfile>MIXED</dataProfile>
+  </report>
+</scanTask>

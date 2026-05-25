@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>开放平台集成管理 · 全功能原型</title>
+  <style>
+    :root {
+      --primary: #1890ff; --success: #52c41a; --warning: #faad14; --error: #ff4d4f;
+      --text: rgba(0,0,0,.85); --text-secondary: rgba(0,0,0,.45);
+      --border: #d9d9d9; --bg: #f0f2f5; --card: #fff; --sidebar: #001529;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 14px; color: var(--text); background: var(--bg); }
+    .app-shell { display: flex; min-height: 100vh; }
+    .sidebar { width: 240px; background: var(--sidebar); color: #fff; flex-shrink: 0; overflow-y: auto; }
+    .sidebar-logo { height: 64px; display: flex; align-items: center; padding: 0 20px; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .menu-group { padding: 12px 0 4px; }
+    .menu-group-title { padding: 4px 20px; font-size: 11px; color: rgba(255,255,255,.35); letter-spacing: .5px; }
+    .menu-item { padding: 8px 20px 8px 36px; color: rgba(255,255,255,.65); cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: space-between; }
+    .menu-item:hover { color: #fff; background: rgba(255,255,255,.05); }
+    .menu-item.active { background: var(--primary); color: #fff; }
+    .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .topbar { height: 48px; background: var(--card); border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+    .topbar small { color: var(--text-secondary); }
+    .content { padding: 16px; flex: 1; overflow: auto; }
+    .view { display: none; } .view.active { display: block; }
+    .phase { font-size: 10px; padding: 1px 6px; border-radius: 2px; font-weight: 500; }
+    .p0 { background: #e6f7ff; color: #0958d9; border: 1px solid #91d5ff; }
+    .p1 { background: #f6ffed; color: #389e0d; border: 1px solid #b7eb8f; }
+    .p2 { background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; }
+    .p3 { background: #f9f0ff; color: #531dab; border: 1px solid #d3adf7; }
+    .alert { padding: 8px 15px; border-radius: 2px; margin-bottom: 16px; display: flex; gap: 8px; }
+    .alert-error { background: #fff2f0; border: 1px solid #ffccc7; color: #cf1322; }
+    .alert-info { background: #e6f7ff; border: 1px solid #91d5ff; color: #0958d9; }
+    .hidden { display: none !important; }
+    .breadcrumb { margin-bottom: 16px; color: var(--text-secondary); }
+    .breadcrumb a { color: var(--primary); text-decoration: none; cursor: pointer; }
+    .card { background: var(--card); border-radius: 2px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+    .card-title { padding: 14px 20px; border-bottom: 1px solid #f0f0f0; font-weight: 500; display: flex; align-items: center; justify-content: space-between; }
+    .card-body { padding: 16px 20px; }
+    .btn { height: 32px; padding: 0 15px; border: 1px solid var(--border); background: #fff; border-radius: 2px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn-link { border: none; background: none; color: var(--primary); cursor: pointer; padding: 0 4px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+    .search-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+    .form-item label { display: block; color: var(--text-secondary); margin-bottom: 4px; font-size: 13px; }
+    .form-item input, .form-item select { height: 32px; padding: 0 11px; border: 1px solid var(--border); border-radius: 2px; min-width: 160px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+    th { background: #fafafa; font-weight: 500; }
+    tr:hover td { background: #fafafa; }
+    .tag { display: inline-block; padding: 0 7px; font-size: 12px; border-radius: 2px; line-height: 20px; border: 1px solid; }
+    .tag-green { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
+    .tag-red { background: #fff2f0; border-color: #ffccc7; color: #cf1322; }
+    .tag-blue { background: #e6f7ff; border-color: #91d5ff; color: #0958d9; }
+    .tag-default { background: #fafafa; border-color: #d9d9d9; }
+    .tag-orange { background: #fff7e6; border-color: #ffd591; color: #d46b08; }
+    .tabs { display: flex; border-bottom: 1px solid #f0f0f0; }
+    .tab { padding: 10px 18px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-panel { display: none; padding: 20px; } .tab-panel.active { display: block; }
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    .stat-card { background: #fafafa; border: 1px solid #f0f0f0; border-radius: 2px; padding: 14px; }
+    .stat-card .label { color: var(--text-secondary); font-size: 12px; }
+    .stat-card .value { font-size: 22px; font-weight: 500; margin-top: 4px; }
+    .chart-placeholder { height: 200px; background: linear-gradient(180deg,#fafafa,#f0f0f0); border: 1px dashed var(--border); border-radius: 2px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); margin-top: 12px; }
+    .sitemap-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .sitemap-card { border: 1px solid #f0f0f0; border-radius: 2px; padding: 16px; cursor: pointer; transition: box-shadow .2s; }
+    .sitemap-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .sitemap-card h3 { font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .sitemap-card ul { margin-left: 16px; color: var(--text-secondary); font-size: 13px; line-height: 1.8; }
+    .detail-header { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; }
+    .detail-title { font-size: 18px; font-weight: 500; }
+    .detail-meta { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; max-width: 800px; }
+    .form-grid .full { grid-column: 1 / -1; }
+    .checkbox-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .checkbox-item { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #f0f0f0; border-radius: 2px; font-size: 13px; }
+    .helper { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+    .required::before { content: "* "; color: var(--error); }
+    .action-btn { color: var(--primary); cursor: pointer; margin-right: 10px; }
+    .pagination { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding-top: 12px; color: var(--text-secondary); }
+    .iframe-placeholder { height: 480px; border: 1px solid #f0f0f0; background: #fafafa; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); flex-direction: column; gap: 8px; }
+    .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; z-index: 1000; }
+    .drawer-overlay.show { display: block; }
+    .drawer { position: fixed; top: 0; right: 0; width: 520px; max-width: 90vw; height: 100vh; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,.15); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .3s; z-index: 1001; }
+    .drawer-overlay.show .drawer { transform: translateX(0); }
+    .drawer-header { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; font-weight: 500; display: flex; justify-content: space-between; }
+    .drawer-body { padding: 20px; overflow: auto; flex: 1; }
+    .drawer-footer { padding: 12px 20px; border-top: 1px solid #f0f0f0; text-align: right; }
+    .kv-row { display: flex; margin-bottom: 10px; font-size: 13px; }
+    .kv-row .k { width: 120px; color: var(--text-secondary); flex-shrink: 0; }
+    .kv-row .v { flex: 1; word-break: break-all; }
+    .kv-row .v code { background: #f5f5f5; padding: 2px 6px; border-radius: 2px; font-size: 12px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 1002; padding: 24px; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #fff; border-radius: 2px; width: 100%; max-width: 640px; max-height: 90vh; overflow: auto; }
+    .modal-header { padding: 14px 20px; border-bottom: 1px solid #f0f0f0; font-weight: 500; display: flex; justify-content: space-between; }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid #f0f0f0; text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
+    .secret-box { background: #fffbe6; border: 1px solid #ffe58f; padding: 14px; margin: 12px 0; border-radius: 2px; }
+    .secret-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .secret-row:last-child { margin-bottom: 0; }
+    .page-note { text-align: center; padding: 20px; color: var(--text-secondary); font-size: 12px; border-top: 1px dashed var(--border); margin-top: 20px; }
+    .api-path { font-family: Consolas, monospace; font-size: 12px; color: #531dab; }
+    .filter-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .filter-chip { padding: 4px 12px; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; font-size: 13px; background: #fff; }
+    .filter-chip.active { border-color: var(--primary); color: var(--primary); background: #e6f7ff; }
+    .catalog-meta { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
+    .domain-badge { font-size: 11px; padding: 0 6px; border-radius: 2px; background: #f5f5f5; border: 1px solid #e8e8e8; }
+    .doc-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .doc-frame-wrap { height: calc(100vh - 220px); min-height: 520px; border: 1px solid #f0f0f0; background: #fff; }
+    .doc-frame-wrap iframe { width: 100%; height: 100%; border: 0; display: block; }
+    .doc-tab-panel { display: none; } .doc-tab-panel.active { display: block; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-logo">开放平台集成管理</div>
+    <nav>
+      <div class="menu-group">
+        <div class="menu-group-title">总览</div>
+        <div class="menu-item active" data-view="overview">功能总览 / 站点地图</div>
+      </div>
+      <div class="menu-group">
+        <div class="menu-group-title">P0 · 合作方管理</div>
+        <div class="menu-item" data-view="partner-list">合作方列表</div>
+        <div class="menu-item" data-view="partner-create">新建合作方</div>
+        <div class="menu-item" data-view="partner-detail">合作方详情</div>
+      </div>
+      <div class="menu-group">
+        <div class="menu-group-title">P1 · 治理观测</div>
+        <div class="menu-item" data-view="invocation-list">API 调用记录</div>
+        <div class="menu-item" data-view="webhook-log">Webhook 投递日志</div>
+      </div>
+      <div class="menu-group">
+        <div class="menu-group-title">P2 · 运营分析</div>
+        <div class="menu-item" data-view="dashboard">运营看板</div>
+        <div class="menu-item" data-view="api-catalog">API 目录（只读）</div>
+        <div class="menu-item" data-view="quota">配额与限流</div>
+        <div class="menu-item" data-view="dev-docs">开发者文档</div>
+      </div>
+      <div class="menu-group">
+        <div class="menu-group-title">P3 · 高级治理</div>
+        <div class="menu-item" data-view="api-version">API 版本 / 弃用</div>
+        <div class="menu-item" data-view="alert-rules">告警规则</div>
+        <div class="menu-item" data-view="sla">SLA 配置</div>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <small>HTML 全功能原型 · asset-openplatform-manage · 对应《页面设计》§3–§4 + 落地方案 P0–P3</small>
+      <div>
+        <button class="btn" id="toggleAlert" type="button">Admin Key 告警</button>
+        <button class="btn btn-primary" id="openCredential" type="button">凭证弹窗</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <div id="adminKeyAlert" class="alert alert-error hidden">
+        <span>⚠</span>
+        <div><strong>未配置 Admin Key</strong> — 请设置 <code>VUE_APP_OPEN_API_ADMIN_KEY</code>，与 open-api-service 的 <code>open-api.admin.api-key</code> 一致。</div>
+      </div>
+
+      <!-- ========== 功能总览 ========== -->
+      <section id="view-overview" class="view active">
+        <div class="breadcrumb">开放平台 / 功能总览</div>
+        <div class="card">
+          <div class="card-title">集成管理后台 · 全功能站点地图</div>
+          <div class="card-body">
+            <p style="margin-bottom:16px;color:var(--text-secondary);">子应用 <code>asset-openplatform-manage</code> 内部路由自维护；顶栏菜单仅需 clover 库配置入口 <code>/openPlatform</code>。</p>
+            <div class="sitemap-grid">
+              <div class="sitemap-card" onclick="showView('partner-list')">
+                <h3><span class="phase p0">P0</span> 合作方管理</h3>
+                <ul>
+                  <li>合作方列表 — GET /internal/admin/partners</li>
+                  <li>新建 / 编辑 — POST / PUT</li>
+                  <li>详情 Tab：基本信息、能力、凭证、回调</li>
+                </ul>
+              </div>
+              <div class="sitemap-card" onclick="showView('invocation-list')">
+                <h3><span class="phase p1">P1</span> API 调用记录</h3>
+                <ul>
+                  <li>调用列表 — GET /internal/admin/invocations</li>
+                  <li>调用详情 Drawer — requestId / 错误 / taskId</li>
+                  <li>Partner 详情 · 调用统计 Tab</li>
+                </ul>
+              </div>
+              <div class="sitemap-card" onclick="showView('webhook-log')">
+                <h3><span class="phase p1">P1</span> Webhook 投递</h3>
+                <ul>
+                  <li>投递日志列表 — 按 Partner / 事件类型</li>
+                  <li>重试状态、HTTP 状态码</li>
+                  <li>Partner 详情 · Webhook Tab 扩展</li>
+                </ul>
+              </div>
+              <div class="sitemap-card" onclick="showView('dashboard')">
+                <h3><span class="phase p2">P2</span> 运营看板</h3>
+                <ul>
+                  <li>全局调用量 / 成功率 / Top 错误码</li>
+                  <li>按 Partner / API 维度图表</li>
+                  <li>GET .../partners/{id}/stats</li>
+                </ul>
+              </div>
+              <div class="sitemap-card" onclick="showView('api-catalog')">
+                <h3><span class="phase p2">P2</span> API 目录</h3>
+                <ul>
+                  <li>api_operation 只读列表</li>
+                  <li>能力码 / 路径 / 方法对照 OpenAPI</li>
+                </ul>
+              </div>
+              <div class="sitemap-card" onclick="showView('quota')">
+                <h3><span class="phase p2">P2</span> 配额与限流</h3>
+                <ul>
+                  <li>Partner 级 QPS / 日配额报表</li>
+                  <li>429 触发统计</li>
+                </ul>
+              </div>
+              <div class="sitemap-card" onclick="showView('api-version')">
+                <h3><span class="phase p3">P3</span> API 版本管理</h3>
+                <ul>
+                  <li>版本发布 / 弃用时间表</li>
+                  <li>影响 Partner 通知</li>
+                </ul>
+              </div>
+              <div class="sitemap-card" onclick="showView('alert-rules')">
+                <h3><span class="phase p3">P3</span> 告警规则</h3>
+                <ul>
+                  <li>错误率 / 延迟阈值</li>
+                  <li>通知渠道配置</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== P0 合作方列表 ========== -->
+      <section id="view-partner-list" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / 合作方管理 <span class="phase p0">P0</span></div>
+        <div class="card"><div class="card-body">
+          <div class="search-row">
+            <div class="form-item"><label>接入方 ID</label><input placeholder="partnerId" /></div>
+            <div class="form-item"><label>名称</label><input placeholder="partnerName" /></div>
+            <div class="form-item"><label>状态</label><select><option>全部</option><option>ACTIVE</option><option>DISABLED</option></select></div>
+            <button class="btn btn-primary" type="button">查询</button>
+          </div>
+        </div></div>
+        <div class="card"><div class="card-body">
+          <div class="toolbar">
+            <button class="btn btn-primary" type="button" onclick="showView('partner-create')">＋ 新建合作方</button>
+            <span class="api-path">GET /internal/admin/partners</span>
+          </div>
+          <table>
+            <thead><tr><th>序号</th><th>partnerId</th><th>名称</th><th>类型</th><th>状态</th><th>QPS</th><th>能力</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>1</td><td><a class="btn-link" onclick="showView('partner-detail')">SOC-CLIENT-A</a></td>
+                <td>SOC 能力中心</td><td><span class="tag tag-blue">SIEM</span></td>
+                <td><span class="tag tag-green">ACTIVE</span></td><td>100</td><td>任务读写</td>
+                <td><span class="action-btn" onclick="showView('partner-create')">编辑</span><span class="action-btn" onclick="showView('partner-detail')">详情</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="pagination"><span>共 3 条</span></div>
+        </div></div>
+      </section>
+
+      <!-- ========== P0 新建 ========== -->
+      <section id="view-partner-create" class="view">
+        <div class="breadcrumb"><a onclick="showView('partner-list')">合作方管理</a> / 新建 <span class="phase p0">P0</span></div>
+        <div class="card">
+          <div class="card-title">新建合作方 <span class="api-path">POST /internal/admin/partners</span></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-item"><label class="required">partnerId</label><input placeholder="SOC-CLIENT-A" /><div class="helper">创建后不可改</div></div>
+              <div class="form-item"><label class="required">partnerName</label><input placeholder="SOC 能力中心" /></div>
+              <div class="form-item"><label>partnerType</label><select><option>SIEM</option><option>ITSM</option><option>SECOPS</option><option>CUSTOM</option></select></div>
+              <div class="form-item"><label>rateLimitQps</label><input type="number" placeholder="空=不限" /></div>
+              <div class="form-item full"><label>defaultCallbackUrl</label><input placeholder="https://partner.example.com/hooks/vuln" /><div class="helper">Partner 侧 Webhook 地址</div></div>
+              <div class="form-item full"><label class="required">capabilities</label>
+                <div class="checkbox-grid">
+                  <label class="checkbox-item"><input type="checkbox" checked /> TASK_WRITE</label>
+                  <label class="checkbox-item"><input type="checkbox" checked /> TASK_READ</label>
+                  <label class="checkbox-item"><input type="checkbox" checked /> INSTANCE_READ</label>
+                  <label class="checkbox-item"><input type="checkbox" /> EVENT_SUBSCRIBE</label>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:16px;"><button class="btn btn-primary" onclick="showView('partner-detail')">提交</button> <button class="btn" onclick="showView('partner-list')">取消</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== P0 详情（含 P1 Tab） ========== -->
+      <section id="view-partner-detail" class="view">
+        <div class="breadcrumb"><a onclick="showView('partner-list')">合作方管理</a> / SOC-CLIENT-A</div>
+        <div class="card">
+          <div class="detail-header">
+            <div><div class="detail-title">SOC 能力中心 <span class="tag tag-green">ACTIVE</span></div>
+              <div class="detail-meta">partnerId: SOC-CLIENT-A · SIEM · QPS 100</div></div>
+            <div><button class="btn" onclick="showView('partner-create')">编辑</button> <button class="btn btn-primary" id="openCredential2" type="button">生成凭证</button></div>
+          </div>
+          <div class="tabs" id="partnerTabs">
+            <div class="tab active" data-tab="basic">基本信息</div>
+            <div class="tab" data-tab="cap">能力配置</div>
+            <div class="tab" data-tab="cred">接入凭证</div>
+            <div class="tab" data-tab="callback">回调配置</div>
+            <div class="tab" data-tab="stats"><span class="phase p1">P1</span> 调用统计</div>
+            <div class="tab" data-tab="wh"><span class="phase p1">P1</span> Webhook 日志</div>
+          </div>
+          <div id="ptab-basic" class="tab-panel active"><div class="form-grid">
+            <div class="form-item"><label>partnerName</label><input value="SOC 能力中心" readonly /></div>
+            <div class="form-item"><label>defaultCallbackUrl</label><input value="https://soc.example.com/hooks/vuln" readonly /></div>
+          </div></div>
+          <div id="ptab-cap" class="tab-panel"><p class="helper">PUT 全量更新 capabilities</p><div class="checkbox-grid" style="max-width:600px;margin-top:8px;">
+            <label class="checkbox-item"><input checked disabled type="checkbox" /> TASK_WRITE</label>
+            <label class="checkbox-item"><input checked disabled type="checkbox" /> TASK_READ</label>
+          </div></div>
+          <div id="ptab-cred" class="tab-panel">
+            <div class="toolbar"><span class="helper">secret 仅生成时展示一次</span><button class="btn btn-primary" id="openCredential3" type="button">生成凭证</button></div>
+            <table><thead><tr><th>clientId</th><th>credentialId</th><th>状态</th><th>创建时间</th></tr></thead>
+            <tbody><tr><td><code>cli_aabe1d70034b</code></td><td>cred-001</td><td><span class="tag tag-green">ACTIVE</span></td><td>2026-05-18</td></tr></tbody></table>
+          </div>
+          <div id="ptab-callback" class="tab-panel"><div class="form-item" style="max-width:500px;"><label>defaultCallbackUrl</label><input value="https://soc.example.com/hooks/vuln" /></div></div>
+          <div id="ptab-stats" class="tab-panel">
+            <span class="api-path">GET /internal/admin/partners/{id}/stats</span>
+            <div class="stat-row" style="margin-top:12px;">
+              <div class="stat-card"><div class="label">今日调用</div><div class="value">1,284</div></div>
+              <div class="stat-card"><div class="label">成功率</div><div class="value">99.2%</div></div>
+              <div class="stat-card"><div class="label">401</div><div class="value">3</div></div>
+              <div class="stat-card"><div class="label">403</div><div class="value">12</div></div>
+            </div>
+            <div class="chart-placeholder">近 7 日调用趋势折线图（ECharts）</div>
+          </div>
+          <div id="ptab-wh" class="tab-panel">
+            <table><thead><tr><th>eventId</th><th>eventType</th><th>HTTP</th><th>重试</th><th>时间</th></tr></thead>
+            <tbody><tr><td>evt-001</td><td>EXPORT_READY</td><td><span class="tag tag-green">200</span></td><td>0</td><td>14:05</td></tr>
+            <tr><td>evt-002</td><td>TASK_COMPLETED</td><td><span class="tag tag-orange">502</span></td><td>2</td><td>13:20</td></tr></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== P1 调用记录 ========== -->
+      <section id="view-invocation-list" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / API 调用记录 <span class="phase p1">P1</span></div>
+        <div class="card"><div class="card-body">
+          <div class="search-row">
+            <div class="form-item"><label>partnerId</label><input placeholder="SOC-CLIENT-A" /></div>
+            <div class="form-item"><label>时间范围</label><input type="date" /></div>
+            <div class="form-item"><label>operation</label><select><option>全部</option><option>POST /tasks</option><option>GET /tasks/{id}</option></select></div>
+            <div class="form-item"><label>code</label><select><option>全部</option><option>0</option><option>40101</option><option>40301</option></select></div>
+            <button class="btn btn-primary" type="button">查询</button>
+          </div>
+        </div></div>
+        <div class="card"><div class="card-body">
+          <div class="toolbar"><span class="api-path">GET /internal/admin/invocations</span></div>
+          <table>
+            <thead><tr><th>requestId</th><th>partnerId</th><th>接口</th><th>code</th><th>耗时</th><th>时间</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td><code>req-96af4debd568</code></td><td>SOC-CLIENT-A</td><td>POST /api/open/v1/tasks</td>
+                <td><span class="tag tag-green">0</span></td><td>128ms</td><td>14:02:11</td>
+                <td><span class="action-btn" onclick="openDrawer()">详情</span></td></tr>
+              <tr><td><code>req-fa2b4ad2735d</code></td><td>TEST-PARTNER</td><td>POST /oauth/token</td>
+                <td><span class="tag tag-red">40101</span></td><td>12ms</td><td>13:58:03</td>
+                <td><span class="action-btn" onclick="openDrawer()">详情</span></td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </section>
+
+      <!-- ========== P1 Webhook 日志（独立页） ========== -->
+      <section id="view-webhook-log" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / Webhook 投递日志 <span class="phase p1">P1</span></div>
+        <div class="card"><div class="card-body">
+          <div class="search-row">
+            <div class="form-item"><label>partnerId</label><input /></div>
+            <div class="form-item"><label>eventType</label><select><option>全部</option><option>TASK_COMPLETED</option><option>EXPORT_READY</option></select></div>
+            <div class="form-item"><label>投递状态</label><select><option>全部</option><option>成功</option><option>失败重试中</option></select></div>
+            <button class="btn btn-primary" type="button">查询</button>
+          </div>
+          <table style="margin-top:16px;">
+            <thead><tr><th>eventId</th><th>partnerId</th><th>eventType</th><th>callbackUrl</th><th>HTTP</th><th>重试次数</th><th>occurredAt</th></tr></thead>
+            <tbody>
+              <tr><td>evt-20260518-0002</td><td>SOC-CLIENT-A</td><td>EXPORT_READY</td><td>https://soc.../hooks</td><td>200</td><td>0</td><td>14:05</td></tr>
+              <tr><td>evt-20260518-0001</td><td>SOC-CLIENT-A</td><td>TASK_COMPLETED</td><td>https://soc.../hooks</td><td>502</td><td>3</td><td>14:00</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </section>
+
+      <!-- ========== P2 运营看板 ========== -->
+      <section id="view-dashboard" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / 运营看板 <span class="phase p2">P2</span></div>
+        <div class="stat-row">
+          <div class="stat-card"><div class="label">今日总调用</div><div class="value">12,847</div></div>
+          <div class="stat-card"><div class="label">全局成功率</div><div class="value">98.6%</div></div>
+          <div class="stat-card"><div class="label">活跃 Partner</div><div class="value">8</div></div>
+          <div class="stat-card"><div class="label">429 限流</div><div class="value">47</div></div>
+        </div>
+        <div class="card"><div class="card-title">按 Partner 调用 Top 5</div><div class="card-body"><div class="chart-placeholder">柱状图 · partnerId × 调用量</div></div></div>
+        <div class="card"><div class="card-title">Top 错误码</div><div class="card-body">
+          <table><thead><tr><th>code</th><th>含义</th><th>次数</th><th>占比</th></tr></thead>
+          <tbody><tr><td>40301</td><td>能力未开通</td><td>89</td><td>42%</td></tr>
+          <tr><td>40101</td><td>鉴权失败</td><td>56</td><td>26%</td></tr></tbody></table>
+        </div></div>
+      </section>
+
+      <!-- ========== P2 API 目录 ========== -->
+      <section id="view-api-catalog" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / API 目录 <span class="phase p2">P2</span></div>
+        <div class="card"><div class="card-body">
+          <div class="alert alert-info"><span>ℹ</span> 只读 · 数据来自 <code>api_operation</code>（Liquibase 种子与 OpenAPI 对齐）· 运营在 Partner 勾选<strong>能力码</strong>，本页展示能力对应的<strong>接口清单</strong></div>
+          <div class="catalog-meta">共 <strong id="catalogCount">17</strong> 个 operation · domain 业务域 · openapi_tag 与 OpenAPI tags 一致</div>
+          <div class="filter-chips" id="catalogTagFilters">
+            <span class="filter-chip active" data-filter-tag="all">全部</span>
+            <span class="filter-chip" data-filter-tag="auth">鉴权 auth</span>
+            <span class="filter-chip" data-filter-tag="tasks">任务 tasks</span>
+            <span class="filter-chip" data-filter-tag="instances">实例 instances</span>
+            <span class="filter-chip" data-filter-tag="exports">外发 exports</span>
+            <span class="filter-chip" data-filter-tag="webhooks">Webhook webhooks</span>
+          </div>
+          <div class="search-row" style="margin-bottom:12px;">
+            <div class="form-item"><label>能力码筛选</label>
+              <select id="catalogCapFilter">
+                <option value="">全部能力</option>
+                <option value="NONE">NONE（无需能力）</option>
+                <option value="TASK_WRITE">TASK_WRITE</option>
+                <option value="TASK_READ">TASK_READ</option>
+                <option value="INSTANCE_READ">INSTANCE_READ</option>
+                <option value="INSTANCE_VERIFY">INSTANCE_VERIFY</option>
+                <option value="INSTANCE_REMEDIATE">INSTANCE_REMEDIATE</option>
+                <option value="INSTANCE_ARCHIVE">INSTANCE_ARCHIVE</option>
+                <option value="INSTANCE_VERIFY_FIX">INSTANCE_VERIFY_FIX</option>
+                <option value="EXPORT_READ">EXPORT_READ</option>
+                <option value="EVENT_SUBSCRIBE">EVENT_SUBSCRIBE</option>
+              </select>
+            </div>
+            <div class="form-item"><label>状态</label>
+              <select id="catalogStatusFilter">
+                <option value="">全部</option>
+                <option value="PUBLISHED">PUBLISHED</option>
+                <option value="DEPRECATED">DEPRECATED</option>
+              </select>
+            </div>
+          </div>
+          <table id="catalogTable">
+            <thead><tr>
+              <th>domain</th><th>tag</th><th>operationId</th><th>方法</th><th>路径</th><th>能力码</th><th>说明</th><th>状态</th>
+            </tr></thead>
+            <tbody id="catalogTableBody">
+              <tr data-tag="auth" data-domain="AUTH" data-cap="NONE" data-status="PUBLISHED">
+                <td><span class="domain-badge">AUTH</span></td><td>auth</td><td>issuePartnerToken</td><td>POST</td>
+                <td><code>/oauth/token</code></td><td><span class="tag tag-default">NONE</span></td>
+                <td>获取 Partner 访问令牌</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="tasks" data-domain="TASK" data-cap="TASK_WRITE" data-status="PUBLISHED">
+                <td><span class="domain-badge">TASK</span></td><td>tasks</td><td>createTask</td><td>POST</td>
+                <td><code>/api/open/v1/tasks</code></td><td><span class="tag tag-blue">TASK_WRITE</span></td>
+                <td>创建扫描任务</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="tasks" data-domain="TASK" data-cap="TASK_READ" data-status="PUBLISHED">
+                <td><span class="domain-badge">TASK</span></td><td>tasks</td><td>listTasks</td><td>GET</td>
+                <td><code>/api/open/v1/tasks</code></td><td><span class="tag tag-blue">TASK_READ</span></td>
+                <td>分页查询任务列表</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="tasks" data-domain="TASK" data-cap="TASK_READ" data-status="PUBLISHED">
+                <td><span class="domain-badge">TASK</span></td><td>tasks</td><td>getTask</td><td>GET</td>
+                <td><code>/api/open/v1/tasks/{taskId}</code></td><td><span class="tag tag-blue">TASK_READ</span></td>
+                <td>查询任务进度</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="instances" data-domain="INSTANCE" data-cap="INSTANCE_READ" data-status="PUBLISHED">
+                <td><span class="domain-badge">INSTANCE</span></td><td>instances</td><td>searchInstances</td><td>POST</td>
+                <td><code>/api/open/v1/instances/search</code></td><td><span class="tag tag-blue">INSTANCE_READ</span></td>
+                <td>分页搜索漏洞实例</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="instances" data-domain="INSTANCE" data-cap="INSTANCE_READ" data-status="PUBLISHED">
+                <td><span class="domain-badge">INSTANCE</span></td><td>instances</td><td>getInstance</td><td>GET</td>
+                <td><code>/api/open/v1/instances/{vulInfoID}</code></td><td><span class="tag tag-blue">INSTANCE_READ</span></td>
+                <td>获取漏洞实例详情</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="instances" data-domain="INSTANCE" data-cap="INSTANCE_VERIFY" data-status="PUBLISHED">
+                <td><span class="domain-badge">INSTANCE</span></td><td>instances</td><td>verifyInstance</td><td>POST</td>
+                <td><code>/api/open/v1/instances/{vulInfoID}/verify</code></td><td><span class="tag tag-blue">INSTANCE_VERIFY</span></td>
+                <td>验证漏洞实例</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="instances" data-domain="INSTANCE" data-cap="INSTANCE_VERIFY" data-status="PUBLISHED">
+                <td><span class="domain-badge">INSTANCE</span></td><td>instances</td><td>verifyInstanceBatch</td><td>POST</td>
+                <td><code>/api/open/v1/instances/verify:batch</code></td><td><span class="tag tag-blue">INSTANCE_VERIFY</span></td>
+                <td>批量验证漏洞实例</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="instances" data-domain="INSTANCE" data-cap="INSTANCE_REMEDIATE" data-status="PUBLISHED">
+                <td><span class="domain-badge">INSTANCE</span></td><td>instances</td><td>remediateInstance</td><td>POST</td>
+                <td><code>/api/open/v1/instances/{vulInfoID}/remediate</code></td><td><span class="tag tag-blue">INSTANCE_REMEDIATE</span></td>
+                <td>处置·修复（可修复）</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="instances" data-domain="INSTANCE" data-cap="INSTANCE_ARCHIVE" data-status="PUBLISHED">
+                <td><span class="domain-badge">INSTANCE</span></td><td>instances</td><td>archiveInstance</td><td>POST</td>
+                <td><code>/api/open/v1/instances/{vulInfoID}/archive</code></td><td><span class="tag tag-blue">INSTANCE_ARCHIVE</span></td>
+                <td>处置·备案（不可修复）</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="instances" data-domain="INSTANCE" data-cap="INSTANCE_VERIFY_FIX" data-status="PUBLISHED">
+                <td><span class="domain-badge">INSTANCE</span></td><td>instances</td><td>verifyFixInstance</td><td>POST</td>
+                <td><code>/api/open/v1/instances/{vulInfoID}/verify-fix</code></td><td><span class="tag tag-blue">INSTANCE_VERIFY_FIX</span></td>
+                <td>修复核验（单条）</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="instances" data-domain="INSTANCE" data-cap="INSTANCE_VERIFY_FIX" data-status="PUBLISHED">
+                <td><span class="domain-badge">INSTANCE</span></td><td>instances</td><td>verifyFixInstanceBatch</td><td>POST</td>
+                <td><code>/api/open/v1/instances/verify-fix:batch</code></td><td><span class="tag tag-blue">INSTANCE_VERIFY_FIX</span></td>
+                <td>批量修复核验</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="instances" data-domain="INSTANCE" data-cap="INSTANCE_ARCHIVE" data-status="DEPRECATED">
+                <td><span class="domain-badge">INSTANCE</span></td><td>instances</td><td>archiveInstanceLegacy</td><td>POST</td>
+                <td><code>/api/open/v1/instances/{vulInfoID}/unfixable-records</code></td><td><span class="tag tag-blue">INSTANCE_ARCHIVE</span></td>
+                <td>处置·备案（兼容别名）</td><td><span class="tag tag-orange">DEPRECATED</span></td></tr>
+              <tr data-tag="exports" data-domain="EXPORT" data-cap="EXPORT_READ" data-status="PUBLISHED">
+                <td><span class="domain-badge">EXPORT</span></td><td>exports</td><td>getExport</td><td>GET</td>
+                <td><code>/api/open/v1/exports/{exportId}</code></td><td><span class="tag tag-blue">EXPORT_READ</span></td>
+                <td>查询外发包元数据</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="exports" data-domain="EXPORT" data-cap="EXPORT_READ" data-status="PUBLISHED">
+                <td><span class="domain-badge">EXPORT</span></td><td>exports</td><td>downloadExport</td><td>GET</td>
+                <td><code>/api/open/v1/exports/{exportId}/download</code></td><td><span class="tag tag-blue">EXPORT_READ</span></td>
+                <td>下载外发文件</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="exports" data-domain="EXPORT" data-cap="EXPORT_READ" data-status="PUBLISHED">
+                <td><span class="domain-badge">EXPORT</span></td><td>exports</td><td>listTaskExports</td><td>GET</td>
+                <td><code>/api/open/v1/tasks/{taskId}/exports</code></td><td><span class="tag tag-blue">EXPORT_READ</span></td>
+                <td>查询任务下的外发记录</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="webhooks" data-domain="WEBHOOK" data-cap="EVENT_SUBSCRIBE" data-status="PUBLISHED">
+                <td><span class="domain-badge">WEBHOOK</span></td><td>webhooks</td><td>receivePlatformWebhook</td><td>POST</td>
+                <td><code>{partnerCallbackUrl}</code></td><td><span class="tag tag-blue">EVENT_SUBSCRIBE</span></td>
+                <td>平台事件回调（Partner 实现）</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </section>
+
+      <!-- ========== P2 配额限流 ========== -->
+      <section id="view-quota" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / 配额与限流 <span class="phase p2">P2</span></div>
+        <div class="card"><div class="card-body">
+          <table>
+            <thead><tr><th>partnerId</th><th>名称</th><th>QPS 上限</th><th>今日调用</th><th>429 次数</th><th>配额使用率</th></tr></thead>
+            <tbody>
+              <tr><td>SOC-CLIENT-A</td><td>SOC 能力中心</td><td>100</td><td>8,420</td><td>12</td><td><span class="tag tag-green">68%</span></td></tr>
+              <tr><td>TEST-PARTNER</td><td>联调账号</td><td>10</td><td>980</td><td>35</td><td><span class="tag tag-red">98%</span></td></tr>
+            </tbody>
+          </table>
+          <div class="chart-placeholder" style="margin-top:16px;">限流触发趋势（按小时）</div>
+        </div></div>
+      </section>
+
+      <!-- ========== P2 开发者文档 ========== -->
+      <section id="view-dev-docs" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / 开发者文档 <span class="phase p2">P2</span></div>
+        <div class="card">
+          <div class="card-body" style="padding-bottom:0;">
+            <div class="tabs" id="docTabs">
+              <div class="tab active" data-doc-tab="spec">接口规范</div>
+              <div class="tab" data-doc-tab="swagger">Swagger UI · OpenAPI</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-info">
+              <span>ℹ</span>
+              <div>单文件离线原型：接口规范与 Swagger UI 均已内嵌，双击本 HTML 即可完整预览，无需 HTTP 服务或 CDN。</div>
+            </div>
+            <div class="doc-toolbar">
+              <span class="helper" id="docTabDesc">来源：<code>docs/external/开放平台API接口规范.md</code>（内嵌 HTML）</span>
+              <div>
+                <button class="btn" type="button" id="docOpenNew">新窗口打开</button>
+                <button class="btn btn-link" type="button" id="docDownloadYaml">下载 openapi.yaml</button>
+              </div>
+            </div>
+            <div id="doc-panel-spec" class="doc-tab-panel active doc-frame-wrap">
+              <iframe id="docSpecFrame" title="开放平台 API 接口规范"></iframe>
+            </div>
+            <div id="doc-panel-swagger" class="doc-tab-panel doc-frame-wrap">
+              <iframe id="docSwaggerFrame" title="Swagger UI · openapi/v1/openapi.yaml"></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== P3 API 版本 ========== -->
+      <section id="view-api-version" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / API 版本管理 <span class="phase p3">P3</span></div>
+        <div class="card"><div class="card-body">
+          <div class="toolbar"><button class="btn btn-primary" type="button">发布新版本</button></div>
+          <table>
+            <thead><tr><th>版本</th><th>状态</th><th>发布日期</th><th>弃用日期</th><th>影响 Partner</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>v1.0.0</td><td><span class="tag tag-green">当前</span></td><td>2026-01-01</td><td>—</td><td>全部</td><td><span class="action-btn">查看</span></td></tr>
+              <tr><td>v0.9.0-beta</td><td><span class="tag tag-orange">已弃用</span></td><td>2025-06-01</td><td>2026-06-01</td><td>2</td><td><span class="action-btn">通知记录</span></td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </section>
+
+      <!-- ========== P3 告警规则 ========== -->
+      <section id="view-alert-rules" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / 告警规则 <span class="phase p3">P3</span></div>
+        <div class="card"><div class="card-body">
+          <div class="toolbar"><button class="btn btn-primary" type="button">新建规则</button></div>
+          <table>
+            <thead><tr><th>规则名</th><th>条件</th><th>阈值</th><th>通知</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>Partner 错误率过高</td><td>5xx + 4xx 业务码 / 总调用</td><td>&gt; 5%</td><td>邮件 + 站内信</td><td><span class="tag tag-green">启用</span></td><td>编辑</td></tr>
+              <tr><td>Webhook 连续失败</td><td>同一 Partner 投递失败</td><td>≥ 3 次</td><td>邮件</td><td><span class="tag tag-green">启用</span></td><td>编辑</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </section>
+
+      <!-- ========== P3 SLA ========== -->
+      <section id="view-sla" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / SLA 配置 <span class="phase p3">P3</span></div>
+        <div class="card"><div class="card-body">
+          <div class="form-grid">
+            <div class="form-item"><label>API 可用性目标</label><input value="99.9%" /></div>
+            <div class="form-item"><label>P99 延迟上限</label><input value="2000 ms" /></div>
+            <div class="form-item full"><label>统计窗口</label><select><option>按月</option><option>按季度</option></select></div>
+            <div class="form-item full"><label>违约通知 Partner</label><input type="checkbox" checked /> 自动邮件通知</div>
+          </div>
+          <button class="btn btn-primary" style="margin-top:16px;" type="button">保存 SLA 配置</button>
+          <div class="chart-placeholder" style="margin-top:16px;">SLA 达成率历史（按月）</div>
+        </div></div>
+      </section>
+
+      <footer class="page-note">全功能原型 v2 · 含 P0–P3 共 14 个视图 · 正式实现见 asset-openplatform-manage</footer>
+    </main>
+  </div>
+</div>
+
+<!-- 调用详情 Drawer -->
+<div id="invocationDrawer" class="drawer-overlay" onclick="if(event.target===this)closeDrawer()">
+  <div class="drawer">
+    <div class="drawer-header"><span>调用详情</span><button class="btn-link" onclick="closeDrawer()">×</button></div>
+    <div class="drawer-body">
+      <div class="kv-row"><span class="k">requestId</span><span class="v"><code>req-96af4debd56840c2</code></span></div>
+      <div class="kv-row"><span class="k">partnerId</span><span class="v">SOC-CLIENT-A</span></div>
+      <div class="kv-row"><span class="k">operation</span><span class="v">POST /api/open/v1/tasks</span></div>
+      <div class="kv-row"><span class="k">code</span><span class="v"><span class="tag tag-green">0</span></span></div>
+      <div class="kv-row"><span class="k">耗时</span><span class="v">128 ms</span></div>
+      <div class="kv-row"><span class="k">resourceId</span><span class="v"><code>TASK-7f3a2b1c</code> (taskId)</span></div>
+      <div class="kv-row"><span class="k">X-Partner-Id</span><span class="v">SOC-CLIENT-A（网关注入）</span></div>
+      <div class="kv-row"><span class="k">时间</span><span class="v">2026-05-18 14:02:11</span></div>
+    </div>
+    <div class="drawer-footer"><button class="btn" onclick="closeDrawer()">关闭</button></div>
+  </div>
+</div>
+
+<!-- 凭证 Modal -->
+<div id="credentialModal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header"><span>凭证已生成（仅显示一次）</span><button class="btn-link" onclick="closeModal()">×</button></div>
+    <div class="modal-body">
+      <div class="alert alert-error" style="margin-top:0;"><span>⚠</span> clientSecret 关闭后无法再次查看</div>
+      <div class="secret-box">
+        <div class="secret-row"><span style="width:100px;color:var(--text-secondary)">clientId</span><code>cli_aabe1d70034b</code><button class="btn" type="button">复制</button></div>
+        <div class="secret-row"><span style="width:100px;color:var(--text-secondary)">clientSecret</span><code>ChKfotF9BhwNjqVJXfr4uAn5gPG5dpkd</code><button class="btn" type="button">复制</button></div>
+      </div>
+      <p class="helper">Token: POST {公网}/oauth/token · API: {公网}/api/open/v1 · grantType: client_credentials</p>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" onclick="closeModal()">我已保存，关闭</button></div>
+  </div>
+</div>
+
+<script>
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(function (el) {
+      el.classList.toggle('active', el.id === 'view-' + name);
+    });
+    document.querySelectorAll('.menu-item[data-view]').forEach(function (item) {
+      item.classList.toggle('active', item.dataset.view === name);
+    });
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll('.menu-item[data-view]').forEach(function (item) {
+    item.addEventListener('click', function () { showView(item.dataset.view); });
+  });
+  document.getElementById('partnerTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab[data-tab]');
+    if (!tab) return;
+    document.querySelectorAll('#partnerTabs .tab').forEach(function (t) { t.classList.remove('active'); });
+    document.querySelectorAll('[id^="ptab-"]').forEach(function (p) { p.classList.remove('active'); });
+    tab.classList.add('active');
+    document.getElementById('ptab-' + tab.dataset.tab).classList.add('active');
+  });
+  function openDrawer() { document.getElementById('invocationDrawer').classList.add('show'); }
+  function closeDrawer() { document.getElementById('invocationDrawer').classList.remove('show'); }
+  function openModal() { document.getElementById('credentialModal').classList.add('show'); }
+  function closeModal() { document.getElementById('credentialModal').classList.remove('show'); }
+  ['openCredential', 'openCredential2', 'openCredential3'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', openModal);
+  });
+  document.getElementById('toggleAlert').addEventListener('click', function () {
+    document.getElementById('adminKeyAlert').classList.toggle('hidden');
+  });
+
+  var catalogTag = 'all';
+  function applyCatalogFilter() {
+    var cap = document.getElementById('catalogCapFilter').value;
+    var status = document.getElementById('catalogStatusFilter').value;
+    var visible = 0;
+    document.querySelectorAll('#catalogTableBody tr').forEach(function (row) {
+      var show = (catalogTag === 'all' || row.dataset.tag === catalogTag)
+        && (!cap || row.dataset.cap === cap)
+        && (!status || row.dataset.status === status);
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    document.getElementById('catalogCount').textContent = visible;
+  }
+  document.getElementById('catalogTagFilters').addEventListener('click', function (e) {
+    var chip = e.target.closest('[data-filter-tag]');
+    if (!chip) return;
+    catalogTag = chip.dataset.filterTag;
+    document.querySelectorAll('#catalogTagFilters .filter-chip').forEach(function (c) {
+      c.classList.toggle('active', c === chip);
+    });
+    applyCatalogFilter();
+  });
+  document.getElementById('catalogCapFilter').addEventListener('change', applyCatalogFilter);
+  document.getElementById('catalogStatusFilter').addEventListener('change', applyCatalogFilter);
+
+  var docTab = 'spec';
+  var specLoaded = false;
+  var swaggerLoaded = false;
+  var docDesc = {
+    spec: '来源：<code>docs/external/开放平台API接口规范.md</code>（内嵌 HTML）',
+    swagger: '来源：内嵌 <code>openapi/v1/openapi.yaml</code> · Swagger UI 5.x（内嵌 HTML）'
+  };
+  function getEmbedText(id) {
+    var el = document.getElementById(id);
+    return el ? el.textContent : '';
+  }
+  function ensureSpecFrame() {
+    if (specLoaded) return;
+    var frame = document.getElementById('docSpecFrame');
+    var html = getEmbedText('embed-spec-doc');
+    if (frame && html) {
+      frame.srcdoc = html;
+      specLoaded = true;
+    }
+  }
+  function ensureSwaggerFrame() {
+    if (swaggerLoaded) return;
+    var frame = document.getElementById('docSwaggerFrame');
+    var html = getEmbedText('embed-swagger-doc');
+    if (frame && html) {
+      frame.srcdoc = html;
+      swaggerLoaded = true;
+    }
+  }
+  function switchDocTab(name) {
+    docTab = name;
+    document.querySelectorAll('#docTabs .tab').forEach(function (t) {
+      t.classList.toggle('active', t.dataset.docTab === name);
+    });
+    document.getElementById('doc-panel-spec').classList.toggle('active', name === 'spec');
+    document.getElementById('doc-panel-swagger').classList.toggle('active', name === 'swagger');
+    document.getElementById('docTabDesc').innerHTML = docDesc[name];
+    if (name === 'spec') ensureSpecFrame();
+    if (name === 'swagger') ensureSwaggerFrame();
+  }
+  document.getElementById('docTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab[data-doc-tab]');
+    if (tab) switchDocTab(tab.dataset.docTab);
+  });
+  document.getElementById('docOpenNew').addEventListener('click', function () {
+    ensureSpecFrame();
+    ensureSwaggerFrame();
+    var html = docTab === 'spec' ? getEmbedText('embed-spec-doc') : getEmbedText('embed-swagger-doc');
+    var w = window.open('', '_blank');
+    w.document.write(html);
+    w.document.close();
+  });
+  document.getElementById('docDownloadYaml').addEventListener('click', function () {
+    var yaml = getEmbedText('embed-openapi-yaml');
+    var blob = new Blob([yaml], { type: 'text/yaml;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'openapi.yaml';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  ensureSpecFrame();
+</script>
+</body>
+</html>

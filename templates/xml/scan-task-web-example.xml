@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scanTask>
+  <server>
+    <taskName><![CDATA[2026Q2-核心站点 WEB 扫描]]></taskName>
+    <priority>MEDIUM</priority>
+    <targets><![CDATA[https://www.example.com/,https://api.example.com/]]></targets>
+  </server>
+  <targets/>
+  <scanTemplateId>1001</scanTemplateId>
+  <reportTemplateId>2001</reportTemplateId>
+</scanTask>

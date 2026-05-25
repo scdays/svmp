@@ -1,0 +1,200 @@
+# 任务拆分矩阵 — Multi-Agent 输入
+# 用法：复制本文件为 features/{feature-id}.yaml，填写后运行：
+#   py -3 svmp/docs/internal/scripts/generate-multi-agent-prompts.py features/{feature-id}.yaml
+#
+# 字段说明见 prd-to-multi-agent-工作流.md §3
+
+feature:
+  id: FEATURE-ID          # 如 OP-ADMIN-P0
+  name: 功能中文名
+  phase: P0               # P0 | P1 | P2 | P3
+  prd: .trae/specs/xxx/spec.md   # 可选：PRD 源路径
+  landing_plan: svmp/docs/internal/xxx-完整落地方案.md
+  page_design: svmp/docs/internal/xxx-页面设计.md   # 可选
+  openapi: svmp/openapi/v1/openapi.yaml             # 可选
+
+# 全局必读（所有 Agent 继承）
+shared_reads:
+  - svmp/docs/internal/开放平台集成管理-完整落地方案.md
+
+# 全局交付门禁（Integration Agent 负责核对）
+acceptance:
+  - 描述一条端到端验收路径
+  - 描述第二条验收项
+
+agents:
+  - id: I
+    name: Frontend-P0
+    owner: 业务前端
+    repos:
+      - project_frontend/asset/asset-openplatform-manage
+      - project_frontend/asset/asset-manage-master
+    allow_paths:
+      - asset-openplatform-manage/**
+      - asset-manage-master/src/main.js
+      - asset-manage-master/public/conf/index.js
+    deny_paths:
+      - clover-front/**
+      - open-api-service/**
+      - partner-gateway/**
+    reads:
+      - svmp/docs/internal/开放平台集成管理后台-页面设计.md
+      - svmp/docs/external/开放平台API接口规范.md
+      - project_frontend/asset/asset-other-manage/src/views/system/userManage/UserInfoList.vue
+    delivers:
+      - 子应用脚手架（qiankun / 13021 / activeRule /openPlatform）
+      - openApiRequest.js + partner.js + openPlatformCapabilities.js
+      - PartnerList / PartnerForm / PartnerDetail / CredentialCreateModal
+      - master 注册 + conf URL
+    verify:
+      - npm run lint
+      - 访问 http://localhost:13001/openPlatform/partner 子应用挂载正常
+    depends_on: []
+    prompt: |
+      你是 asset-openplatform-manage · 开放平台集成管理 P0 前端负责人。
+
+      【可改】asset-openplatform-manage/、asset-manage-master（仅 openPlatform 注册相关）。
+      【禁止】clover-front、partner-gateway、open-api-service。
+
+      【约束】
+      - Partner API 只用 openApiRequest（X-Internal-Admin-Key）
+      - 响应 { code, data, message }，code≠0 用 notification.error
+      - UI 参考 UserInfoList（STable + 搜索 + Drawer/Modal）
+      - Admin Key 不进 git，缺失时全局 Alert
+
+      【交付】文件清单 + lint 通过 + .env.development.local 配置说明
+
+  - id: D
+    name: Backend-Admin
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/open-api-service
+    allow_paths:
+      - open-api-service/**/partner/**
+      - open-api-service/**/admin/**
+    deny_paths:
+      - partner-gateway/**
+      - project_frontend/**
+    reads:
+      - .cursor/skills/esmp-backend-dev/SKILL.md
+      - svmp/docs/internal/开放平台集成管理-完整落地方案.md#六
+    delivers:
+      - listPartners 返回 { items, total, page, size }
+      - PartnerSummaryDto 增加 partnerType、capabilities、rateLimitQps
+    verify:
+      - mvn -pl open-api-service compile -q
+      - curl 列表示例返回 total
+    depends_on: []
+    prompt: |
+      你是 open-api-service · Partner 管理面 P0 后端负责人。
+
+      【只改】open-api-service 管理 API 分页与 Summary DTO。
+      【禁止】改 gateway、前端、开放 API 业务逻辑（除非本任务明确要求）。
+
+      【目标】
+      - GET /internal/admin/partners 分页包装 PartnerPageDto
+      - PartnerSummaryDto 扩展 partnerType、capabilities、rateLimitQps
+      - 对齐 esmp-backend-dev 分层规范
+
+      【交付】改动文件列表 + mvn compile 通过 + curl 示例
+
+  - id: F
+    name: Backend-OpenAPI
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/open-api-service
+    allow_paths:
+      - open-api-service/**/task/**
+      - open-api-service/**/invocation/**
+    deny_paths:
+      - partner-gateway/**
+      - project_frontend/**
+    reads:
+      - svmp/openapi/v1/openapi.yaml
+      - svmp/docs/external/开放平台API接口规范.md
+      - .cursor/skills/esmp-backend-dev/SKILL.md
+    delivers:
+      - POST/GET /api/open/v1/tasks CRUD（Partner 隔离）
+      - api_invocation 写入与 requestId 全链路
+    verify:
+      - mvn compile
+      - 两家 Partner 任务互不可见
+      - POST /tasks 后 api_invocation 有记录
+    depends_on:
+      - D
+    prompt: |
+      你是 open-api-service · 开放 API 执行面 P0 负责人。
+
+      【只改】open-api-service tasks + invocation 相关代码与 Liquibase。
+      【对齐】openapi.yaml 与 external 规范 §5。
+
+      【目标】
+      - tasks CRUD，严格 Partner 数据隔离
+      - 每次调用写入 api_invocation，requestId 响应=Header=DB
+      - 无 capability 返回 40301
+
+      【交付】文件清单 + 验证步骤 + 未做 backlog
+
+  - id: E
+    name: Gateway
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/partner-gateway
+    allow_paths:
+      - partner-gateway/**
+    deny_paths:
+      - open-api-service/**
+      - project_frontend/**
+    reads:
+      - svmp/docs/internal/开放平台集成管理-完整落地方案.md#6.4
+    delivers:
+      - 公网路由 /oauth/token、/api/open/v1/*
+      - /internal/** 拦截 40101
+      - Token Redis 校验、能力码鉴权、限流
+    verify:
+      - curl 经 gateway 获取 token
+      - /internal/admin 经 gateway 返回 40101
+    depends_on:
+      - F
+    prompt: |
+      你是 partner-gateway · P0 网关负责人。
+
+      【只改】partner-gateway。
+      【禁止】改 open-api-service 业务代码（联调问题先报 Integration Agent）。
+
+      【目标】
+      - Partner 公网流量入口：鉴权、能力码、限流、注入 X-Partner-Id
+      - /internal/** 不得暴露
+      - Token 读 Redis，gateway 不签发
+
+      【交付】配置/代码清单 + curl 联调步骤
+
+  - id: G
+    name: Integration
+    owner: 全员
+    repos: []
+    allow_paths: []
+    deny_paths: []
+    reads:
+      - svmp/docs/internal/联调手册-P0.md
+      - svmp/docs/internal/开放平台集成管理-完整落地方案.md#9.2
+    delivers:
+      - 联调手册步骤全部通过
+      - 评审表勾选完成
+    verify:
+      - 运营：创建 Partner → 凭证 → 接入包
+      - 第三方：token → POST /tasks → invocation 有记录
+    depends_on:
+      - I
+      - D
+      - F
+      - E
+    prompt: |
+      你是 Integration · P0 联调负责人。不改业务代码，除非发现阻塞性 bug 并单独开 fix 任务。
+
+      【职责】
+      - 按联调手册执行步骤 0–4
+      - 核对 §9.2 评审表（管理后台 + 开放 API）
+      - 汇总各 Agent 交付物，标记阻塞项
+
+      【输出】联调报告（通过/失败项 + 截图或 curl 日志）
