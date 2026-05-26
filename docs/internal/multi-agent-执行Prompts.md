@@ -1,6 +1,6 @@
 # Multi-Agent 执行 Prompts
 
-> **自动生成**：`2026-05-24` · 源文件 [`features/open-platform-admin-p0.yaml`](./features/open-platform-admin-p0.yaml)  
+> **自动生成**：`2026-05-26` · 源文件 [`features/open-platform-admin-p0.yaml`](./features/open-platform-admin-p0.yaml)  
 > **功能**：开放平台集成管理后台 P0（`OP-ADMIN-P0` / P0）  
 > **工作流**：[prd-to-multi-agent-工作流](./prd-to-multi-agent-工作流.md)  
 > **勿手工改本文件核心 Prompt 段落** — 改 YAML 后重新运行 generate-multi-agent-prompts.py
@@ -23,6 +23,7 @@
 
 - svmp/docs/internal/开放平台集成管理-完整落地方案.md
 - svmp/docs/external/开放平台API接口规范.md
+- project_frontend/asset/docs/micro-app-scaffold.md
 
 ---
 
@@ -31,6 +32,7 @@
 - 运营：创建 Partner → 勾选能力 → 生成凭证 → 复制接入包
 - 第三方：POST /oauth/token → POST /api/open/v1/tasks → api_invocation 有记录
 - 访问 /openPlatform/partner qiankun 子应用正常挂载
+- node project_frontend/asset/scripts/check-micro-app.js --app asset-openplatform-manage 无 FAIL
 - 两家 Partner 任务数据互不可见；无 capability 返回 40301
 
 ---
@@ -104,6 +106,9 @@
 - asset-openplatform-manage/**
 - asset-manage-master/src/main.js
 - asset-manage-master/public/conf/index.js
+- asset-manage-master/src/router/micro-app-fallback-routes.js
+- asset-manage-master/src/router/generator-routers.js
+- asset-manage-master/vue.config.js
 
 **禁止路径**
 
@@ -116,9 +121,10 @@
 - svmp/docs/internal/开放平台集成管理-完整落地方案.md
 - svmp/docs/internal/开放平台集成管理后台-页面设计.md
 - svmp/docs/external/开放平台API接口规范.md
+- project_frontend/asset/docs/micro-app-scaffold.md
 - .cursor/skills/esmp-frontend-dev/SKILL.md
 - project_frontend/asset/asset-other-manage/src/views/system/userManage/UserInfoList.vue
-- project_frontend/asset/asset-newleak-manage/src/main.js
+- project_frontend/asset/asset-openplatform-manage/src/main.js
 
 **必须交付**
 
@@ -131,7 +137,8 @@
 **验证**
 
 - npm run lint
-- http://localhost:13001/openPlatform/partner 可访问
+- node project_frontend/asset/scripts/check-micro-app.js --app asset-openplatform-manage --route /openPlatform --name openPlatform --container child_openPlatform_container --conf VUE_APP_API_OPENPLATFORM_URL
+- http://localhost:13001/openPlatform/partner 可访问且列表 API 200
 
 **依赖**：Prompt H  
 
@@ -146,20 +153,22 @@
 
 【禁止改】clover-front、partner-gateway、open-api-service。
 
-【必读】见任务矩阵 reads 列表；UI 对齐 UserInfoList，qiankun 对齐 asset-newleak-manage。
+【必读】见任务矩阵 reads 列表；UI 对齐 UserInfoList；qiankun mount/container 对齐 asset-openplatform-manage（§3.5 落地方案）。
 
 【必须交付】
-1. 子应用脚手架 + 路由 §5.1
-2. openApiRequest（X-Internal-Admin-Key）+ partner API 封装
+1. 子应用脚手架 + 路由 §5.1（子应用 path 为 /partner，浏览器为 /openPlatform/partner）
+2. openApiRequest（X-Internal-Admin-Key + qiankun baseURL）+ partner API 封装
 3. P0 五页：List / Form / Detail / CredentialModal / OnboardingPanel
-4. master 注册；Admin Key 缺失 Alert
-5. defaultCallbackUrl helper；能力码 openPlatformCapabilities.js
+4. master 注册 + conf entry（:13021，禁止指 master 自身）+ fallback route
+5. Admin Key 缺失 Alert；能力码 openPlatformCapabilities.js
 
 【约束】
+- Vue.use(VueRouter)；mount 保留 props.container；App.vue 勿用 :key="$route.fullPath"
+- 管理 API 走平台网关/内网，禁止 dev proxy 到 partner-gateway
 - 响应 { code, data, message }，code≠0 → notification.error
 - clientSecret 仅展示一次；接入说明折叠面板对齐规范 §2.1、§2.3
 
-【交付物】文件列表 + lint + .env.development.local 说明（勿提交密钥）
+【交付物】文件列表 + lint + check-micro-app.js 通过 + .env.development.local 说明（勿提交密钥）
 ```
 
 ---
@@ -182,6 +191,7 @@
 **必读**
 
 - .cursor/skills/esmp-backend-dev/SKILL.md
+- .cursor/rules/open-api-service-ddd.mdc
 - svmp/docs/internal/开放平台集成管理-完整落地方案.md
 
 **必须交付**
@@ -191,6 +201,8 @@
 
 **验证**
 
+- powershell -File svmp/docs/internal/scripts/verify-open-api-ddd.ps1 -Compile
+- 顶层包仅 app/domain/infra/ui；调用链 Ui → App → Domain → Repository
 - mvn -pl open-api-service compile -q
 
 ### 执行 Prompt（复制到 Cursor Agent）
@@ -198,14 +210,15 @@
 ```markdown
 你是 open-api-service · Partner 管理面 P0 后端负责人。
 
-【只改】open-api-service 列表分页与 PartnerSummaryDto（§6.2）。
+【只改】open-api-service Partner 管理相关（ui/admin、app、domain/partner、infra）。
 【禁止】gateway、前端、tasks 开放 API（除非一并指派 F）。
+【DDD】必读 .cursor/skills/esmp-backend-dev/SKILL.md；禁止 common/web/handler 等顶层包。
 
 【目标】
 - 使用已有 countPartners() 包装 PartnerPageDto
 - Summary 字段：partnerId, partnerName, partnerType, status, rateLimitQps, capabilities
 
-【交付】改动文件 + mvn compile + curl 示例
+【交付】改动文件 + verify-open-api-ddd.ps1 -Compile + curl 示例
 ```
 
 ---
@@ -219,6 +232,7 @@
 **可改路径**
 
 - open-api-service/**/task/**
+- open-api-service/**/open/**
 - open-api-service/**/invocation/**
 - open-api-service/**/db/**
 
@@ -232,6 +246,7 @@
 - svmp/openapi/v1/openapi.yaml
 - svmp/docs/external/开放平台API接口规范.md
 - .cursor/skills/esmp-backend-dev/SKILL.md
+- .cursor/rules/open-api-service-ddd.mdc
 
 **必须交付**
 
@@ -240,6 +255,7 @@
 
 **验证**
 
+- powershell -File svmp/docs/internal/scripts/verify-open-api-ddd.ps1 -Compile
 - 两家 Partner 互不可见
 - POST /tasks 有 invocation 记录
 - 无 capability → 40301
@@ -249,10 +265,11 @@
 ```markdown
 你是 open-api-service · 开放 API 执行面 P0 负责人。
 
-【只改】tasks CRUD + api_invocation + 相关 Liquibase。
+【只改】tasks + open 治理 + api_invocation + 相关 Liquibase。
 【对齐】openapi.yaml、external 规范 §5、落地方案 §6.3 P0 行。
+【DDD】Ui → App → Domain；Filter/Adapter 在 infra/；验收脚本 verify-open-api-ddd.ps1
 
-【交付】文件清单 + 验证命令 + P1 backlog
+【交付】文件清单 + verify 命令 + P1 backlog
 ```
 
 ---
@@ -314,6 +331,7 @@
 **验证**
 
 - acceptance 列表全部满足
+- powershell -File svmp/docs/internal/scripts/verify-open-api-ddd.ps1 -Compile
 
 **依赖**：Prompt I, Prompt D, Prompt F, Prompt E  
 

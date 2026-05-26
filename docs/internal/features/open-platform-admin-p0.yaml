@@ -13,11 +13,13 @@ feature:
 shared_reads:
   - svmp/docs/internal/开放平台集成管理-完整落地方案.md
   - svmp/docs/external/开放平台API接口规范.md
+  - project_frontend/asset/docs/micro-app-scaffold.md
 
 acceptance:
   - 运营：创建 Partner → 勾选能力 → 生成凭证 → 复制接入包
   - 第三方：POST /oauth/token → POST /api/open/v1/tasks → api_invocation 有记录
   - 访问 /openPlatform/partner qiankun 子应用正常挂载
+  - node project_frontend/asset/scripts/check-micro-app.js --app asset-openplatform-manage 无 FAIL
   - 两家 Partner 任务数据互不可见；无 capability 返回 40301
 
 agents:
@@ -58,6 +60,9 @@ agents:
       - asset-openplatform-manage/**
       - asset-manage-master/src/main.js
       - asset-manage-master/public/conf/index.js
+      - asset-manage-master/src/router/micro-app-fallback-routes.js
+      - asset-manage-master/src/router/generator-routers.js
+      - asset-manage-master/vue.config.js
     deny_paths:
       - clover-front/**
       - open-api-service/**
@@ -66,9 +71,10 @@ agents:
       - svmp/docs/internal/开放平台集成管理-完整落地方案.md
       - svmp/docs/internal/开放平台集成管理后台-页面设计.md
       - svmp/docs/external/开放平台API接口规范.md
+      - project_frontend/asset/docs/micro-app-scaffold.md
       - .cursor/skills/esmp-frontend-dev/SKILL.md
       - project_frontend/asset/asset-other-manage/src/views/system/userManage/UserInfoList.vue
-      - project_frontend/asset/asset-newleak-manage/src/main.js
+      - project_frontend/asset/asset-openplatform-manage/src/main.js
     delivers:
       - 完整子应用脚手架（openPlatform / 13021 / activeRule /openPlatform）
       - openApiRequest.js + partner.js + openPlatformCapabilities.js
@@ -77,7 +83,8 @@ agents:
       - Admin Key 缺失时的全局 Alert
     verify:
       - npm run lint
-      - http://localhost:13001/openPlatform/partner 可访问
+      - node project_frontend/asset/scripts/check-micro-app.js --app asset-openplatform-manage --route /openPlatform --name openPlatform --container child_openPlatform_container --conf VUE_APP_API_OPENPLATFORM_URL
+      - http://localhost:13001/openPlatform/partner 可访问且列表 API 200
     depends_on:
       - H
     prompt: |
@@ -89,20 +96,22 @@ agents:
 
       【禁止改】clover-front、partner-gateway、open-api-service。
 
-      【必读】见任务矩阵 reads 列表；UI 对齐 UserInfoList，qiankun 对齐 asset-newleak-manage。
+      【必读】见任务矩阵 reads 列表；UI 对齐 UserInfoList；qiankun mount/container 对齐 asset-openplatform-manage（§3.5 落地方案）。
 
       【必须交付】
-      1. 子应用脚手架 + 路由 §5.1
-      2. openApiRequest（X-Internal-Admin-Key）+ partner API 封装
+      1. 子应用脚手架 + 路由 §5.1（子应用 path 为 /partner，浏览器为 /openPlatform/partner）
+      2. openApiRequest（X-Internal-Admin-Key + qiankun baseURL）+ partner API 封装
       3. P0 五页：List / Form / Detail / CredentialModal / OnboardingPanel
-      4. master 注册；Admin Key 缺失 Alert
-      5. defaultCallbackUrl helper；能力码 openPlatformCapabilities.js
+      4. master 注册 + conf entry（:13021，禁止指 master 自身）+ fallback route
+      5. Admin Key 缺失 Alert；能力码 openPlatformCapabilities.js
 
       【约束】
+      - Vue.use(VueRouter)；mount 保留 props.container；App.vue 勿用 :key="$route.fullPath"
+      - 管理 API 走平台网关/内网，禁止 dev proxy 到 partner-gateway
       - 响应 { code, data, message }，code≠0 → notification.error
       - clientSecret 仅展示一次；接入说明折叠面板对齐规范 §2.1、§2.3
 
-      【交付物】文件列表 + lint + .env.development.local 说明（勿提交密钥）
+      【交付物】文件列表 + lint + check-micro-app.js 通过 + .env.development.local 说明（勿提交密钥）
 
   - id: D
     name: Backend-Admin
