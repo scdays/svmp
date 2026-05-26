@@ -1,18 +1,14 @@
 openapi: 3.1.0
 info:
-  title: 网络安全漏洞管理平台 · 开放平台 API
-  version: 1.0.3
+  title: 网络安全漏洞管理平台 · API
+  version: 1.0.4
   description: |
-    对外第三方集成统一契约（Partner 接入）。
+    网络安全漏洞管理平台 · 对外 Partner 集成 API 契约。
 
-    所属系统：**网络安全漏洞管理平台**（唯一业务平台，非独立漏扫平台或「开放平台」实例）。
-
-    「开放平台 API」= 上述平台向 Partner 开放的 **对外集成 API** 能力（Base Path `/api/open/v1`），为产品/文档简称，与「对外集成 API」同义。
-
-    - 接口规范：[`docs/external/开放平台API接口规范.md`](../docs/external/开放平台API接口规范.md)
+    - 接口规范：[`docs/external/开放平台API接口规范.md`](../docs/external/开放平台API接口规范.md)（文档标题：《网络安全漏洞管理平台 · API 接口文档》）
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
-    - 鉴权：**v1.0.3 仅支持** `Authorization: Bearer`（OAuth 2.0 Client Credentials）；Token 端点见接口规范 §3.1.1（不在本 OpenAPI 范围）；API Key + HMAC 暂未开放
+    - 鉴权：**v1.0.4 仅支持** `Authorization: Bearer`（OAuth 2.0 Client Credentials）；Token 端点见接口规范 §3.1.1（不在本 OpenAPI 范围）；API Key + HMAC 暂未开放
     - 响应包装：除特别说明外，HTTP 200 仍使用业务 `code` 区分成功/失败
     - 幂等：创建任务用 `extTaskId` 或 `Idempotency-Key`；实例写 `{动作}:{vulInfoID}:{clientRequestId}`；批量 `{动作}:batch:{clientBatchId}`（详见接口规范 §4.2，默认保留 24h）
     - 调 SVMP：`extTaskId` 不下发；查询进度仅 SVMP `taskId`
@@ -958,7 +954,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Partner 访问令牌（v1.0.3 唯一支持的 REST 鉴权方式；换取方式见接口规范 §3.1.1）
+      description: Partner 访问令牌（v1.0.4 唯一支持的 REST 鉴权方式；换取方式见接口规范 §3.1.1）
 
   parameters:
     TaskId:
