@@ -2,7 +2,7 @@
 
 | 项        | 内容                                                         |
 | --------- | ------------------------------------------------------------ |
-| API 版本  | **1.0.1**                                                    |
+| API 版本  | **1.0.3**                                                    |
 | 协议      | HTTPS · REST JSON                                            |
 | Base Path | `/api/open/v1`                                               |
 | OpenAPI   | [`openapi/v1/openapi.yaml`](../../openapi/v1/openapi.yaml)（OpenAPI 3.1，可导入 Swagger UI / Postman / 代码生成） |
@@ -29,11 +29,23 @@
 - [附录 G · 扫描任务配置文件 `file`](#附录-g--扫描任务配置文件-file)
 - [附录 H · 扫描模板与报告模板](#附录-h--扫描模板与报告模板)
 - [附录 I · 部侧排查扩展参数](#附录-i--部侧排查扩展参数)
+- [附录 J · 接入 FAQ](#附录-j--接入-faq)
 - [修订记录](#修订记录)
 
 ---
 
 ## 1. 概述
+
+### 1.0 平台定位
+
+| 项 | 说明 |
+|----|------|
+| 文档全称 | **网络安全漏洞管理平台 · 开放平台 API 接口规范**（即本文档） |
+| 所属平台 | **网络安全漏洞管理平台** — 漏洞发现、验证、处置、修复核验与结果管理的统一平台 |
+| 「开放平台」含义 | 上述管理平台面向 Partner 的 **HTTPS REST 集成入口**（Base Path `/api/open/v1`），供 SIEM、ITSM、资产平台等第三方系统对接 |
+| 与「漏扫平台」关系 | **不是**独立的漏洞扫描器产品或厂商漏扫系统。扫描/排查是平台**内置能力之一**；Partner 通过 API **编排任务、管理漏洞实例、获取外发结果**，扫描执行由平台内部扫描层完成，Partner **不直连**扫描器 |
+
+> 接入前请确认对接对象为运营开通的**网络安全漏洞管理平台**实例；具体环境域名与凭证以开通材料为准。
 
 ### 1.1 能力范围
 
@@ -59,16 +71,38 @@
 
 ### 1.3 漏洞实例生命周期（写接口）
 
+本节说明**会改变业务状态**的写操作数量与顺序；完整路径清单见 [§5.0](#50-接口总览)。
+
+#### 1.3.1 状态流转（业务语义）
+
 ```text
-排查（POST /tasks/vul 或 POST /tasks/file）
+排查（创建任务，见 §1.3.2）
     → 实例默认 vulInfoStat = 1（初始发现）
-验证（POST /instances/{vulInfoID}/verify）
+验证（POST .../verify）
     → 2 已验证有效  |  3 已验证误报（终态，不可再处置）
-处置
-    → POST .../remediate  → vulInfoStat = 5（已修复）或 9（修复失败/备案，同一接口）
+处置（POST .../remediate）
+    → 5 已修复  |  9 修复失败/备案（同一接口，由请求体区分）
 修复核验（POST .../verify-fix）
-    → 平台触发核验扫描；完成后 → 6 / 7 / 10
+    → 平台异步核验扫描；完成后 → 6 / 7 / 10（Webhook 见 §6）
 ```
+
+#### 1.3.2 写接口数量对照
+
+| 分类 | 业务步骤 | HTTP 方法 · 路径 | 数量 | 说明 |
+|------|----------|------------------|:----:|------|
+| **任务写** | 创建排查任务 | `POST /tasks/file` **或** `POST /tasks/vul` | **2 路径，二选一** | 不属于实例写接口；产生 `taskId` 与实例 |
+| **实例写** | ① 验证 | `POST /instances/{vulInfoID}/verify` | 1 | 同步受理 |
+| | | `POST /instances/verify:batch` | 1 | 批量，与单条语义相同 |
+| | ② 处置 | `POST /instances/{vulInfoID}/remediate` | 1 | 含修复成功与修复失败/备案 |
+| | | `POST /instances/remediate:batch` | 1 | 批量 |
+| | ③ 修复核验 | `POST /instances/{vulInfoID}/verify-fix` | 1 | 异步；终态靠 Webhook 或轮询 |
+| | | `POST /instances/verify-fix:batch` | 1 | 批量 |
+
+**计数口径**：
+
+- **实例生命周期写操作** = **3 类业务动作**（验证 → 处置 → 修复核验），对应 **6 个 HTTP 路径**（每类含单条 + 批量）。
+- **含排查任务创建**时，再加 **2 个创建路径（二选一）**，共 **8 个写路径**。
+- **读接口**（`GET /tasks/{taskId}`、`POST /instances/search` 等）不改变状态，不计入上表。
 
 ---
 
@@ -78,52 +112,111 @@
 
 接入前由平台运营分配：
 
-| 配置项           | 说明                                                  |
-| ---------------- | ----------------------------------------------------- |
-| `partnerId`      | 接入方唯一标识                                        |
-| 鉴权凭证         | Bearer Token（OAuth 2.0 Client Credentials，见 §3.1） |
-| `capabilities`   | 已开通的能力码列表（见 §8）                           |
-| 回调地址         | 默认 `callbackUrl`（可在创建任务时覆盖）              |
-| IP 白名单 / mTLS | 按安全要求可选                                        |
+| 配置项           | 说明                                                                                          |
+| ---------------- | --------------------------------------------------------------------------------------------- |
+| `partnerId`      | 接入方唯一标识                                                                                |
+| 鉴权凭证         | `clientId` + `clientSecret`（或运营预发 Token）；换取 `accessToken` 见 [§3.1.1](#311-获取-access-token) |
+| `capabilities`   | 已开通的能力码列表（见 §8）                                                                   |
+| 回调地址         | 默认 `callbackUrl`（可在创建任务时覆盖）                                                      |
+| IP 白名单 / mTLS | 按安全要求可选                                                                                |
 
 ### 2.2 环境地址
 
-| 环境 | Base URL 示例                    |
-| ---- | -------------------------------- |
-| 测试 | `https://{测试域名}/api/open/v1` |
-| 生产 | `https://{生产域名}/api/open/v1` |
+| 环境 | 业务 API Base URL                | 认证服务 Base URL（示例）                                      |
+| ---- | -------------------------------- | -------------------------------------------------------------- |
+| 测试 | `https://{测试域名}/api/open/v1` | `https://{测试认证域名}`（运营提供，**通常不同于**业务域名） |
+| 生产 | `https://{生产域名}/api/open/v1` | `https://{生产认证域名}`                                       |
 
-实际域名以平台运营提供为准。
+实际域名以平台运营开通材料为准。**获取 Token 不在 `/api/open/v1` 路径下。**
 
 ---
 
 ## 3. 鉴权与安全
 
-### 3.1 Bearer Token
+### 3.1 Bearer Token（调用业务 API）
 
-**v1.0.2 唯一支持的 REST 鉴权方式。**
+**v1.0.3 唯一支持的 REST 鉴权方式。** 业务接口（`/api/open/v1/*`）请求头：
 
 ```http
 Authorization: Bearer <accessToken>
 Content-Type: application/json
 ```
 
-Token 由平台登录服务签发（OAuth 2.0 Client Credentials）；`accessToken` 有效期与刷新策略以运营开通说明为准。
+`accessToken` 须先通过 [§3.1.1](#311-获取-access-token) 换取；有效期与刷新策略以运营开通说明为准。
+
+### 3.1.1 获取 access Token
+
+Token 由**平台认证/登录服务**签发（OAuth 2.0 Client Credentials），**不属于**开放平台业务 Base Path `/api/open/v1`。
+
+| 项 | 说明 |
+|----|------|
+| 调用方 | Partner 服务端（勿在前端暴露 `clientSecret`） |
+| 凭证来源 | 运营开通时分配的 `clientId`、`clientSecret`（与 `partnerId` 绑定） |
+| 端点（二选一，以开通材料为准） | 标准：`POST {authBaseUrl}/oauth/token`；简化：`POST {authBaseUrl}/api/partners/token` |
+| `{authBaseUrl}` | 认证服务根地址，见 [§2.2](#22-环境地址) 开通材料 |
+
+**标准 OAuth 2.0 Client Credentials 请求**
+
+```http
+POST /oauth/token HTTP/1.1
+Host: {authBaseUrl}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id={clientId}&client_secret={clientSecret}
+```
+
+**标准响应**
+
+```json
+{
+  "access_token": "eyJhbGciOi...",
+  "token_type": "Bearer",
+  "expires_in": 86400
+}
+```
+
+**简化 JSON 端点请求**（部分环境提供）
+
+```http
+POST /api/partners/token HTTP/1.1
+Host: {authBaseUrl}
+Content-Type: application/json
+
+{
+  "grantType": "client_credentials",
+  "clientId": "cli_abc123",
+  "clientSecret": "***"
+}
+```
+
+**简化响应**
+
+```json
+{
+  "accessToken": "eyJ...",
+  "tokenType": "Bearer",
+  "expiresIn": 86400,
+  "partnerId": "partner-demo-01"
+}
+```
+
+| 项 | 约定 |
+|----|------|
+| 使用方式 | 将 `access_token` / `accessToken` 填入业务请求 `Authorization: Bearer ...` |
+| 过期 | `expires_in` / `expiresIn` 秒；到期前重新调用 Token 端点换取新 Token |
+| 失败 | HTTP 401 + 业务码或 OAuth `error` 字段；勿用过期 Token 重试业务写接口 |
+
+> OpenAPI 文件（`openapi/v1/openapi.yaml`）仅描述 `/api/open/v1` 业务契约；Token 端点见本节及运营开通手册。
 
 ### 3.2 方式二：API Key + 签名（暂未开放）
 
-`X-Api-Key` + `X-Signature`（HMAC-SHA256）鉴权**不在 v1.0.2 范围内**；调用 REST API 须使用 §3.1 Bearer Token。该方式计划于后续版本提供。
+`X-Api-Key` + `X-Signature`（HMAC-SHA256）鉴权**不在 v1.0.3 范围内**；调用 REST API 须使用 §3.1 Bearer Token。该方式计划于后续版本提供。
 
-### 3.3 Webhook 验签（Partner 侧实现）
+### 3.3 Webhook 验签（与 REST 无关）
 
-平台向您的 `callbackUrl` 投递事件时携带：
+**Partner 调用开放平台 REST API 时不需要 Webhook 验签，平台也不会因每次 REST 调用而回调 Partner。**
 
-| 请求头                | 说明                     |
-| --------------------- | ------------------------ |
-| `X-Webhook-Signature` | 事件 body 的 HMAC-SHA256 |
-| `X-Webhook-Timestamp` | Unix 秒，5 分钟内有效    |
-
-收到后请先验签再处理业务；建议响应 HTTP `200` 及 `{"received":true}`。
+Webhook 验签仅当**平台向 Partner 登记的 `callbackUrl` 推送异步事件**（§6）时，由 Partner 在**接收端**校验 `X-Webhook-Signature` 等请求头。详细步骤见 [§6.0 Partner 接收端验签](#60-partner-接收端验签)。
 
 ---
 
@@ -153,11 +246,14 @@ Token 由平台登录服务签发（OAuth 2.0 Client Credentials）；`accessTok
 
 #### 创建任务
 
-| 场景     | 约定                                                         |
-| -------- | ------------------------------------------------------------ |
-| 业务键   | **必填** `extTaskId`（Partner 侧唯一）                       |
-| 请求头   | 可选 `Idempotency-Key`；与 `extTaskId` **二选一** 即可（平台优先匹配 `extTaskId`） |
+| 场景     | 约定                                                                                         |
+| -------- | -------------------------------------------------------------------------------------------- |
+| 业务键   | 请求体 **必填** `extTaskId`（Partner 侧唯一，用于业务幂等）                                  |
+| 请求头   | **可选** `Idempotency-Key`（HTTP 传输层幂等，防重复 POST）                                   |
+| 去重规则 | 实现幂等时 **二者提供其一即可**，无需同时依赖；**若同时提供，平台优先按 `extTaskId` 判重** |
 | 重复提交 | 相同 `extTaskId` 或相同 `(partnerId, Idempotency-Key)` → **40901** 或 **200** 且返回已有 `taskId` |
+
+> **说明**：§5.1.1 示例同时携带 `extTaskId` 与 `Idempotency-Key` 为**合法写法**——前者为必填业务键，后者为可选增强；并非「只能填其中一个字段」。
 
 #### 实例写操作（verify / remediate / verify-fix）
 
@@ -251,15 +347,27 @@ Idempotency-Key: remediate:batch:batch-20260518-001
 
 各接口按下列块描述：**路径参数** · **查询参数** · **请求头** · **请求体** · **响应 data** · **状态约束** · **示例**。
 
-**字段列**：`参数` · `类型` · `必填`（✓ 必填 / ○ 可选 / 条件 条件必填）· `说明`
+#### 表格列名约定
+
+全文表格按场景使用固定列名，避免混用：
+
+| 场景 | 表头 | 适用章节 |
+|------|------|----------|
+| 接口元信息 | `项` · `值` | 各接口开头的「能力 / 说明」块 |
+| 约定与约束 | `项` · `约定` | §4.2 幂等、§5 重要约定等 |
+| REST 参数字段 | `参数` · `类型` · `必填` · `说明` | §5 请求体/响应体/查询参数（**标准体例**） |
+| 简化结构 | `字段` · `类型` · `说明` | §4.1 响应包装、§6.1 Webhook 公共体等 |
+| 外发 XML/JSON 映射 | `JSON 路径` · `XML 路径` · `类型` · `必填` · `说明` | §7 扫描结果外发 |
+
+**必填列取值**：`✓` 必填 · `○` 可选 · `条件` 条件必填。
 
 **通用请求头**（写接口建议携带）：
 
-| 参数            | 类型   | 必填 | 说明                                                    |
-| --------------- | ------ | :--: | ------------------------------------------------------- |
-| Authorization   | string |  ✓   | `Bearer <accessToken>`（v1.0.2 仅支持 Bearer，见 §3.1） |
-| Content-Type    | string |  ✓   | `application/json`                                      |
-| Idempotency-Key | string |  ○   | 写操作幂等，见 §4.2；创建任务可与 `extTaskId` 二选一    |
+| 参数            | 类型   | 必填 | 说明                                                                               |
+| --------------- | ------ | :--: | ---------------------------------------------------------------------------------- |
+| Authorization   | string |  ✓   | `Bearer <accessToken>`（见 §3.1、§3.1.1）                                          |
+| Content-Type    | string |  ✓   | `application/json`                                                                 |
+| Idempotency-Key | string |  ○   | 写操作幂等，见 §4.2；创建任务可选，与 `extTaskId` 去重规则见 §4.2                  |
 
 **重要约定**：
 
@@ -316,6 +424,8 @@ Idempotency-Key: idem-ext-2026-web-0001
   "file": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><scanTask>...</scanTask>"
 }
 ```
+
+> **幂等说明**：本示例同时包含必填 `extTaskId` 与可选 `Idempotency-Key`，均为合法写法；平台优先按 `extTaskId` 判重（见 §4.2）。
 
 **响应示例（成功）**
 
@@ -1193,7 +1303,28 @@ TaskExport / taskExport
 ---
 ## 6. 事件回调（Webhook）
 
-平台向 Partner 注册的 URL 发起 **`POST`**，`Content-Type: application/json`。
+平台在**特定异步事件**发生时，向 Partner 注册的 `callbackUrl` 发起 **`POST`**（`Content-Type: application/json`）。
+
+| 项 | 约定 |
+|----|------|
+| 触发时机 | 任务完成/失败、修复核验完成、外发就绪等（见 §6.2） |
+| 与 REST 关系 | Partner **主动调用**业务 API **不会**触发 Webhook；Webhook 为平台**单向推送** |
+| 替代方式 | 也可轮询 `GET /tasks/{taskId}`、`GET /exports/{exportId}` 等，见 §10 |
+
+### 6.0 Partner 接收端验签
+
+平台投递事件时携带下列请求头，Partner **收到回调后**应先验签再处理：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `X-Webhook-Signature` | string | 事件 body 的 HMAC-SHA256（密钥为运营分配的 Webhook Secret） |
+| `X-Webhook-Timestamp` | string | Unix 秒时间戳；与服务器时间差 **5 分钟内**有效 |
+
+| 项 | 约定 |
+|----|------|
+| 响应 | 建议 HTTP `200`，body `{"received":true}` |
+| 失败重试 | 非 2xx 时平台按运营策略重试（见 §6 末尾） |
+| 幂等 | 以 `eventId` 去重，避免重复处理同一事件 |
 
 ### 6.1 公共请求体
 
@@ -2142,9 +2273,103 @@ H.1 / H.2 定义扫描策略与报告/外发的数据结构。平台可预置模
 
 ---
 
+## 附录 J · 接入 FAQ
+
+本节汇总 Partner 接入过程中的常见疑问与官方答复，与正文各章节交叉引用。接入方反馈的新问题经评审后纳入本附录并在 [修订记录](#修订记录) 中说明。
+
+| # | 疑问摘要 | 答复要点 | 详见 |
+|---|----------|----------|------|
+| J-0 | 开放平台是漏扫平台吗？对接的是哪个系统？ | 本文档即 **网络安全漏洞管理平台 · 开放平台 API 接口规范**；开放平台是该管理平台的 Partner 集成入口，**不是**独立漏扫产品；扫描仅为平台能力之一 | [§1.0](#10-平台定位) |
+| J-1 | §1.3 写接口到底有几个操作？ | 实例生命周期 **3 类业务动作**（验证、处置、修复核验）→ **6 个 HTTP 路径**（每类单条 + 批量）；含排查任务创建时再加 **2 个创建路径（二选一）**，共 **8 个写路径** | [§1.3.2](#132-写接口数量对照) |
+| J-2 | `Bearer Token` 应调哪个接口换取？ | Token **不在** `/api/open/v1`；向运营提供的 `{authBaseUrl}` 调用 `POST /oauth/token`（标准 OAuth）或 `POST /api/partners/token`（简化 JSON），再用返回的 Token 调用业务 API | [§2.2](#22-环境地址)、[§3.1.1](#311-获取-access-token) |
+| J-3 | 调用 REST 是否每次都要做 Webhook 验签？ | **否**。Webhook 验签仅用于 Partner **接收**平台异步事件回调时校验 `X-Webhook-Signature`；Partner **主动调用** REST 只需 `Authorization: Bearer` | [§3.3](#33-webhook-验签与-rest-无关)、[§6.0](#60-partner-接收端验签) |
+| J-4 | 幂等「二选一」与示例同时带 `extTaskId`、`Idempotency-Key` 是否矛盾？ | **不矛盾**。创建任务时 `extTaskId` **必填**（业务幂等键），`Idempotency-Key` **可选**（HTTP 层增强）；同时携带合法，平台 **优先按 `extTaskId` 判重** | [§4.2](#42-幂等)、[§5.1.1](#511-创建任务filexml) |
+| J-5 | 各节表格列名不一致，如何阅读？ | 全文按场景固定表头：接口元信息 `项·值`、约定 `项·约定`、REST 参数 `参数·类型·必填·说明`、简化结构 `字段·类型·说明`、外发映射 `JSON 路径·XML 路径·…` | [§5.0.1](#501-文档体例) |
+
+### J-0 · 开放平台与漏扫平台的关系
+
+**疑问**：开放平台是漏扫平台吗，还是哪个平台？
+
+**答复**：
+
+1. **文档与系统名称**：本文档全称为 **《网络安全漏洞管理平台 · 开放平台 API 接口规范》**，描述的是**网络安全漏洞管理平台**对外提供的 Partner 集成契约，而非某款独立「漏扫平台」或扫描器厂商系统的 API 手册。
+2. **「开放平台」是什么**：指上述漏洞管理平台上的 **第三方集成模块** — Partner 通过 `/api/open/v1` 调用 REST 接口、接收 Webhook，与平台交换任务、漏洞实例与外发数据。
+3. **与漏洞扫描的关系**：
+   - 平台**支持**创建排查/扫描任务、下载扫描结果（见 §1.1、§5、§7）；
+   - 扫描由平台**内部扫描执行层**调度完成，Partner **不直接调用**扫描器或底层扫漏接口；
+   - 除扫描外，平台还提供漏洞实例**验证、处置、修复核验**等全生命周期能力（见 §1.3）。
+4. **接入确认**：开通材料中的 `partnerId`、业务域名、Token 端点均绑定**同一套网络安全漏洞管理平台**；若需区分测试/生产环境，以运营提供的 Base URL 为准（§2.2）。
+
+### J-1 · 写接口数量与 §1.3 的关系
+
+**疑问**：§1.3 标题为「漏洞实例生命周期（写接口）」，但创建排查任务也算写操作，总数应如何理解？
+
+**答复**：
+
+1. **实例写接口**（改变 `vulInfoStat` 的 REST 写操作）固定为 **3 类 × 2 路径 = 6 个**：
+   - 验证：`POST /instances/{vulInfoID}/verify`、`POST /instances/verify:batch`
+   - 处置：`POST /instances/{vulInfoID}/remediate`、`POST /instances/remediate:batch`
+   - 修复核验：`POST /instances/{vulInfoID}/verify-fix`、`POST /instances/verify-fix:batch`
+2. **任务创建**（产生 `taskId` 与初始实例，不属于上述实例状态机写接口）为 **2 个路径二选一**：
+   - `POST /tasks/file`（XML 配置文件）
+   - `POST /tasks/vul`（JSON 排查参数）
+3. **合计**：若口径为「所有会改变平台数据的 Partner 写路径」，则为 **8 个**；若仅统计实例生命周期写接口，则为 **6 个**。
+4. **读接口**（如 `GET /tasks/{taskId}`、`POST /instances/search`）不改变业务状态，不计入写接口数量。
+
+### J-2 · Bearer Token 获取端点
+
+**疑问**：文档多处要求 `Authorization: Bearer <accessToken>`，但未在 `/api/open/v1` 下看到 Token 接口，应如何换取？
+
+**答复**：
+
+| 步骤 | 动作 |
+|------|------|
+| 1 | 向平台运营索取 `clientId`、`clientSecret` 及 **认证服务 Base URL**（`authBaseUrl`，通常与业务 API 域名不同） |
+| 2 | 服务端调用 Token 端点（开通材料指定其一）：<br>• 标准：`POST {authBaseUrl}/oauth/token`（`grant_type=client_credentials`）<br>• 简化：`POST {authBaseUrl}/api/partners/token`（JSON body） |
+| 3 | 解析响应中的 `access_token` / `accessToken`，填入业务请求头 `Authorization: Bearer ...` |
+| 4 | 调用开放平台业务 API：`https://{业务域名}/api/open/v1/...` |
+
+> OpenAPI 文件（`openapi/v1/openapi.yaml`）**仅覆盖**业务契约 `/api/open/v1`；Token 端点不在 OpenAPI 范围内，以本节及运营开通手册为准。
+
+### J-3 · Webhook 验签适用范围
+
+**疑问**：§3 鉴权章节出现 Webhook 验签，是否意味着每次 REST 请求都要计算 HMAC？
+
+**答复**：
+
+| 场景 | 是否需要 Webhook 验签 |
+|------|----------------------|
+| Partner → 平台 REST 调用 | **否**；使用 Bearer Token（§3.1） |
+| 平台 → Partner 异步事件 POST 到 `callbackUrl` | **是**；Partner 在接收端校验 `X-Webhook-Signature`、`X-Webhook-Timestamp`（§6.0） |
+
+Partner 主动调用 REST **不会**触发平台向 Partner 回调；Webhook 为平台在任务完成、实例状态变更、外发就绪等事件上的**单向推送**。
+
+### J-4 · 创建任务幂等：`extTaskId` 与 `Idempotency-Key`
+
+**疑问**：§4.2 写「创建任务幂等二选一」，但 §5.1.1 示例同时携带两个字段，是否违规？
+
+**答复**：
+
+| 字段 | 必填 | 作用 | 判重优先级 |
+|------|:---:|------|-----------|
+| `extTaskId` | ✓ | Partner 侧任务唯一业务 ID；平台与 SVMP 映射 | **高**（优先） |
+| `Idempotency-Key` | ○ | HTTP 传输层防重复 POST（如网络重试） | 低；与 `extTaskId` 同时存在时仍合法 |
+
+「二选一」指平台支持 **两种独立的去重机制**，并非「请求体只能出现其中一个字段」。实例写接口的幂等则主要通过 `Idempotency-Key` 实现（§4.2）。
+
+### J-5 · 表格列名体例
+
+**疑问**：有的表格用「参数|类型|必填|说明」，有的用「字段|类型|说明」，是否字段定义不一致？
+
+**答复**：列名差异表示**表格用途**不同，字段语义一致。接入开发时以 [§5.0.1](#501-文档体例) 对照表为准；REST 请求/响应字段描述优先采用 `参数·类型·必填·说明` 四列体例，Webhook 公共体等简化块采用 `字段·类型·说明` 三列体例。
+
+---
+
 ## 修订记录
 
-| 版本      | 日期       | 说明                                                         |
-| --------- | ---------- | ------------------------------------------------------------ |
+| 版本      | 日期       | 说明                                                                                                                                                                                                                                                                                                                                 |
+| --------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **1.0.3** | 2026-05-19 | **§1.0** 新增平台定位（明确为网络安全漏洞管理平台 Partner API，非独立漏扫平台）；**§1.3** 重写实例生命周期写接口对照表（3 类 6 路径；含任务创建共 8 路径）；**§2.1/§2.2** 补充 `clientId`/`clientSecret` 与认证服务 Base URL；**§3.1.1** 新增 OAuth / 简化 JSON Token 换取说明与示例；**§3.3** 明确 Webhook 验签与 REST 无关并指向 §6.0；**§4.2** 澄清创建任务幂等（`extTaskId` 必填、`Idempotency-Key` 可选及优先判重规则）；**§5.0.1** 统一表格列名体例；**§5.1.1** 示例后补充幂等说明；**§6** 补充 Webhook 触发说明，**§6.0** 迁入 Partner 接收端验签步骤；**附录 J** 新增接入 FAQ（J-0～J-5） |
+| **1.0.2** | 2026-05-23 | §5.1.2 `targets` 改为对象：`hosts`（扫描地址）+ `auth[]`（登陆凭据）                                                                                                                                                                                                                                                               |
 | **1.0.1** | 2026-05-19 | §5.1.1 / §5.1.2 创建任务路径拆分：`POST /tasks/file`（XML）、`POST /tasks/vul`（JSON）； |
 | **1.0.0** | 2026-05-17 | 首版发布：开放平台 REST API、Webhook、扫描结果外发（XML/JSON）、能力码与业务错误码 |
