@@ -911,9 +911,20 @@ webhooks:
                   occurredAt: '2026-05-17T15:00:00Z'
                   partnerId: partner-demo-01
                   payload:
-                    vulInfoID: VI-20260517-0002
-                    vulInfoStat: 6
-                    previousVulInfoStat: 5
+                    totalCount: 3
+                    batchId: verify-fix-batch-20260517-001
+                    verifyFixStatus: FINISHED
+                    verifyFixJobId: VFJ-20260517-0001
+                    items:
+                      - vulInfoID: VI-20260517-0002
+                        vulInfoStat: 6
+                        previousVulInfoStat: 5
+                      - vulInfoID: VI-20260517-0005
+                        vulInfoStat: 7
+                        previousVulInfoStat: 5
+                      - vulInfoID: VI-20260517-0012
+                        vulInfoStat: 10
+                        previousVulInfoStat: 5
               exportReady:
                 summary: 外发包就绪
                 value:
@@ -1823,15 +1834,35 @@ components:
             falsePositive:
               type: integer
 
-    InstanceEventPayload:
+    InstanceVerifyFixCompletedPayload:
       type: object
+      required: [items, totalCount, verifyFixStatus, verifyFixJobId]
       properties:
-        vulInfoID:
+        items:
+          type: array
+          description: 本批次核验完成的实例列表
+          items:
+            type: object
+            required: [vulInfoID, vulInfoStat]
+            properties:
+              vulInfoID:
+                type: string
+              vulInfoStat:
+                $ref: '#/components/schemas/VulInfoStat'
+              previousVulInfoStat:
+                $ref: '#/components/schemas/VulInfoStat'
+        totalCount:
+          type: integer
+          description: 本批次实例总数
+        verifyFixStatus:
           type: string
-        vulInfoStat:
-          $ref: '#/components/schemas/VulInfoStat'
-        previousVulInfoStat:
-          $ref: '#/components/schemas/VulInfoStat'
+          enum: [FINISHED, FAILED]
+        verifyFixJobId:
+          type: string
+          description: 核验任务 ID
+        batchId:
+          type: string
+          description: 批次标识（如有），对应核验请求的 clientBatchId
 
     TaskExportEnvelope:
       type: object
@@ -2225,6 +2256,6 @@ components:
         payload:
           oneOf:
             - $ref: '#/components/schemas/TaskCompletedPayload'
-            - $ref: '#/components/schemas/InstanceEventPayload'
+            - $ref: '#/components/schemas/InstanceVerifyFixCompletedPayload'
             - $ref: '#/components/schemas/ExportReadyPayload'
           description: 结构随 eventType 变化
