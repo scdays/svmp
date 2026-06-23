@@ -46,8 +46,11 @@
 
 | 文档 | 说明 |
 |------|------|
-| [开放平台集成管理-完整落地方案.md](./internal/开放平台集成管理-完整落地方案.md) | **总方案**：独立子应用 + 主应用注册 + 后端/网关 + P0–P3 分期 |
-| [开放平台集成管理后台-页面设计.md](./internal/开放平台集成管理后台-页面设计.md) | 运营后台页面 IA、字段、API 映射、P0/P1 分期 |
+| [开放平台集成管理-完整落地方案.md](./internal/开放平台集成管理-完整落地方案.md) | **总方案**：独立子应用 + 主应用注册 + 后端/网关 + OP-ADMIN P0–P3 |
+| [开放平台对外REST执行面-分期落地方案.md](./internal/开放平台对外REST执行面-分期落地方案.md) | **OP-OPENAPI P0–P2**：Partner §5 REST + Webhook 出站 + 外发 |
+| [Open API与vul-pass内部接口映射表.md](./internal/Open%20API与vul-pass内部接口映射表.md) | 实例/外发 ↔ vul-pass 内部对接（P1 编码前冻结） |
+| [引擎对接与Mock模式方案.md](./internal/引擎对接与Mock模式方案.md) | **联调 mock 切换** + 生产 fixture 导入 |
+| [开放平台集成管理后台-页面设计.md](./internal/开放平台集成管理后台-页面设计.md) | 运营后台页面 IA、字段、API 映射 |
 | [Cursor全栈工程师与产品经理使用指南.md](./internal/Cursor全栈工程师与产品经理使用指南.md) | Cursor 模式、模型与全栈/产品协作工作流建议 |
 
 ### 总体架构（零侵入）

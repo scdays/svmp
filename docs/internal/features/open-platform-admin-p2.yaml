@@ -8,6 +8,7 @@ feature:
   openapi: svmp/openapi/v1/openapi.yaml
 
 shared_reads:
+  - .cursor/skills/esmp-rd-standards/SKILL.md
   - svmp/docs/internal/开放平台集成管理-完整落地方案.md
   - svmp/docs/internal/开放平台集成管理后台-页面设计.md
   - svmp/openapi/v1/openapi.yaml
@@ -15,9 +16,12 @@ shared_reads:
   - .cursor/skills/esmp-backend-dev/SKILL.md
 
 acceptance:
-  - API 目录页可展示 api_operation 清单，并支持基础筛选（能力码/状态/tag）
+  - API 目录页可展示 api_operation 清单，Path/Tag/能力码/状态均为中文友好展示
+  - API 目录：catalog.js normalizeCatalogItem 字段归一化；后端 keyword + capabilityCode/tag 参数别名
+  - API 目录筛选：能力码、状态、OpenAPI Tag 下拉为中文；keyword 支持 operationId/path
   - 开发者文档页可查看外部规范并提供 openapi.yaml 入口（只读）
-  - 配额与限流页可展示 Partner 维度用量与限流相关统计
+  - 配额与限流页可展示 Partner 维度用量与限流相关统计（Partner 状态中文）
+  - 全站枚举展示遵循 openPlatformDisplay（页面设计 §5）
   - 页面路由可访问：/openPlatform/api-catalog、/openPlatform/developer-doc、/openPlatform/quota
   - 前端 build 通过、后端编译与 DDD 校验通过（若后端有改动）
 

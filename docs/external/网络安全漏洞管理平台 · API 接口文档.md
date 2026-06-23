@@ -1,9 +1,9 @@
-# 网络安全漏洞管理平台 · API 接口文档
+﻿# 网络安全漏洞管理平台 · API 接口文档
 <a id="网络安全漏洞管理平台-api-接口文档"></a>
 
 | 项        | 内容                                                         |
 | --------- | ------------------------------------------------------------ |
-| API 版本  | **1.0.4**                                                    |
+| API 版本  | **1.0.6**                                                    |
 | 协议      | HTTPS · REST JSON                                            |
 | Base Path | `/api/open/v1`                                               |
 | OpenAPI   | [`openapi/v1/openapi.yaml`](../../openapi/v1/openapi.yaml)（OpenAPI 3.1，可导入 Swagger UI / Postman / 代码生成） |
@@ -19,6 +19,7 @@
 - [5. REST API](#5-rest-api)
 - [6. 事件回调（Webhook）](#6-事件回调webhook)
 - [7. 扫描结果数据外发（xml / json）](#7-扫描结果数据外发xml-json)
+- [7.4 扫描报告产物外发（原始 / 平台报告）](#74-扫描报告产物外发原始--平台报告)
 - [8. 能力码（Capability）](#8-能力码capability)
 - [9. 业务错误码](#9-业务错误码)
 - [10. 典型集成流程](#10-典型集成流程)
@@ -30,6 +31,7 @@
 - [附录 F · 任务类型](#附录-f-任务类型-type)
 - [附录 G · 扫描任务配置文件 `file`](#附录-g-扫描任务配置文件-file)
 - [附录 H · 扫描模板与报告模板](#附录-h-扫描模板与报告模板)
+- [附录 H.3 · 报告产物外发策略](#h3-报告产物外发策略-deliveryoptions)
 - [附录 I · 部侧排查扩展参数](#附录-i-部侧排查扩展参数)
 - [附录 J · 接入 FAQ](#附录-j-接入-faq)
 - [修订记录](#修订记录)
@@ -60,8 +62,9 @@
 | ---------------- | ------------------------------------------------------------ |
 | 扫描/排查        | 创建任务、查询进度与结果摘要                                 |
 | 漏洞实例         | 查询、验证、处置（含修复与修复失败/备案）、修复核验          |
-| 扫描结果数据外发 | 任务结束、修复核验扫描完成后下载结构化结果（支持 XML / JSON 两种输出物） |
-| 事件通知         | **平台**向 **Partner** 回调 URL 推送任务/实例/外发就绪事件   |
+| 扫描结果数据外发 | 任务结束、验证/修复核验扫描完成后下载规范化结构化结果（`TaskExport`，支持 XML / JSON） |
+| 扫描报告产物外发 | 任务结束、验证/修复核验扫描完成后下载扫描器原始报告或平台渲染报告（XML / XLSX / PDF 等二进制产物） |
+| 事件通知         | **平台**向 **Partner** 回调 URL 推送任务/实例/外发就绪/报告产物就绪事件   |
 
 扫描与漏洞检测由平台内部扫描执行层完成；**Partner 不直接调用**扫描器或底层扫描接口。
 
@@ -86,14 +89,40 @@
 ```text
 详见 §1.3.2
 排查（创建扫描任务）
-    → 实例默认 vulInfoStat = 1（初始发现）（Webhook 见 §6）
+    → 实例默认 vulInfoStat = 1（初始发现）
+    → autoVerify=true（默认）：排查完成后平台自动触发验证阶段扫描，全部完成后统一回调 TASK_COMPLETED 与 EXPORT_READY（§6）；
+      autoVerify=false：排查完成即回调 TASK_COMPLETED，实例为 1，由 Partner 主动 verify
+[autoVerify=true 时，平台内部验证阶段]
+    → 二次扫描，双扫结果合并策略在接入 Partner 时定制
+    → 按合并策略确定 vulInfoStat：已验证有效（2）/ 已验证误报（3）/ 初始发现（1）
+    → 全部完成后统一回调 TASK_COMPLETED 与 EXPORT_READY
 验证（POST .../verify）
-    → 3 已验证误报（终态，不可再处置）
+    → 2 已验证有效  |  3 已验证误报（终态，不可再处置）
 处置（POST .../remediate）
-    → 5 已修复  |  9 修复失败/备案（同一接口，由请求体区分）
+    → 5 已修复  |  9 修复失败/备案（同一接口，由请求体 vulInfoStat / lvRsn 区分，见 §5.4）
 修复核验（POST .../verify-fix）
     → 平台异步复扫（默认使用该实例最近一次排查/扫描所用扫描器）；完成后 → 6 / 7 / 10（Webhook 见 §6）
 ```
+
+**漏洞状态跃迁规则**（写操作前置 → 后置；违反返回 **40002**，重复处置返回 **40005**）：
+
+| 写操作 | HTTP 路径 | 前置 `vulInfoStat` | 后置 `vulInfoStat` | 判定依据 |
+| ------ | --------- | ---------------- | ------------------ | -------- |
+| 验证 | `POST .../verify` | **1** 初始发现 | **2** 已验证有效（`verifyResult=VALID`）<br>**3** 已验证误报（`verifyResult=FALSE_POSITIVE`，**终态**） | 请求体 `verifyResult` |
+| 处置·已修复 | `POST .../remediate` | **1** 初始发现、**2** 已验证有效、**7** 核验未修复 | **5** 已修复 | 请求体 `vulInfoStat=5`，或未传时 `lvRsn` 为空（见 §5.4） |
+| 处置·备案 | `POST .../remediate` | **1** 初始发现、**2** 已验证有效、**7** 核验未修复 | **9** 修复失败/备案 | 请求体 `vulInfoStat=9`，或未传时 `lvRsn` 有值（见 §5.4） |
+| 修复核验 | `POST .../verify-fix` | **5** 已修复 | **6** 核验修复 / **7** 核验未修复 / **10** 核验失败（异步复扫完成后） | 平台复扫结果；受理期间保持 **5** |
+
+**不可跃迁说明**：
+
+| 当前状态 | 说明 |
+| -------- | ---- |
+| **3** 已验证误报 | **终态**；禁止 `remediate` 与 `verify-fix` |
+| **5** / **9** | 已处置；重复 `remediate` → **40005** |
+| **6** / **10** | 核验终态；不可再次 `remediate`（**7** 可再次 `remediate` 或 `verify-fix`） |
+| **0** / **8** 等 | 非上述写操作允许的前置状态；调用 → **40002** |
+
+> Partner 可在 **1** 或 **2** 阶段直接 `remediate`（跳过显式 `verify`），但 **3（误报）不可修复或备案**。
 
 #### 1.3.2 写接口数量对照
 <a id="132-写接口数量对照"></a>
@@ -372,6 +401,10 @@ Idempotency-Key: remediate:batch:batch-20260518-001
 | 外发     | GET  | `/exports/{exportId}`               | `EXPORT_READ`         |
 | 外发     | GET  | `/exports/{exportId}/download`      | `EXPORT_READ`         |
 | 外发     | GET  | `/tasks/{taskId}/exports`           | `EXPORT_READ`         |
+| 报告产物 | GET  | `/artifacts/{artifactId}`           | `ARTIFACT_READ`       |
+| 报告产物 | GET  | `/artifacts/{artifactId}/download`  | `ARTIFACT_READ`       |
+| 报告产物 | GET  | `/tasks/{taskId}/artifacts`         | `ARTIFACT_READ`       |
+| 报告产物 | GET  | `/exports/{exportId}/artifacts`     | `ARTIFACT_READ`       |
 
 **写接口生命周期**：排查 → 验证 → 处置（`remediate`，含已修复与修复失败）→ 修复核验。
 
@@ -432,7 +465,7 @@ Idempotency-Key: remediate:batch:batch-20260518-001
 | --------- | ------ | :--: | ------------------------------------------------------------ |
 | extTaskId | string |  ✓   | Partner 幂等键                                               |
 | type      | int    |  ✓   | 任务类型，见 [附录 F](#附录-f-任务类型-type)（**1** / **2** / **3**） |
-| file      | string |  ✓   | 任务配置 XML（UTF-8）；根元素 `<scanTask>`，须含 `<server>` 与根级 `<targets>`，见 [附录 G](#附录-g-扫描任务配置文件-file) |
+| file      | File   |  ✓   | 任务配置 XML（UTF-8）；根元素 `<scanTask>`，须含 `<server>` 与根级 `<targets>`，见 [附录 G](#附录-g-扫描任务配置文件-file) |
 
 **响应 data**：
 
@@ -500,12 +533,20 @@ Idempotency-Key: idem-ext-2026-web-0001
 | type              | int      |  ✓   | 任务类型，见 [附录 F](#附录-f-任务类型-type)（**1** / **2** / **3**） |
 | targets           | object   |  ✓   | 扫描目标；含 `hosts`（地址列表）与 `auth`（登陆凭据），见下表 |
 | scanTemplateId    | int      |  ○   | 平台扫描模板 ID（[附录 H.1](#h1-扫描模板-scantemplateid-内联扫描阶段)）；缺省 **`0`** 按 `type` 自动匹配 |
-| reportTemplateId  | int      |  ○   | 平台报告模板 ID（[附录 H.2](#h2-报告模板-reporttemplateid)）；**缺省 `0`** 按 `type` 自动匹配 |
+| reportTemplateId  | int      |  ○   | 平台报告模板 ID（[附录 H.2](#h2-报告模板-reporttemplateid)）；**缺省 `0`** 按 `type` 自动匹配；**仅控制 §5.6 规范化外发** |
+| deliveryOptions   | object   |  ○   | 报告产物外发策略，见 [附录 H.3](#h3-报告产物外发策略-deliveryoptions)；缺省按 Partner 运营配置 |
 | callbackUrl       | string   |  ○   | 覆盖 Partner 默认回调 URL                                    |
 | priority          | enum     |  ○   | `LOW` / `MEDIUM` / `HIGH`                                    |
 | srcMethod         | int      |  ○   | 技术处置方式，见 [附录 D](#附录-d-漏洞管理处置方式-srcmethod)、[附录 I](#附录-i-部侧排查扩展参数) |
 | vulIDs            | string[] |  ○   | 产品漏洞 ID 列表（部侧 `vulID`）；**预留**，后续开放查询接口 |
 | secResourceHashes | string[] |  ○   | 安全资源设备 hash 列表（扫描器）；**预留**，后续开放查询接口 |
+| autoVerify        | boolean  |  ○   | 是否开启自动验证阶段，默认 **true**。true 时排查完成后平台自动触发验证阶段扫描，全部完成后统一回调 `TASK_COMPLETED` 与 `EXPORT_READY`；false 时排查完成即回调（原语义），实例为 1（初始发现），由 Partner 主动 verify。双扫结果合并策略在接入 Partner 时定制，详见下方说明 |
+
+> **autoVerify 双扫合并策略**：开启自动验证时，平台执行两阶段扫描（排查 + 验证），双扫结果合并策略在接入 Partner 时定制，支持以下两种模式：
+>
+> 1. **部侧标准（交集）**：第一次扫描结果为初始发现（`vulInfoStat=1`）；第二次交叉扫描验证，两次均发现 → 已验证有效（`2`），仅一次发现 → 已验证误报（`3`）。
+> 2. **SOC 标准（并集 状态不跃迁）**：两次扫描结果取并集，合并后均为初始发现（`vulInfoStat=1`）；
+> 3. **SOC 标准（并集 状态跃迁）**：两次扫描结果取并集，合并后仅一次发现（`vulInfoStat=1`）；其中交叉部分（两次均发现）→ 已验证有效（`2`）。
 
 **`targets` 对象**
 
@@ -578,7 +619,8 @@ Idempotency-Key: idem-ext-2026-0001
   "vulIDs": ["MVM-2019-1696145560773468160"],
   "secResourceHashes": ["8f3a2b1c9d4e5f60718293a4b5c6d7e8"],
   "callbackUrl": "https://partner.example.com/hooks/vuln",
-  "priority": "HIGH"
+  "priority": "HIGH",
+  "autoVerify": true
 }
 ```
 
@@ -871,10 +913,15 @@ Authorization: Bearer <accessToken>
 | 项       | 值                                                           |
 | -------- | ------------------------------------------------------------ |
 | 能力     | `INSTANCE_REMEDIATE`                                         |
-| 前置状态 | `vulInfoStat ∈ {2, 7}`（否则 **40002**）；误报（**3**）不可处置 |
+| 前置状态 | 目标 **5**：`vulInfoStat ∈ {1, 2, 7}`；目标 **9**：`vulInfoStat ∈ {1, 2, 7}`；**3（误报）禁止**（**40002**）；已处置 **5/9** 重复调用 → **40005** |
 | 接口     | `POST /instances/{vulInfoID}/remediate`、`POST /instances/remediate:batch` |
 
-验证有效或核验未修复后，回写**已修复**或**修复失败（备案）**。由请求体字段组合决定终态：
+回写**已修复**或**修复失败（备案）**。**终态判定**（优先级从高到低）：
+
+1. 请求体显式传入 `vulInfoStat` 且为 **5** 或 **9** → 以该值为准；
+2. 未传 `vulInfoStat`（或值为 `null`）时：有 `lvRsn` → **9**；无 `lvRsn` → **5**（兼容调用方未及时同步目标状态的集成场景）。
+
+**一致性校验**：目标 **5** 时 `lvRsn` 须为空；目标 **9** 时 `lvRsn` 必填；`vulInfoStat` 与 `lvRsn` 矛盾 → **40001**。
 
 | 处置结果        | 终态 `vulInfoStat` | 条件必填                                                     |
 | --------------- | ------------------ | ------------------------------------------------------------ |
@@ -892,6 +939,7 @@ Authorization: Bearer <accessToken>
 
 | 参数             | 类型   | 必填 | 说明                                                         |
 | ---------------- | ------ | :--: | ------------------------------------------------------------ |
+| vulInfoStat      | int    | 推荐 | 处置目标状态：**5**=已修复，**9**=修复失败/备案。未传时由 `lvRsn` 推断（有值→**9**，无→**5**）；仅允许 **5** 或 **9** |
 | srcMethod        | int    |  ✓   | 处置方式，见 [附录 D](#附录-d-漏洞管理处置方式-srcmethod)   |
 | remedDesc        | string | 条件 | →**5** 时必填：修复方案说明                                  |
 | fixLnk           | string | 条件 | `srcMethod=1050` 时必填：补丁链接                            |
@@ -917,7 +965,28 @@ Authorization: Bearer <accessToken>
 
 **幂等**：`Idempotency-Key: remediate:{vulInfoID}:{clientRequestId}`，见 §4.2。
 
-**请求示例（已修复）**
+**请求示例（已修复，显式声明目标状态）**
+
+```json
+{
+  "vulInfoStat": 5,
+  "srcMethod": 1050,
+  "remedDesc": "升级 OpenSSH 至 9.6p1 并重启 sshd",
+  "fixLnk": "https://www.openssh.com/releasenotes.html",
+  "remedTime": "3日",
+  "srcTktRole": 1,
+  "dstTktRole": 2,
+  "assignerDept": "安全运营中心",
+  "assignerEmail": "soc-dispatch@corp.com",
+  "assignerPhone": "010-12345678",
+  "handlerDept": "基础架构部",
+  "handlerEmail": "ops@corp.com",
+  "handlerPhone": "010-87654321",
+  "transferTime": "1747480000"
+}
+```
+
+**请求示例（已修复，兼容模式：未传 vulInfoStat，由 lvRsn 为空推断为 5）**
 
 ```json
 {
@@ -937,10 +1006,11 @@ Authorization: Bearer <accessToken>
 }
 ```
 
-**请求示例（修复失败/备案）**
+**请求示例（修复失败/备案，显式声明目标状态）**
 
 ```json
 {
+  "vulInfoStat": 9,
   "srcMethod": 999,
   "lvRsn": 101,
   "archiveReason": "业务连续性限制，经评估接受风险",
@@ -978,6 +1048,7 @@ Authorization: Bearer <accessToken>
 | 参数             | 类型   | 必填 | 说明                                                         |
 | ---------------- | ------ | :--: | ------------------------------------------------------------ |
 | vulInfoID        | string |  ✓   | 实例 ID                                                      |
+| vulInfoStat      | int    | 推荐 | 处置目标状态：**5**=已修复，**9**=修复失败/备案。未传时由 `lvRsn` 推断（有值→**9**，无→**5**）；仅允许 **5** 或 **9** |
 | srcMethod        | int    |  ✓   | 处置方式，见 [附录 D](#附录-d-漏洞管理处置方式-srcmethod)   |
 | remedDesc        | string | 条件 | →**5** 时必填：修复方案说明                                  |
 | fixLnk           | string | 条件 | `srcMethod=1050` 时必填：补丁链接                            |
@@ -1116,6 +1187,8 @@ Authorization: Bearer <accessToken>
 ### 5.6 扫描结果 · 数据外发
 <a id="56-扫描结果-数据外发"></a>
 
+> **v1.0.5 分层说明**：本节 **Export** 仅输出规范化 `TaskExport`（xml/json）。扫描器原始报告与平台渲染报告见 [§5.7](#57-扫描报告-产物外发artifact)。
+
 任务扫描结束、验证阶段扫描完成、修复核验阶段扫描完成且外发组装完成后，平台推送 **`EXPORT_READY`**（§6），或通过下列接口拉取。
 
 #### 5.6.1 输出物格式
@@ -1143,7 +1216,7 @@ Authorization: Bearer <accessToken>
 
 | `exportStage`     | 触发时机                            | `dataType`                                                   | 输出约定                                                     |
 | ----------------- | ----------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| `TASK_COMPLETED`  | 普通扫描 / 排查任务结束             | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` | 按任务启用能力输出；漏洞扫描见 §5.6.3「漏洞扫描」行          |
+| `TASK_COMPLETED`  | 普通扫描 / 排查任务结束             | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` | 按任务启用能力输出；漏洞扫描见 §5.6.3「漏洞扫描」行。**autoVerify=true 时**：在排查+验证全部完成后触发，外发含两阶段合并结果，`instances[].vulInfoStat` 反映验证后终态（2/3/1） |
 | `VERIFY_SCAN`     | 漏洞验证阶段触发复扫 / POC 扫描完成 | `SYSTEM_VULNERABILITY`                                       | `targets[]` + `liveProbeResults[]` + `vulnerabilities[]`（§5.6.6 聚合） |
 | `VERIFY_FIX_SCAN` | 修复核验阶段触发复扫完成            | `SYSTEM_VULNERABILITY`                                       | `targets[]` + `liveProbeResults[]` + `portScanResults[]` + `vulnerabilities[]`（§5.6.6 聚合） |
 
@@ -1363,6 +1436,125 @@ TaskExport / taskExport
 **响应 data**：分页包装 + `items[]`（元素结构同外发元数据）。
 
 ---
+
+### 5.7 扫描报告 · 产物外发（Artifact）
+<a id="57-扫描报告-产物外发artifact"></a>
+
+本节定义**扫描器原始报告**与**平台扫描报告**的外发契约。与 §5.6 **规范化外发（Export）** 分层设计：
+
+| 层 | 资源 | 输出物 | 典型用途 |
+|----|------|--------|----------|
+| **Export** | `/exports/*` | `TaskExport`（xml/json） | SIEM / ITSM 结构化入库 |
+| **Artifact** | `/artifacts/*` | 扫描器原始文件、平台渲染报告 | 归档、审计、人工复核 |
+
+> **重要**：Artifact 下载为**二进制文件流**，**不是** `TaskExport` 规范化文档，也**不是**引擎原始 XML 的 API 重组版本；`artifactSource=SCANNER_RAW` 时为平台回收后原样（或 ZIP 打包）存储的文件。
+
+#### 5.7.1 产物来源 `artifactSource`
+<a id="571-产物来源-artifactsource"></a>
+
+| `artifactSource`    | 说明                                                         | 典型 `fileFormat`              |
+| ------------------- | ------------------------------------------------------------ | ------------------------------ |
+| `SCANNER_RAW`       | 扫描器执行层回收的原始报告                                   | `xml`、`xlsx`、`zip` 等        |
+| `PLATFORM_REPORT`   | 平台按模板渲染的业务扫描报告                                 | `xlsx`、`pdf`、`html` 等       |
+
+`reportTypeCode`（int，可选）与平台内部报告类型码对齐（如绿盟 XML **13** / **10**、平台处置表 XLSX **1** / **3**），供 Partner 识别解析器；完整码表以运营开通材料为准。
+
+#### 5.7.2 触发场景
+<a id="572-触发场景"></a>
+
+与 §5.6.2 `exportStage` 对齐；同一 `exportStage` 下 Export 与 Artifact **独立生成、独立就绪**：
+
+| `exportStage`     | Artifact 生成时机                            | 说明 |
+| ----------------- | -------------------------------------------- | ---- |
+| `TASK_COMPLETED`  | 主任务扫描结束、原始报告回收完成             | 可按 `deliveryOptions` 同时产出 `SCANNER_RAW` 与 `PLATFORM_REPORT` |
+| `VERIFY_SCAN`     | 验证阶段复扫 / POC 扫描完成                  | 通常仅 `SCANNER_RAW`；平台报告按策略可选 |
+| `VERIFY_FIX_SCAN` | 修复核验复扫完成                             | 同上 |
+
+产物就绪后平台推送 **`ARTIFACT_READY`**（§6），或通过 §5.7 接口拉取。
+
+#### 5.7.3 产物元数据字段
+<a id="573-产物元数据字段"></a>
+
+| 参数              | 类型     | 必填 | 说明                                                         |
+| ----------------- | -------- | :--: | ------------------------------------------------------------ |
+| artifactId        | string   |  ✓   | 产物记录 ID                                                  |
+| taskId            | string   |  ✓   | 平台任务 ID                                                  |
+| extTaskId         | string   |  ○   | Partner 任务键                                               |
+| exportId          | string   |  ○   | 关联的规范化外发 ID（同 `exportStage` 且已生成时回显）       |
+| exportStage       | enum     |  ✓   | `TASK_COMPLETED` / `VERIFY_SCAN` / `VERIFY_FIX_SCAN`         |
+| artifactSource    | enum     |  ✓   | `SCANNER_RAW` / `PLATFORM_REPORT`                            |
+| reportTypeCode    | int      |  ○   | 平台内部报告类型码                                           |
+| reportTypeName    | string   |  ○   | 报告类型名称                                                 |
+| scannerVendor     | string   |  ○   | 扫描器厂商，如 `nsfocus`                                     |
+| scannerProduct    | string   |  ○   | 扫描器产品                                                   |
+| subTaskId         | string   |  ○   | 平台子任务 ID（多扫描器/多子任务时区分产物）                 |
+| fileName          | string   |  ✓   | 建议下载文件名                                               |
+| fileFormat        | string   |  ✓   | 文件格式扩展名语义，如 `xml`、`xlsx`、`pdf`、`zip`           |
+| contentType       | string   |  ✓   | 下载 `Content-Type`，如 `application/xml`                  |
+| byteSize          | long     |  ○   | 文件大小（字节）                                             |
+| checksum          | string   |  ○   | SHA-256 十六进制摘要                                         |
+| status            | enum     |  ✓   | `PENDING` / `READY` / `EXPIRED` / `FAILED`                   |
+| generatedAt       | datetime |  ✓   | 登记/生成时间                                                |
+| expiresAt         | datetime |  ○   | 下载过期时间                                                 |
+| downloadUrl       | string   |  ○   | 可选预签名 URL                                               |
+| errorMessage      | string   |  ○   | `status=FAILED` 时的错误说明                                 |
+
+#### 5.7.4 `GET /artifacts/{artifactId}` — 产物元数据
+<a id="574-get-artifactsartifactid-产物元数据"></a>
+
+| 项   | 值              |
+| ---- | --------------- |
+| 能力 | `ARTIFACT_READ` |
+
+**路径参数**：`artifactId`（✓）
+
+**响应 data**：结构同 §5.7.3。
+
+#### 5.7.5 `GET /artifacts/{artifactId}/download` — 下载产物文件
+<a id="575-get-artifactsartifactiddownload-下载产物文件"></a>
+
+| 项   | 值              |
+| ---- | --------------- |
+| 能力 | `ARTIFACT_READ` |
+
+返回**二进制文件流**；响应头含 `Content-Type`（与元数据 `contentType` 一致）及 `Content-Disposition: attachment; filename="..."`。
+
+| 项       | 约定                                                         |
+| -------- | ------------------------------------------------------------ |
+| 弱口令   | 原始报告中若含口令字段，平台侧按数据安全策略脱敏或剥离；Partner 存储须符合本单位要求 |
+| 大文件   | 建议使用 `downloadUrl` 或分块下载；超过运营配置上限返回 **40001** |
+| ZIP 包   | 同一 `exportStage` 下多子任务各有一份原始报告时，平台可按策略合并为单个 `fileFormat=zip` 产物 |
+
+#### 5.7.6 `GET /tasks/{taskId}/artifacts` — 任务产物列表
+<a id="576-get-taskstaskidartifacts-任务产物列表"></a>
+
+| 项   | 值              |
+| ---- | --------------- |
+| 能力 | `ARTIFACT_READ` |
+
+**查询参数**：
+
+| 参数           | 类型   | 必填 | 说明                                      |
+| -------------- | ------ | :--: | ----------------------------------------- |
+| page           | int    |  ✓   | 页码，从 **1** 开始                       |
+| size           | int    |  ✓   | 每页条数                                  |
+| exportStage    | enum   |  ○   | 按阶段过滤                                |
+| artifactSource | enum   |  ○   | `SCANNER_RAW` / `PLATFORM_REPORT`         |
+
+**响应 data**：分页包装 + `items[]`（元素结构同 §5.7.3）。
+
+#### 5.7.7 `GET /exports/{exportId}/artifacts` — 外发关联产物列表
+<a id="577-get-exportsexportidartifacts-外发关联产物列表"></a>
+
+| 项   | 值              |
+| ---- | --------------- |
+| 能力 | `ARTIFACT_READ` |
+
+返回与指定 `exportId` **同一 `exportStage`** 且同一 `taskId` 下的产物列表（便于 Partner 在收到 `EXPORT_READY` 后一次性拉取关联原始/平台报告）。
+
+**查询参数**：`page`、`size`（✓）；**响应 data** 同 §5.7.6。
+
+---
 ## 6. 事件回调（Webhook）
 <a id="6-事件回调webhook"></a>
 
@@ -1372,7 +1564,7 @@ TaskExport / taskExport
 |----|------|
 | 触发时机 | 任务完成/失败、修复核验完成、外发就绪等（见 §6.2） |
 | 与 REST 关系 | Partner **主动调用**业务 API **不会**触发 Webhook；Webhook 为平台**单向推送** |
-| 替代方式 | 也可轮询 `GET /tasks/{taskId}`、`GET /exports/{exportId}` 等，见 §10 |
+| 替代方式 | 也可轮询 `GET /tasks/{taskId}`、`GET /exports/{exportId}`、`GET /tasks/{taskId}/artifacts` 等，见 §10 |
 
 ### 6.0 Partner 接收端验签
 <a id="60-partner-接收端验签"></a>
@@ -1409,7 +1601,8 @@ TaskExport / taskExport
 | `TASK_COMPLETED`                | 任务正常结束            |
 | `TASK_FAILED`                   | 任务失败                |
 | `INSTANCE_VERIFY_FIX_COMPLETED` | 修复核验完成（→6/7/10） |
-| `EXPORT_READY`                  | 外发包可下载            |
+| `EXPORT_READY`                  | 规范化外发包可下载（§5.6）      |
+| `ARTIFACT_READY`                | 扫描报告产物可下载（§5.7）      |
 
 **`TASK_COMPLETED` / `TASK_FAILED` · payload**：
 
@@ -1420,7 +1613,8 @@ TaskExport / taskExport
 | status                 | enum   |  ✓   | `FINISHED` / `FAILED` |
 | summary.totalInstances | int    |  ○   | 实例总数              |
 | summary.verifiedValid  | int    |  ○   | 验证有效数            |
-| summary.falsePositive  | int    |  ○   | 误报数                |
+| summary.falsePositive  | int    |  ○   | 验证误报数              |
+| summary.initialDiscovery | int  |  ○   | 初始发现数（autoVerify=true 时验证阶段新发现，vulInfoStat=1） |
 
 | **`INSTANCE_VERIFY_FIX_COMPLETED` · payload**：
 
@@ -1452,6 +1646,23 @@ TaskExport / taskExport
 | exportStage      | string |  ✓   | `TASK_COMPLETED` / `VERIFY_SCAN` / `VERIFY_FIX_SCAN`         |
 | dataType         | string |  ✓   | `MIXED` / `SYSTEM_VULNERABILITY` / `LIVE_PROBE` / `PORT_SCAN` |
 | recordCount      | int    |  ○   | 条数                                                         |
+| downloadUrl      | string |  ○   | 预签名下载 URL                                               |
+
+**`ARTIFACT_READY` · payload**：
+
+| 参数             | 类型   | 必填 | 说明                                                         |
+| ---------------- | ------ | :--: | ------------------------------------------------------------ |
+| artifactId       | string |  ✓   | 产物记录 ID                                                  |
+| taskId           | string |  ✓   | 平台任务 ID                                                  |
+| extTaskId        | string |  ○   | Partner 任务键                                               |
+| exportId         | string |  ○   | 同阶段关联的规范化外发 ID                                    |
+| exportStage      | string |  ✓   | `TASK_COMPLETED` / `VERIFY_SCAN` / `VERIFY_FIX_SCAN`         |
+| artifactSource   | string |  ✓   | `SCANNER_RAW` / `PLATFORM_REPORT`                            |
+| reportTypeCode   | int    |  ○   | 平台内部报告类型码                                           |
+| fileName         | string |  ✓   | 建议下载文件名                                               |
+| fileFormat       | string |  ✓   | 如 `xml`、`xlsx`、`pdf`、`zip`                               |
+| contentType      | string |  ✓   | 下载 Content-Type                                            |
+| byteSize         | long   |  ○   | 文件大小（字节）                                             |
 | downloadUrl      | string |  ○   | 预签名下载 URL                                               |
 
 ### 6.3 示例：任务完成
@@ -1528,6 +1739,32 @@ TaskExport / taskExport
     "dataType": "MIXED",
     "recordCount": 128,
     "downloadUrl": "https://vuln-platform.example.com/download/EXP-20260518-7f3a?sig=..."
+  }
+}
+```
+
+### 6.6 示例：报告产物就绪
+<a id="66-示例报告产物就绪"></a>
+
+```json
+{
+  "eventId": "evt-20260518-0004",
+  "eventType": "ARTIFACT_READY",
+  "occurredAt": "2026-05-18T14:06:00Z",
+  "partnerId": "partner-demo-01",
+  "payload": {
+    "artifactId": "ART-20260518-ns01",
+    "taskId": "TASK-7f3a2b1c",
+    "extTaskId": "EXT-TASK-2026-0001",
+    "exportId": "EXP-20260518-7f3a",
+    "exportStage": "TASK_COMPLETED",
+    "artifactSource": "SCANNER_RAW",
+    "reportTypeCode": 13,
+    "fileName": "nsfocus-scan-report.xml",
+    "fileFormat": "xml",
+    "contentType": "application/xml",
+    "byteSize": 2097152,
+    "downloadUrl": "https://vuln-platform.example.com/download/ART-20260518-ns01?sig=..."
   }
 }
 ```
@@ -1910,6 +2147,24 @@ TaskExport / taskExport
 1. 订阅 `EXPORT_READY` → 使用 `downloadUrl` 或 `GET /exports/{exportId}/download`
 2. 或轮询 `GET /tasks/{taskId}/exports` 直至出现 `status=READY`
 
+### 7.4 扫描报告产物外发（原始 / 平台报告）
+<a id="74-扫描报告产物外发原始--平台报告"></a>
+
+与 §7 规范化 `TaskExport` 互补，产物外发面向**文件级**交付：
+
+| `artifactSource`  | 说明                     | 示例文件名                              |
+| ----------------- | ------------------------ | --------------------------------------- |
+| `SCANNER_RAW`     | 扫描器原始报告           | `nsfocus-scan-report.xml`、`.zip`       |
+| `PLATFORM_REPORT` | 平台渲染扫描报告         | `platform-vul-report.xlsx`、`report.pdf` |
+
+**获取方式**：
+
+1. 订阅 `ARTIFACT_READY` → `downloadUrl` 或 `GET /artifacts/{artifactId}/download`
+2. 或轮询 `GET /tasks/{taskId}/artifacts` 直至 `status=READY`
+3. 若已持有 `exportId`，可 `GET /exports/{exportId}/artifacts` 拉取同阶段关联产物
+
+创建任务时通过 `deliveryOptions`（[附录 H.3](#h3-报告产物外发策略-deliveryoptions)）声明是否包含原始报告、平台报告；`reportTemplateId`（附录 H.2）**仅**影响 §5.6 规范化外发，不控制 Artifact。
+
 ---
 
 ## 8. 能力码（Capability）
@@ -1923,7 +2178,8 @@ TaskExport / taskExport
 | `INSTANCE_VERIFY`     | 验证                                 |
 | `INSTANCE_REMEDIATE`  | 处置（含已修复与修复失败）           |
 | `INSTANCE_VERIFY_FIX` | 修复核验                             |
-| `EXPORT_READ`         | 查询/下载外发包                      |
+| `EXPORT_READ`         | 查询/下载规范化外发包（§5.6）        |
+| `ARTIFACT_READ`       | 查询/下载扫描报告产物（§5.7）        |
 | `EVENT_SUBSCRIBE`     | 接收 Webhook（须在平台登记回调 URL） |
 
 未开通的能力调用将返回 **`40301`**。
@@ -1957,13 +2213,14 @@ TaskExport / taskExport
 1. POST /tasks/file 或 POST /tasks/vul（§5.1.1 XML / §5.1.2 JSON；`extTaskId` 幂等）→ 保存 taskId
 2. 轮询 GET /tasks/{taskId} 或等待 Webhook TASK_COMPLETED
 3. 收到 EXPORT_READY → GET /exports/{exportId}/download → 按 `format` 解析 XML 或 JSON
+3a. （可选）收到 ARTIFACT_READY → GET /artifacts/{artifactId}/download → 存档原始/平台报告
 4. POST /instances/search?taskId=... → 入库漏洞实例
 5. 业务侧处置后：
    - POST .../verify（有效/误报）
    - POST .../remediate（含修复失败 →9）
    - POST .../verify-fix
-6. 若 verify / verify-fix 触发扫描，继续接收 EXPORT_READY，按 `exportStage` 识别验证扫描或修复核验外发
-7. 可选：订阅 `INSTANCE_VERIFY_FIX_COMPLETED` / `EXPORT_READY` 等事件驱动 ITSM 工单
+6. 若 verify / verify-fix 触发扫描，继续接收 EXPORT_READY / ARTIFACT_READY，按 `exportStage` 识别阶段
+7. 可选：订阅 `INSTANCE_VERIFY_FIX_COMPLETED` / `EXPORT_READY` / `ARTIFACT_READY` 等事件驱动 ITSM 工单
 ```
 
 ---
@@ -2150,6 +2407,7 @@ TaskExport / taskExport
 | `/scanTask/server/taskName`    | string |  ✓   | 任务名称                                                     |
 | `/scanTask/server/priority`    | enum   |  ○   | `LOW` / `MEDIUM` / `HIGH`；缺省 `MEDIUM`                     |
 | `/scanTask/server/callbackUrl` | string |  ○   | 覆盖 Partner 默认 Webhook URL                                |
+| `/scanTask/server/autoVerify`   | boolean |  ○  | 是否开启自动验证阶段，默认 **true**。true 时排查完成后平台自动触发验证阶段扫描，全部完成后统一回调 `TASK_COMPLETED` 与 `EXPORT_READY`；false 时排查完成即回调（原语义）。双扫结果合并策略在接入 Partner 时定制（部侧标准取交集 / SOC 标准取并集），详见 §5.1.2 |
 | `/scanTask/server/targets`     | string |  ✓   | 扫描目标：ip / domain / url；多个以 **`,` 或 `;`** 分隔      |
 | `/scanTask/server/liveProbe` … |        | 条件 | 模式 **B**；内联扫描阶段，见 [H.1](#h1-扫描模板-scantemplateid-内联扫描阶段) |
 | `/scanTask/server/portScan` …  |        | 条件 | 模式 **B**                                                   |
@@ -2330,7 +2588,7 @@ H.1 / H.2 定义扫描策略与报告/外发的数据结构。平台可预置模
 ### H.2 报告模板 `reportTemplateId` / `<report>`
 <a id="h2-报告模板-reporttemplateid"></a>
 
-定义任务结束外发数据包的序列化格式与字段剖面（§5.6 / §7）。内联时根元素为 `<report>`。
+定义任务结束外发数据包的序列化格式与字段剖面（§5.6 / §7）。**仅控制规范化 Export**，不控制 §5.7 Artifact。内联时根元素为 `<report>`。
 
 | 字段 / XML 路径 | 类型 | 说明                                                         |
 | --------------- | ---- | ------------------------------------------------------------ |
@@ -2352,6 +2610,27 @@ H.1 / H.2 定义扫描策略与报告/外发的数据结构。平台可预置模
 | **2002**         | 平台 XML 整包      | xml    | MIXED       |
 
 外发回显：`taskExport.export.reportTemplateId`、`taskExport.export.format` 与创建任务一致（内联自定义时 `reportTemplateId` 回显 **0**，`format` / `dataProfile` 取自内联定义）。
+
+### H.3 报告产物外发策略 `deliveryOptions`
+<a id="h3-报告产物外发策略-deliveryoptions"></a>
+
+控制 §5.7 **Artifact** 是否生成及平台报告模板。JSON 创建任务（§5.1.2）在请求体携带；XML 创建任务（§5.1.1）可在根级 `<scanTask>` 下增加 `<deliveryOptions>`（结构与下表字段 camelCase 一致）。
+
+| 字段 / XML 路径              | 类型   | 必填 | 说明                                                         |
+| ---------------------------- | ------ | :--: | ------------------------------------------------------------ |
+| includeScannerRaw            | bool   |  ○   | 是否外发扫描器原始报告；缺省 **false**（或取 Partner 运营默认） |
+| scannerRawBundle             | enum   |  ○   | `SINGLE`（每子任务独立文件）/ `ZIP`（同阶段打包）；缺省 `SINGLE` |
+| includePlatformReport        | bool   |  ○   | 是否生成平台扫描报告；缺省 **false**                         |
+| platformReportTemplateCode   | string |  条件 | `includePlatformReport=true` 时必填；平台内部模板编码，如 `TP_VUL_SYS_SCAN_TASK_PLATFORM` |
+
+**缺省行为**：请求未携带 `deliveryOptions` 时，平台按 Partner 运营侧 **delivery policy** 决定是否产出 Artifact；未配置则**仅**生成 §5.6 规范化 Export（若 `reportTemplateId` 已启用）。
+
+**与 H.2 关系**：
+
+| 配置项 | 控制对象 |
+|--------|----------|
+| `reportTemplateId` / `<report>` | §5.6 `TaskExport` 规范化外发 |
+| `deliveryOptions` | §5.7 扫描器原始 / 平台报告产物 |
 
 ---
 
@@ -2496,6 +2775,8 @@ Partner 主动调用 REST **不会**触发平台向 Partner 回调；Webhook 为
 
 | 版本      | 日期       | 说明                                                         |
 | --------- | ---------- | ------------------------------------------------------------ |
+| **1.0.6** | 2026-06-17 | **§1.3.1** 新增漏洞状态跃迁规则表（写操作前置/后置状态）；**§5.4** 放宽 `remediate` 前置为 `{1,2,7}`（**3 误报禁止**）；新增请求参数 `vulInfoStat`（推荐）及 `lvRsn` 兜底推断规则；更新请求示例（显式/兼容两种模式） |
+| **1.0.5** | 2026-06-16 | **§5.7** 新增扫描报告产物外发（Artifact）四接口；**§6.2** 新增 `ARTIFACT_READY` Webhook；**§7.4** 产物外发说明；**§8** 新增 `ARTIFACT_READ`；**§5.1.2** / **附录 H.3** 新增 `deliveryOptions`；明确 §5.6 Export 与 §5.7 Artifact 分层；**§1.3.1** 状态流转补充 `autoVerify` 自动验证阶段说明；**§5.1.2** 创建任务新增 `autoVerify` 参数（默认 true）及双扫合并策略说明；**§5.1.2** 请求示例补充；**附录 G.2** `<server>` 新增 `autoVerify` 路径；**§5.6.2** `TASK_COMPLETED` 外发补充 autoVerify=true 时含两阶段合并结果；**§6** `TASK_COMPLETED` payload 新增 `summary.initialDiscovery` |
 | **1.0.4** | 2026-06-05 | **§6.2** `INSTANCE_VERIFY_FIX_COMPLETED` payload 重构为 `items[]` 数组结构，支持批量核验结果一次回调；修正附录 A · 漏洞实例状态 `vulInfoStat` 阶段信息； |
 | **1.0.3** | 2026-05-19 | **§1.0** 平台说明；**§1.3** 重写实例生命周期写接口对照表（3 类 6 路径；含任务创建共 8 路径）；**§2.1/§2.2** 补充 `clientId`/`clientSecret` 与认证服务 Base URL；**§3.1.1** 新增 OAuth / 简化 JSON Token 换取说明与示例；**§3.3** 明确 Webhook 验签与 REST 无关并指向 §6.0；**§4.2** 澄清创建任务幂等；**§5.0.1** 统一表格列名体例；**§6.0** Partner 接收端验签；**附录 J** 接入 FAQ；文档更名为 **《网络安全漏洞管理平台 · API 接口文档》**；正文删除「开放平台」相关叙述，删除 §1.0.2；**§1.3.2** 修复核验补充复扫及默认扫描器选择规则； |
 | **1.0.2** | 2026-05-23 | §5.1.2 `targets` 改为对象：`hosts`（扫描地址）+ `auth[]`（登陆凭据） |

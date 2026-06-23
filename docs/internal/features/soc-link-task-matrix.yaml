@@ -1,0 +1,627 @@
+﻿# SOC ??????�� ?? ?????????
+# ??????: SOC-LINK-W1 ~ SOC-LINK-W4
+# PRD: svmp/docs/internal/SOC??????��-PRD.md
+# ?��?: auto-dev-orchestrator ???????? ?? ??? Task ?? ???��???
+
+meta:
+  prd: svmp/docs/internal/SOC??????��-PRD.md
+  orchestrator_skill: .cursor/skills/auto-dev-orchestrator/SKILL.md
+  backend_skill: .cursor/skills/esmp-backend-dev/SKILL.md
+  frontend_skill: .cursor/skills/esmp-frontend-dev/SKILL.md
+  standards_skill: .cursor/skills/esmp-rd-standards/SKILL.md
+  ddd_reference: project_backend/framework/asset/esmp-starters/esmp-starter-task/
+  vul_pass_reference: project_backend/svmp/vul-pass/
+  vuln_task_center_reference: project_backend/svmp/vuln-task-center/
+  open_api_reference: project_backend/svmp/open-api-service/
+  frontend_reference: project_frontend/asset/asset-newleak-manage/
+
+# ============================================================
+# Wave 1: ??????????? 4 ???3 ??????��?
+# ============================================================
+waves:
+  - id: W1
+    name: ?????????
+    duration: 4w
+    dependencies: []
+
+    tasks:
+      # ------------------------------------------------------
+      # W1a: vuln-task-center ???? API????? Agent 1??
+      # ------------------------------------------------------
+      - id: W1a-VTC-API
+        name: vuln-task-center ???? results/report API
+        project: project_backend/svmp/vuln-task-center
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 24
+        description: |
+          ?? vuln-task-center ???? 3 ?? REST API???? vul-pass ????????????????��
+          ??? DDD ??????Ui ?? App ?? Domain ?? Infra????
+        deliverables:
+          - ScanResultUi.java: GET /v1/scan/task/survey/{surveyId}/results
+          - ReportJobUi.java: POST /v1/scan/task/survey/{surveyId}/report/generate
+          - ReportJobUi.java: GET /v1/scan/report/jobs/{reportJobId}
+          - ReportJobUi.java: GET /v1/scan/report/jobs/{reportJobId}/download
+          - ScanResultAppServiceImpl.java: ?????????
+          - ReportJobAppServiceImpl.java: ???????????????
+          - report_job ?? Liquibase ???
+        acceptance:
+          - results API ???? targets/liveProbeResults/portScanResults/vulnerabilities
+          - report/generate ???? reportJobId + status
+          - ???? ready ??? download ????????
+          - mvn compile ???
+        reference_files:
+          - project_backend/svmp/vuln-task-center/src/main/java/.../ui/ScanTaskUi.java
+          - project_backend/svmp/vuln-task-center/src/main/java/.../app/ScanTaskAppServiceImpl.java
+          - svmp/docs/internal/vuln-task-center-???????????-PRD.md????5.1??
+
+      # ------------------------------------------------------
+      # W1a-VTC-KAFKA: vuln-task-center Kafka ???????? Agent 1 ????
+      # ------------------------------------------------------
+      - id: W1a-VTC-KAFKA
+        name: vuln-task-center ????? Kafka ??????
+        project: project_backend/svmp/vuln-task-center
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 8
+        dependencies: [W1a-VTC-API]
+        description: |
+          ???????????????????????????????? Kafka ????? vul-pass??
+        deliverables:
+          - SubTaskStatusEventProducer.java: ???? SUB_TASK_STATUS_CHANGED
+          - ReportJobEventProducer.java: ???? REPORT_JOB_COMPLETED
+          - ????�� surveyId, subTaskId, vendor, status, passTaskId, passSubTaskId
+        acceptance:
+          - ?????? FINISHED ? Kafka ???????
+          - ???? ready ? Kafka ???????
+          - ????? passTaskId ???? vul-pass ��??
+
+      # ------------------------------------------------------
+      # W1b-PASS-ORCH: vul-pass OpenTaskOrchestrator????? Agent 2??
+      # ------------------------------------------------------
+      - id: W1b-PASS-ORCH
+        name: vul-pass OpenTaskOrchestrator ????
+        project: project_backend/svmp/vul-pass
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 32
+        description: |
+          ???? OpenTaskOrchestrator ???? biz_line=OPEN ????????
+          ??? SOC_DUAL ??????task-center ?��???Kafka ???????????????
+        deliverables:
+          - OpenTaskOrchestrator.java: ???????
+          - OpenTaskUi.java: POST /internal/open/v1/tasks??????????????
+          - OpenTaskUi.java: GET /internal/open/v1/tasks/{passTaskId}??????????
+          - ScanPolicyEnum.java: SOC_DUAL / SINGLE
+          - SubTaskStatusKafkaListener.java: ???? task-center ?????
+          - ReportJobKafkaListener.java: ?????????????
+          - VulScanTaskSubDomainService ???: ?????????
+          - ITaskClient Feign ???: ???? task-center results/report API
+        acceptance:
+          - POST /internal/open/v1/tasks ?????????��? 2 ?? survey??SOC_DUAL??
+          - Kafka ?????? FINISHED ?????????
+          - ????????????
+          - GET /internal/open/v1/tasks/{passTaskId} ?????????
+        reference_files:
+          - project_backend/svmp/vul-pass/src/main/java/.../ui/VulScanTaskUi.java
+          - project_backend/svmp/vul-pass/src/main/java/.../domain/.../VulScanTaskSubDomainServiceImpl.java
+          - svmp/docs/internal/open-api-vtc-pass-??????.md?????�]???????????
+
+      # ------------------------------------------------------
+      # W1b-PASS-MERGE: SOC ?????????????? Agent 2 ????
+      # ------------------------------------------------------
+      - id: W1b-PASS-MERGE
+        name: SOC ??????????????
+        project: project_backend/svmp/vul-pass
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 16
+        dependencies: [W1b-PASS-ORCH]
+        description: |
+          ??? mergeUnion ?????Nessus + ?????????????
+          dedupKey = assetId + vulPort + vulTransProto + vulSvc + vulId
+        deliverables:
+          - VulResultMergeService.java: ???????????
+          - ??????????: vulLevel???, vulName/vulDesc????, engHash??MULTI
+          - ?????????????????
+        acceptance:
+          - ???????????��??? 1 ??
+          - ?????????????
+          - ?????????????????????????
+
+      # ------------------------------------------------------
+      # W1c-OAS-ADAPTER: open-api Adapter ??��????? Agent 3??
+      # ------------------------------------------------------
+      - id: W1c-OAS-ADAPTER
+        name: open-api-service Adapter ??��
+        project: project_backend/svmp/open-api-service
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 16
+        description: |
+          ?? SvmpEngineAdapterImpl ?? dispatch+??orderId ????? vul-pass internal API??
+        deliverables:
+          - ??? SvmpEngineAdapterImpl: ?? POST /internal/open/v1/tasks
+          - ???? VulPassInternalClient Feign: internal API ?????
+          - OpenTaskDomainServiceImpl ???: ??? pass_task_id
+          - ????????��: GET /tasks/{taskId} ?? GET /internal/open/v1/tasks/{passTaskId}
+        acceptance:
+          - Partner ???????? ?? open-api ?? vul-pass ????
+          - ?????????????????
+          - adapter-mode ???????mock/real??
+
+      # ------------------------------------------------------
+      # W1c-OAS-NOTIFY: open-api notify ???? + Webhook
+      # ------------------------------------------------------
+      - id: W1c-OAS-NOTIFY
+        name: open-api notify ???? + Webhook ????
+        project: project_backend/svmp/open-api-service
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 12
+        dependencies: [W1c-OAS-ADAPTER]
+        description: |
+          ???? vul-pass POST /internal/open/v1/tasks/{passTaskId}/notify?????? Webhook??
+        deliverables:
+          - NotifyUi.java: POST /internal/open/v1/tasks/{passTaskId}/notify
+          - WebhookService: ???? TASK_COMPLETED / TASK_FAILED
+          - Webhook ???????
+          - open_task ??????
+        acceptance:
+          - vul-pass notify ?? open_task ??????
+          - Webhook POST ?? Partner callbackUrl
+          - ?? 2xx ????
+
+      # ------------------------------------------------------
+      # W1-FE: ??????????????? Agent??
+      # ------------------------------------------------------
+      - id: W1-FE-WORKSPACE
+        name: ??? OPEN ???????????
+        project: project_frontend/asset/asset-newleak-manage
+        type: frontend
+        agent: generalPurpose
+        priority: P1
+        estimated_hours: 24
+        description: |
+          ???? OPEN ?????????��? + ??????????????��
+          ?��???? open-api-vtc-pass-prototype-v1.html??
+        deliverables:
+          - views/open-task/OpenTaskList.vue: ?????��?
+          - views/open-task/OpenTaskWorkspace.vue: ?????
+          - components/DualScanPanel.vue: ????????
+          - components/MergeResultPanel.vue: ?????????
+          - api/open-task.js: API ???
+          - router.config.js ��?????
+        acceptance:
+          - ?��??? OPEN ????
+          - ????? Tab??????/??????(??)/???????/???????????/????/???
+          - ??????????
+
+# ============================================================
+# Wave 2: ASSESS ???? + task-center ??????? 3 ???
+# ============================================================
+  - id: W2
+    name: ASSESS ???? + task-center ????
+    duration: 3w
+    dependencies: [W1]
+
+    tasks:
+      - id: W2-PASS-ASSESS
+        name: vul-pass ASSESS dispatch ???? task-center ?��?
+        project: project_backend/svmp/vul-pass
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 20
+        description: |
+          ?? ASSESS ???? dispatch ??��???????????��?????? task-center ?��???
+          ???? report ?????????
+        deliverables:
+          - ??? VulScanTaskAppServiceImpl.dispatch: ???? task-center ?��????
+          - ITaskClient Feign: ???? first/half + second/half
+          - ASSESS ??????�� vul_scan_task_sub
+        acceptance:
+          - ???????? task-center ?��?
+          - sub_task ???
+          - report ????????????
+
+      - id: W2-VTC-ADAPTER-LM
+        name: vuln-task-center ScannerAdapter-LM ???
+        project: project_backend/svmp/vuln-task-center
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 28
+        description: |
+          ??????? ScannerAdapter????????? LM ???????
+          ?��? vuln-task-center PRD ??5.1 VTC-GOV-P0??
+        deliverables:
+          - ScannerAdapter.java: ??????
+          - LmScannerAdapter.java: ???????
+          - ???????? DDL + LM ????????
+          - scan_node ?????? Liquibase
+          - ???????? ReconcileDomainService
+          - GET /v1/reconcile/tasks, POST /v1/reconcile/tasks/trigger
+        acceptance:
+          - ???????????? MATCHED/ORPHAN/MISSING/DRIFT
+          - MsgSendLM ??????????
+          - mvn compile ???
+
+      - id: W2-PASS-RELASPLIT
+        name: vul-pass handlerVulProcess ????????
+        project: project_backend/svmp/vul-pass
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 20
+        description: |
+          ??? writeVulInstLedger ? appendOperRela / appendReportRela??
+          ?? biz_line ????��??
+        deliverables:
+          - appendOperRela ????
+          - appendReportRela ????
+          - handlerVulProcess ???????
+          - vul_inst_log_rela_oper Liquibase ???
+        acceptance:
+          - OPEN �� oper ??
+          - ASSESS �� report ??
+          - ?????? JOIN rela_report ???????
+
+# ============================================================
+# Wave 3: ??????????? API??? 3 ???
+# ============================================================
+  - id: W3
+    name: ??????????? API
+    duration: 3w
+    dependencies: [W1]
+
+    tasks:
+      - id: W3-PASS-INSTANCE
+        name: vul-pass ??????????? internal API
+        project: project_backend/svmp/vul-pass
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 28
+        description: |
+          ???? verify / remediate / verify-fix internal API??
+          ??? transition ???? + appendOperRela/appendReportRela??
+        deliverables:
+          - OpenInstanceUi.java: 6 ?? internal ???
+          - OpenInstanceAppServiceImpl: ??????
+          - transition ??��??: ????????
+          - verify-fix ?????: ?? task-center ?��?
+        acceptance:
+          - verify: 0/1 ?? 2/3
+          - remediate: 2/7 ?? 5/9
+          - verify-fix: 5 ?? 6/7/10
+          - verify-fix ??????????????
+
+      - id: W3-OAS-INSTANCE
+        name: open-api ??????????
+        project: project_backend/svmp/open-api-service
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 20
+        description: |
+          ?????? ??5.2-5.5 ????Feign ?? vul-pass internal API??
+        deliverables:
+          - InstanceUi.java: 8 ?????????search/get/verify/remediate/verify-fix + batch??
+          - InstanceAppServiceImpl: Feign ???? + DTO ???
+          - ??????: Idempotency-Key ????
+          - open_vuln_instance ???
+        acceptance:
+          - Partner ????/???/????/???????
+          - ??????��
+          - ????????????
+
+      - id: W3-FE-INSTANCE
+        name: ??????????????????
+        project: project_frontend/asset/asset-newleak-manage
+        type: frontend
+        agent: generalPurpose
+        priority: P1
+        estimated_hours: 20
+        description: |
+          ??????????????? + ???/????/?????????
+        deliverables:
+          - views/vuln-instance/InstanceDetail.vue
+          - components/VerifyForm.vue
+          - components/RemediateForm.vue
+          - components/VerifyFixForm.vue
+          - api/vuln-instance.js
+        acceptance:
+          - ????????????????
+          - ?????????????
+          - ??????????
+
+# ============================================================
+# Wave 4: ?? + METRIC ????? 3 ???
+# ============================================================
+  - id: W4
+    name: ?? + METRIC ???
+    duration: 3w
+    dependencies: [W3]
+
+    tasks:
+      - id: W4-PASS-EXPORT
+        name: vul-pass Export ???
+        project: project_backend/svmp/vul-pass
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 24
+        description: |
+          ??? TaskExport XML/JSON???? open-api ?????
+        deliverables:
+          - TaskExportAssembler.java
+          - XML/JSON ???��?
+          - targets/liveProbeResults/portScanResults/vulnerabilities ???
+          - ??????��????
+        acceptance:
+          - ????????????? Export
+          - XML ?? JSON ???
+          - ??????????
+
+      - id: W4-OAS-EXPORT
+        name: open-api Export/Artifact ???
+        project: project_backend/svmp/open-api-service
+        type: backend
+        agent: generalPurpose
+        priority: P0
+        estimated_hours: 20
+        description: |
+          ?????? ??5.6-5.7 ??? + Webhook EXPORT_READY/ARTIFACT_READY??
+        deliverables:
+          - ExportUi.java: /exports/* ???
+          - ArtifactUi.java: /artifacts/* ???
+          - open_export / open_artifact ?? Liquibase
+          - Webhook EXPORT_READY / ARTIFACT_READY
+        acceptance:
+          - ?????? XML/JSON Export
+          - ???????????? Artifact
+          - Webhook ??????
+
+      - id: W4-PASS-METRIC
+        name: vul-pass METRIC ?????vuln-model ????
+        project: project_backend/svmp/vul-pass
+        type: backend
+        agent: generalPurpose
+        priority: P1
+        estimated_hours: 32
+        description: |
+          ???? MetricTaskOrchestrator???��? vuln-model ?????�
+          ?��? vuln-model????????
+        deliverables:
+          - MetricTaskUi.java: /ui/pass/v3/metric/*
+          - MetricTaskOrchestrator.java
+          - handlerVulProcess biz_line=METRIC ???
+          - ?????: vuln_sys ?? vul_archive_inst
+        acceptance:
+          - METRIC ?????? vul-pass ?????
+          - �� oper ??
+          - ??????????? inst
+
+      - id: W4-FE-EXPORT
+        name: ???????????????
+        project: project_frontend/asset/asset-newleak-manage
+        type: frontend
+        agent: generalPurpose
+        priority: P1
+        estimated_hours: 16
+        description: |
+          ??????????��? + ??????????????
+        deliverables:
+          - views/export/ExportList.vue
+          - views/artifact/ArtifactList.vue
+          - api/export.js, api/artifact.js
+        acceptance:
+          - ??????????
+          - ?????????
+
+
+# ============================================================
+# �������������v1.1��
+# �����Ĺ�����ȴ�������������ΧУ׼
+# ============================================================
+corrections:
+  version: "1.1"
+  date: "2026-06-17"
+  changes:
+    - task: W1c-OAS-ADAPTER
+      change: "�޸����� IVulPassScanTaskFeign���� dispatch ��Ϊ internal open API���������½� Feign"
+      impact: "���ٹ�������open_task ������ pass_task_id/scan_policy �ֶ�"
+
+    - task: W4-OAS-EXPORT
+      change: "�������� open_export �� + Export ��װ�ܵ����滻 Mock ����ԴΪ��ʵ vul-pass ����Դ"
+      impact: "������� W4 ������"
+
+    - task: W1b-PASS-ORCH
+      change: "�½� ITaskClient Feign����ǰ�����ڣ�"
+      impact: "������½� Feign �ͻ���"
+
+    - task: W2-VTC-ADAPTER-LM
+      change: "ScannerAdapter ���㽨�ӿڣ���װ���� MsgSendLM �߼�"
+      impact: "MsgSendAbstract �� 2 �����󷽷�������չ"
+
+    - task: W1a-VTC-KAFKA
+      change: "�������� dr_vul_scan_task_status topic������ passTaskId �ֶ�"
+      impact: "���� Kafka ���ñ��"
+
+    - task: W1c-OAS-NOTIFY
+      change: "�������� WebhookDomainServiceImpl + HMAC-SHA256 ��ǩ"
+      impact: "Webhook �����ѳ��죬ֱ�Ӹ���"
+
+    - task: W3-OAS-INSTANCE
+      change: "�������� IdempotencyInterceptor��24h Redis ���棩"
+      impact: "�ݵ�˫����ʵ�֣�ֱ�Ӹ���"
+
+# ============================================================
+# ˫�׶ν���ɨ�跽��׷������2026-06-17 �޶���
+# �����ĵ�: svmp/docs/internal/˫�׶ν���ɨ�跽��-SOC�����벿�ཻ��ͳһ.md
+# ============================================================
+
+# === Wave 1 �޶�˵�� ===
+# ԭ W1b-PASS-DUAL��SOC_DUAL ˫ɨ��֣�����
+# �滻Ϊ W1b-PASS-ORCH��˫�׶α��ţ�+ W1b-PASS-MERGE���ϲ����ԣ�+ W1b-PASS-VERIFY����֤�׶��νӣ�
+
+dual_scan_revision:
+  wave: W1
+  changes:
+    - action: deprecate
+      task_id: W1b-PASS-DUAL
+      reason: SOC_DUAL ���Ų�׶������ⶨ�ƣ�Υ����ܶ��ƻ�ԭ��
+    - action: add
+      task_id: W1b-PASS-ORCH
+      reason: ˫�׶α��ţ��Ų����֤�Զ��ν�
+    - action: add
+      task_id: W1b-PASS-MERGE
+      reason: VerifyMergeStrategy UNION/INTERSECT �����úϲ�
+    - action: add
+      task_id: W1b-PASS-VERIFY
+      reason: ��֤�׶� Kafka ���������ϲ�����
+
+  new_tasks:
+    - id: W1b-PASS-ORCH
+      name: vul-pass ˫�׶�ɨ����ţ��Ų����֤��
+      project: project_backend/svmp/vul-pass
+      type: backend
+      agent: generalPurpose
+      priority: P0
+      estimated_hours: 16
+      description: |
+        �� vul-pass ʵ��˫�׶�ɨ����ţ��Ų�׶���ɺ��Զ�������֤�׶Ρ�
+        �������� CROSS_SCAN_VERIFICATION��procMethod=1026���� PHASE_VALIDATION transition ����
+        ���� OpenTaskOrchestrator.triggerVerificationPhase ������
+      deliverables:
+        - OpenTaskOrchestrator.java: triggerVerificationPhase ����
+        - VerifyMergeStrategy.java: UNION/INTERSECT ö��
+        - vul_scan_task ������ verify_merge_strategy / verify_scanner_vendors �ֶΣ�Liquibase��
+        - vul_scan_task_sub ������ scan_phase / verify_round �ֶΣ�Liquibase��
+      acceptance:
+        - �Ų�׶�������ɺ�biz_line=OPEN �Զ�������֤�׶�����
+        - ��֤�׶����� procMethod=1026, tskPhase=2
+        - ��֤�׶ΰ� verify_scanner_vendors �������������
+        - Partner �������Ƿ��Զ�������֤�׶�
+      dependencies: [W1a-VTC-API]
+
+    - id: W1b-PASS-MERGE
+      name: vul-pass ��֤����ϲ�����UNION/INTERSECT��
+      project: project_backend/svmp/vul-pass
+      type: backend
+      agent: generalPurpose
+      priority: P0
+      estimated_hours: 12
+      description: |
+        ʵ�� mergeVerifyResults ������֧�� UNION��SOC �������� INTERSECT�����ཻ�������ֺϲ����ԡ�
+        dedupKey = assetId + vulPort + vulTransProto + vulSvc + vulId���� vul_archive_inst Ψһ��һ�£���
+        ����ģʽ��ͻ�ֶκϲ���vulLevel ȡ�ߡ�����ȡ�ǿա�engHash �� MULTI��
+      deliverables:
+        - VerifyResultMerger.java: mergeVerifyResults ����
+        - VerifyResultMerger.java: mergeConflict ������������ͻ�����
+        - VerifyResultMergerTest.java: ��Ԫ���ԣ�UNION/INTERSECT/��ɨ����/��ͻ�ϲ���
+      acceptance:
+        - UNION: ��һɨ�������ּ�����
+        - INTERSECT: ����ɨ���������ֲű���
+        - ��ɨ��������ֱ�ӷ���
+        - ��ͻ�ֶκϲ�������ȷ
+      dependencies: [W1b-PASS-ORCH]
+
+    - id: W1b-PASS-VERIFY
+      name: vul-pass ��֤�׶� Kafka ���������������ν�
+      project: project_backend/svmp/vul-pass
+      type: backend
+      agent: generalPurpose
+      priority: P0
+      estimated_hours: 16
+      description: |
+        ��չ SubTaskStatusKafkaListener������ scan_phase=2 ����֤�׶�����������¼���
+        ������֤��������ɺ���ȡ��ɨ������������� mergeVerifyResults �ϲ���
+        �ٸ������� handlerVulProcess ���� transition ״̬ԾǨ�����޸� transition ���򣩡�
+      deliverables:
+        - SubTaskStatusKafkaListener.java: scan_phase=2 ��֧����
+        - handlerVulProcess ���ã����޸� transition ����
+        - ��֤�׶���ɺ�֪ͨ open-api-service��Я�� tsk_phase=2�����Ƴٻص��жϣ�
+      acceptance:
+        - ��֤�׶�������������ɺ󴥷��ϲ�
+        - �ϲ�����뵵���� diff��ִ�� transition
+        - STILL_EXIST �� VALIDATED_TRUE(2)
+        - EXISTENT �� VALIDATED_FALSE(3)
+        - ��֤�׶��·��֣�NEW_DISCOVERY���������Ϊ INITIAL_DISCOVERY(1)
+        - ֪ͨ open-api-service �� summary �� tsk_phase=2 ��ʶ
+        - ֪ͨ open-api-service �� summary
+      dependencies: [W1b-PASS-MERGE, W1a-VTC-API]
+
+# ============================================================
+# v2 �޶�����׷�ӣ�2026-06-17��
+# auto_verify ���� + �Ƴ� Webhook �ص�
+# ============================================================
+
+v2_revision:
+  changes:
+    - action: add
+      task_id: W1b-OPEN-AUTOVERIFY
+      reason: ������������ auto_verify �����������Ƿ��Զ�������֤�׶�
+    - action: add
+      task_id: W1b-OPEN-DEFERRED-CALLBACK
+      reason: auto_verify=true ʱ�Ƴ� TASK_COMPLETED/EXPORT_READY �ص�����֤�׶����
+    - action: remove
+      task_id: W1b-PASS-VERIFY-SOURCE
+      reason: v2 ����Ҫ verify_source �ֶκ� INSTANCE_AUTO_VERIFIED �¼���ԭ v1 ������δ��أ�
+
+  new_tasks:
+    - id: W1b-OPEN-AUTOVERIFY
+      name: open-api-service ������������ auto_verify ����
+      project: project_backend/svmp/open-api-service
+      type: backend
+      agent: generalPurpose
+      priority: P0
+      estimated_hours: 6
+      description: |
+        在创建任务接口 POST /tasks/vul 请求体新增 autoVerify 参数（可选，默认 true）。
+        XML 创建任务（POST /tasks/file）不新增请求体参数行，autoVerify 通过附录 G.2 的
+        XML 路径 /scanTask/server/autoVerify 配置。
+        传递给 vul-pass 控制是否自动触发验证阶段。Partner 级配置可覆盖默认值。
+        双扫结果合并策略在接入 Partner 时定制（部侧交集 / SOC 并集）。
+        - OpenTaskUI.java: POST /tasks/vul 请求体新增 autoVerify 参数
+        - 附录 G.2 XML 路径 /scanTask/server/autoVerify 配置支持
+        - SvmpEngineAdapterImpl.java: ���� auto_verify �� vul-pass
+        - IVulPassScanTaskFeign.java: �ڲ��ӿ����� auto_verify ����
+      acceptance:
+        - POST /tasks/vul ������֧�� autoVerify��Ĭ�� true
+        - POST /tasks/vul 请求体支持 autoVerify，默认 true
+        - POST /tasks/file 通过附录 G.2 XML 路径配置 autoVerify
+        - auto_verify 传递到 vul_scan_task.auto_verify 字段
+        - Partner 级配置可设置默认 auto_verify 和合并策略
+
+    - id: W1b-OPEN-DEFERRED-CALLBACK
+      name: open-api-service �Ƴٻص����ƣ�auto_verify=true��
+      project: project_backend/svmp/open-api-service
+      type: backend
+      agent: generalPurpose
+      priority: P0
+      estimated_hours: 10
+      description: |
+        ʵ�� auto_verify=true ʱ���Ƴٻص����ơ�
+        �Ų�׶����ʱ������ TASK_COMPLETED �� EXPORT_READY��
+        ��֤�׶���ɣ�����һ�׶�ʧ�ܣ�ʱͳһ�����ص���
+        �ص���ʵ��״̬��ӳ��֤����̬��2/3/1����
+      deliverables:
+        - PassTaskStatusListener.java: ���� vul-pass ����״̬���� tsk_phase �� auto_verify ���ƻص�ʱ��
+        - �ص��߼���auto_verify=true ʱ tsk_phase=1 FINISHED ���ص���tsk_phase=2 FINISHED ͳһ�ص�
+        - EXPORT_READY �ⷢ���ݣ�auto_verify=true ʱ�������׶κϲ����
+        - ��Ԫ���ԣ�auto_verify=true/false ���ֳ����Ļص�ʱ��
+      acceptance:
+        - auto_verify=true���Ų���ɲ��ص�����֤���ͳһ�ص� TASK_COMPLETED
+        - auto_verify=true��EXPORT_READY ����֤��ɺ󴥷��������׶κϲ����
+        - auto_verify=false���Ų���ɼ��ص���ԭ���壩
+        - ��һ�׶�ʧ�ܣ��ص� TASK_FAILED
+        - �ص��� instances[].vulInfoStat ��ӳ��֤����̬
+      dependencies: [W1b-OPEN-AUTOVERIFY, W1b-PASS-VERIFY]

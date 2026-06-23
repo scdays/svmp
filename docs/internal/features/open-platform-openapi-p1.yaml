@@ -1,0 +1,266 @@
+feature:
+  id: OP-OPENAPI-P1
+  name: 开放平台对外 REST 执行面 P1
+  phase: P1
+  prd: null
+  landing_plan: svmp/docs/internal/开放平台对外REST执行面-分期落地方案.md
+  page_design: null
+  openapi: svmp/openapi/v1/openapi.yaml
+
+shared_reads:
+  - .cursor/skills/esmp-rd-standards/SKILL.md
+  - svmp/docs/internal/开放平台对外REST执行面-分期落地方案.md
+  - svmp/docs/internal/Open API与vul-pass内部接口映射表.md
+  - svmp/docs/external/网络安全漏洞管理平台 · API 接口文档V1.0.4.md
+  - svmp/openapi/v1/openapi.yaml
+  - .cursor/skills/esmp-backend-dev/SKILL.md
+  - .cursor/rules/open-api-service-ddd.mdc
+
+acceptance:
+  - POST /instances/search、GET /instances/{vulInfoID} 与 openapi §5.2 一致，跨 Partner 返回 40003
+  - POST verify/remediate/verify-fix 单条与 §5.3–5.5 一致，状态机错误码 40002/40005
+  - 三个 :batch 返回 success[] + failed[]，符合 §4.2 幂等
+  - Webhook 出站投递写入 webhook_delivery_log，TASK_COMPLETED / INSTANCE_STATUS_CHANGED 可触发
+  - partner-gateway 端到端 curl 通过（含 capability INSTANCE_*）
+  - powershell verify-open-api-ddd.ps1 -Compile 通过
+
+agents:
+  - id: R
+    name: Mapping-Freeze-vul-pass
+    owner: 架构/联调
+    repos:
+      - project_backend/svmp
+    allow_paths:
+      - svmp/docs/internal/Open API与vul-pass内部接口映射表.md
+      - vul-pass/**/controller/**
+      - open-api-service/**/infra/adapter/**
+    deny_paths:
+      - project_frontend/**
+    reads:
+      - svmp/docs/internal/Open API与vul-pass内部接口映射表.md
+      - svmp/openapi/v1/openapi.yaml
+      - project_backend/svmp/vul-pass
+    delivers:
+      - 映射表 §3 全部 🟡 改为 ✅ 或明确废弃路径
+      - §6 决策记录 4 项填写结论
+      - 实码引用（Controller 类名 + 方法签名）
+    verify:
+      - 映射表无「待确认」阻塞 P1-a 编码
+    depends_on: []
+    prompt: |
+      你是 Agent R · vul-pass 映射冻结负责人。
+
+      【只改】`Open API与vul-pass内部接口映射表.md`（可只读 vul-pass 源码核对）。
+      【禁止】直接写 Partner REST Controller（留给 S/T/U）。
+
+      【目标】
+      1. 对照 vul-pass 实码，冻结实例读/写 8 接口的 Feign 路径与字段映射（可与 mock 并行）
+      2. 填写 §6 决策记录；联调周默认 mock，见 引擎对接与Mock模式方案.md
+      3. 标注每条映射的 vul-pass Controller#method 引用
+
+      【交付】
+      - 更新后的映射表 diff 摘要
+      - 仍不确定项清单（应为空或仅 P2 外发）
+
+  - id: S
+    name: Backend-P1-Instance-Read
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/open-api-service
+      - project_backend/svmp/partner-gateway
+    allow_paths:
+      - open-api-service/**/instance/**
+      - open-api-service/**/ui/open/**
+      - open-api-service/**/ui/dto/open/**
+      - open-api-service/**/app/**
+      - open-api-service/**/domain/instance/**
+      - open-api-service/**/infra/adapter/**
+      - open-api-service/**/db/**
+      - partner-gateway/**/capability/**
+    deny_paths:
+      - project_frontend/**
+    reads:
+      - svmp/docs/internal/Open API与vul-pass内部接口映射表.md
+      - svmp/openapi/v1/openapi.yaml
+      - .cursor/rules/open-api-service-ddd.mdc
+    delivers:
+      - OpenInstanceUI：POST /instances/search、GET /instances/{vulInfoID}
+      - IVulnInstanceGateway + vul-pass 适配
+      - api_operation seed searchInstances/getInstance
+      - InvocationPipeline 接入 + Partner 隔离
+    verify:
+      - powershell -File svmp/docs/internal/scripts/verify-open-api-ddd.ps1 -Compile
+    depends_on:
+      - R
+    prompt: |
+      你是 open-api-service · P1 实例读负责人（Agent S）。
+
+      【依赖】Agent R 已冻结映射表 §3.1。
+      【只改】open-api-service、partner-gateway capability（INSTANCE_READ）。
+      【禁止】project_frontend、实例写接口。
+
+      【目标】
+      1. 实现 POST /instances/search、GET /instances/{vulInfoID}
+      2. 统一 InvocationPipeline；resourceId=vulInfoID
+      3. 跨 Partner 访问 → 40003
+
+      【交付】改动清单 + curl 示例 + 编译结果
+
+  - id: T
+    name: Backend-P1-Instance-Write-Single
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/open-api-service
+    allow_paths:
+      - open-api-service/**/instance/**
+      - open-api-service/**/ui/open/**
+      - open-api-service/**/domain/instance/**
+      - open-api-service/**/infra/adapter/**
+    deny_paths:
+      - project_frontend/**
+      - partner-gateway/**
+    reads:
+      - svmp/docs/internal/Open API与vul-pass内部接口映射表.md
+      - svmp/openapi/v1/openapi.yaml
+    delivers:
+      - verifyInstance / remediateInstance / verifyFixInstance 单条三接口
+      - Domain 状态机校验（40002/40005）
+      - api_invocation 写记录
+    verify:
+      - powershell -File svmp/docs/internal/scripts/verify-open-api-ddd.ps1 -Compile
+    depends_on:
+      - S
+    prompt: |
+      你是 Agent T · 实例写单条负责人。
+
+      【依赖】Agent S 实例读与 open_vuln_instance 归属已就绪。
+      【目标】实现 §5.3–5.5 单条 verify/remediate/verify-fix。
+      【约束】Partner DTO 仅 ui/dto/open；调 vul-pass 走映射表 adapter。
+
+  - id: U
+    name: Backend-P1-Instance-Write-Batch
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/open-api-service
+    allow_paths:
+      - open-api-service/**/instance/**
+      - open-api-service/**/domain/instance/**
+    deny_paths:
+      - project_frontend/**
+    reads:
+      - svmp/openapi/v1/openapi.yaml
+    delivers:
+      - verifyInstanceBatch / remediateInstanceBatch / verifyFixInstanceBatch
+      - success[] + failed[] 聚合，单条逻辑复用 T
+    verify:
+      - powershell -File svmp/docs/internal/scripts/verify-open-api-ddd.ps1 -Compile
+    depends_on:
+      - T
+    prompt: |
+      你是 Agent U · 实例批量写负责人。
+
+      【目标】三个 :batch 接口；复用 T 的 Domain 单条逻辑；符合 §4.2 幂等语义。
+
+  - id: V
+    name: Backend-P1-Webhook-Outbound
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/open-api-service
+    allow_paths:
+      - open-api-service/**/webhook/**
+      - open-api-service/**/domain/webhook/**
+      - open-api-service/**/infra/**/webhook/**
+    deny_paths:
+      - project_frontend/**
+    reads:
+      - svmp/docs/internal/开放平台对外REST执行面-分期落地方案.md
+      - svmp/docs/external/网络安全漏洞管理平台 · API 接口文档V1.0.4.md
+    delivers:
+      - Webhook 出站投递（TASK_COMPLETED、INSTANCE_STATUS_CHANGED）
+      - webhook_delivery_log 写入
+      - 失败重试策略（至少指数退避 + 最大次数）
+    verify:
+      - 任务 FINISHED 或实例写成功后 delivery_log 有记录
+    depends_on:
+      - T
+    prompt: |
+      你是 Agent V · Webhook 出站负责人。
+
+      【目标】§6 Webhook 出站；非 Partner REST。
+      【触发】任务完成、实例状态变更；POST Partner defaultCallbackUrl。
+      【落库】webhook_delivery_log（与 admin 查询对齐）。
+
+  - id: W
+    name: Gateway-P1-Instance-Capability
+    owner: 网关
+    repos:
+      - project_backend/svmp/partner-gateway
+    allow_paths:
+      - partner-gateway/**
+    deny_paths:
+      - open-api-service/**
+      - project_frontend/**
+    reads:
+      - svmp/openapi/v1/openapi.yaml
+    delivers:
+      - PartnerCapabilityMatcher 补全 instances 8 路径
+      - INSTANCE_VERIFY / REMEDIATE / VERIFY_FIX capability 映射
+    verify:
+      - 无 capability 时 40301
+    depends_on:
+      - S
+    prompt: |
+      你是 Agent W · partner-gateway 能力码负责人。
+
+      【目标】instances 相关路径与 capability 与 openapi 一致；可与 S 并行。
+
+  - id: X
+    name: Frontend-P1-InvocationDetail-Optional
+    owner: 业务前端
+    repos:
+      - project_frontend/asset/asset-openplatform-manage
+    allow_paths:
+      - asset-openplatform-manage/**
+    deny_paths:
+      - open-api-service/**
+      - partner-gateway/**
+    reads:
+      - svmp/docs/internal/开放平台集成管理后台-页面设计.md
+    delivers:
+      - InvocationDetail Drawer 或详情页（可选）
+      - instance 写 operation 展示增强
+    verify:
+      - npm run build
+    depends_on: []
+    prompt: |
+      你是 Agent X · 管理面前端小增强（可选，不阻塞 P1 后端）。
+
+      【目标】InvocationDetail；WebhookDeliveryList 重试按钮（若 admin retry API 已有）。
+
+  - id: Y
+    name: Integration-P1-OpenAPI
+    owner: 联调验收
+    repos: []
+    allow_paths:
+      - svmp/docs/internal/**
+    deny_paths: []
+    reads:
+      - svmp/docs/internal/开放平台对外REST执行面-分期落地方案.md
+    delivers:
+      - 联调手册-P1-OpenAPI.md
+      - acceptance 逐项结论
+    verify:
+      - acceptance 列表全部通过
+      - 经 partner-gateway curl 脚本可复现
+    depends_on:
+      - S
+      - T
+      - U
+      - V
+      - W
+    prompt: |
+      你是 Agent Y · OP-OPENAPI-P1 联调验收负责人。
+
+      【依赖】S/T/U/V/W 完成。
+      【产出】`联调手册-P1-OpenAPI.md`：Token → search → get → verify → remediate → verify-fix → batch → Webhook 日志核对。
+      【输出】通过项 / 阻塞项 / 修复建议。

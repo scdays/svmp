@@ -11,6 +11,7 @@ feature:
   openapi: svmp/openapi/v1/openapi.yaml
 
 shared_reads:
+  - .cursor/skills/esmp-rd-standards/SKILL.md
   - svmp/docs/internal/开放平台集成管理-完整落地方案.md
   - svmp/docs/external/开放平台API接口规范.md
   - project_frontend/asset/docs/micro-app-scaffold.md

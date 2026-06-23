@@ -1,17 +1,18 @@
 openapi: 3.1.0
 info:
   title: 网络安全漏洞管理平台 · API
-  version: 1.0.4
+  version: 1.0.6
   description: |
     网络安全漏洞管理平台 · 对外 Partner 集成 API 契约。
 
     - 接口规范：[`docs/external/开放平台API接口规范.md`](../docs/external/开放平台API接口规范.md)（文档标题：《网络安全漏洞管理平台 · API 接口文档》）
     - 漏洞实例字段与部侧表34 **同名**：`vulInfoID`、`vulInfoStat`、`vulName`、`vulNetAddr`、`remedDesc`、`srcMethod` 等
     - Base path：`/api/open/v1`
-    - 鉴权：**v1.0.4 仅支持** `Authorization: Bearer`（OAuth 2.0 Client Credentials）；Token 端点见接口规范 §3.1.1（不在本 OpenAPI 范围）；API Key + HMAC 暂未开放
+    - 鉴权：**v1.0.5 仅支持** `Authorization: Bearer`（OAuth 2.0 Client Credentials）；Token 端点见接口规范 §3.1.1（不在本 OpenAPI 范围）；API Key + HMAC 暂未开放
     - 响应包装：除特别说明外，HTTP 200 仍使用业务 `code` 区分成功/失败
     - 幂等：创建任务用 `extTaskId` 或 `Idempotency-Key`；实例写 `{动作}:{vulInfoID}:{clientRequestId}`；批量 `{动作}:batch:{clientBatchId}`（详见接口规范 §4.2，默认保留 24h）
     - 调 SVMP：`extTaskId` 不下发；查询进度仅 SVMP `taskId`
+    - **外发分层（v1.0.5）**：`exports/*` = 规范化 TaskExport（xml/json）；`artifacts/*` = 扫描器原始 / 平台渲染报告文件
 
     ## 生命周期
 
@@ -39,7 +40,9 @@ tags:
   - name: instances
     description: 漏洞实例查询与生命周期
   - name: exports
-    description: 任务结束数据外发查询与下载
+    description: 任务结束规范化数据外发（TaskExport xml/json）
+  - name: artifacts
+    description: 扫描报告产物外发（扫描器原始报告、平台渲染报告）
   - name: webhooks
     description: 平台 → Partner 回调（由 Partner 实现接收端）
 
@@ -581,7 +584,8 @@ paths:
       summary: 处置（含已修复与修复失败/备案）
       description: |
         需能力 `INSTANCE_REMEDIATE`。
-        前置：`vulInfoStat ∈ {2, 7}`，且 `≠ 3`。
+        前置：目标 **5** 或 **9** 时，当前 `vulInfoStat ∈ {1, 2, 7}`；**3（误报）禁止**（40002）；已处置 **5/9** 重复 → 40005。
+        终态判定：`vulInfoStat` 显式 **5/9** 优先；未传时 `lvRsn` 有值→**9**，无→**5**。
         可修复类 srcMethod（附录 D，1050–1053）→ `vulInfoStat=5`；修复失败/备案 → `vulInfoStat=9`，须传 `lvRsn`（附录 E）、`archiveReason`。
         工单字段（必填）：srcTktRole/dstTktRole、assignerDept/handlerDept；派单人/处置人邮箱与电话各至少填一项。
       parameters:
@@ -595,8 +599,9 @@ paths:
               $ref: '#/components/schemas/RemediateInstanceRequest'
             examples:
               patchUpgrade:
-                summary: 补丁升级修复（srcMethod=1050）
+                summary: 补丁升级修复（srcMethod=1050，显式 vulInfoStat=5）
                 value:
+                  vulInfoStat: 5
                   srcMethod: 1050
                   remedDesc: 升级 OpenSSH 至 9.6p1 并重启 sshd
                   fixLnk: https://www.openssh.com/releasenotes.html
@@ -860,6 +865,188 @@ paths:
                             items:
                               $ref: '#/components/schemas/ExportRecord'
 
+  /artifacts/{artifactId}:
+    get:
+      tags: [artifacts]
+      operationId: getArtifact
+      summary: 查询扫描报告产物元数据
+      description: |
+        需能力 `ARTIFACT_READ`。扫描器原始报告或平台渲染报告登记完成后可查。
+        与 `exports/*` 规范化外发分层；下载体为二进制文件，非 TaskExport。
+      parameters:
+        - name: artifactId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ArtifactRecord'
+              examples:
+                scannerRawReady:
+                  summary: 绿盟原始 XML 就绪
+                  value:
+                    code: 0
+                    message: ok
+                    requestId: req-20260518-a001
+                    data:
+                      artifactId: ART-20260518-ns01
+                      taskId: TASK-7f3a2b1c
+                      extTaskId: EXT-TASK-2026-0001
+                      exportId: EXP-20260518-7f3a
+                      exportStage: TASK_COMPLETED
+                      artifactSource: SCANNER_RAW
+                      reportTypeCode: 13
+                      reportTypeName: 漏洞扫描报告V1.0(绿盟-XML)
+                      scannerVendor: nsfocus
+                      fileName: nsfocus-scan-report.xml
+                      fileFormat: xml
+                      contentType: application/xml
+                      byteSize: 2097152
+                      status: READY
+                      generatedAt: '2026-05-18T14:06:00Z'
+                      expiresAt: '2026-05-25T14:06:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /artifacts/{artifactId}/download:
+    get:
+      tags: [artifacts]
+      operationId: downloadArtifact
+      summary: 下载扫描报告产物文件
+      description: |
+        需能力 `ARTIFACT_READ`。返回二进制文件流（Content-Disposition: attachment）。
+        `artifactSource=SCANNER_RAW` 为扫描器回收原文件；`PLATFORM_REPORT` 为平台渲染报告。
+        亦可使用 Webhook `ARTIFACT_READY` 中的短期 `downloadUrl`。
+      parameters:
+        - name: artifactId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 报告产物文件流
+          content:
+            application/xml:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/zip:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /tasks/{taskId}/artifacts:
+    get:
+      tags: [artifacts]
+      operationId: listTaskArtifacts
+      summary: 查询任务下的扫描报告产物
+      description: 需能力 `ARTIFACT_READ`。
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: exportStage
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ExportStage'
+        - name: artifactSource
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ArtifactSource'
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          page:
+                            type: integer
+                          size:
+                            type: integer
+                          total:
+                            type: integer
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ArtifactRecord'
+
+  /exports/{exportId}/artifacts:
+    get:
+      tags: [artifacts]
+      operationId: listExportArtifacts
+      summary: 查询外发关联的扫描报告产物
+      description: |
+        需能力 `ARTIFACT_READ`。返回与指定 exportId 同一 exportStage、同一 taskId 下的产物列表。
+      parameters:
+        - name: exportId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: 业务响应
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          page:
+                            type: integer
+                          size:
+                            type: integer
+                          total:
+                            type: integer
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ArtifactRecord'
+
 webhooks:
   platformCallback:
     post:
@@ -942,6 +1129,26 @@ webhooks:
                     dataType: MIXED
                     recordCount: 128
                     downloadUrl: https://vuln-platform.example.com/download/EXP-20260518-7f3a
+              artifactReady:
+                summary: 扫描报告产物就绪
+                value:
+                  eventId: evt-20260518-0004
+                  eventType: ARTIFACT_READY
+                  occurredAt: '2026-05-18T14:06:00Z'
+                  partnerId: partner-demo-01
+                  payload:
+                    artifactId: ART-20260518-ns01
+                    taskId: TASK-7f3a2b1c
+                    extTaskId: EXT-TASK-2026-0001
+                    exportId: EXP-20260518-7f3a
+                    exportStage: TASK_COMPLETED
+                    artifactSource: SCANNER_RAW
+                    reportTypeCode: 13
+                    fileName: nsfocus-scan-report.xml
+                    fileFormat: xml
+                    contentType: application/xml
+                    byteSize: 2097152
+                    downloadUrl: https://vuln-platform.example.com/download/ART-20260518-ns01
       responses:
         '200':
           description: Partner 接收成功（建议 body `{"received":true}`）
@@ -965,7 +1172,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Partner 访问令牌（v1.0.4 唯一支持的 REST 鉴权方式；换取方式见接口规范 §3.1.1）
+      description: Partner 访问令牌（v1.0.5 唯一支持的 REST 鉴权方式；换取方式见接口规范 §3.1.1）
 
   parameters:
     TaskId:
@@ -1348,6 +1555,30 @@ components:
           description: 覆盖 Partner 默认回调地址
         priority:
           $ref: '#/components/schemas/TaskPriority'
+        deliveryOptions:
+          $ref: '#/components/schemas/DeliveryOptions'
+          description: 报告产物外发策略（附录 H.3）；仅控制 artifacts，不影响 reportTemplateId 对应的规范化 Export
+
+    DeliveryOptions:
+      type: object
+      description: 控制 §5.7 Artifact 是否生成；缺省时按 Partner 运营 delivery policy。
+      properties:
+        includeScannerRaw:
+          type: boolean
+          default: false
+          description: 是否外发扫描器原始报告
+        scannerRawBundle:
+          type: string
+          enum: [SINGLE, ZIP]
+          default: SINGLE
+          description: 多子任务时 SINGLE=独立文件，ZIP=同阶段打包
+        includePlatformReport:
+          type: boolean
+          default: false
+          description: 是否生成平台扫描报告
+        platformReportTemplateCode:
+          type: string
+          description: includePlatformReport=true 时必填；平台内部模板编码
 
     CreateVulnScanTaskRequest:
       description: 已废弃别名；请使用 CreateScanTaskByJsonRequest
@@ -1700,6 +1931,10 @@ components:
         - assignerDept
         - handlerDept
       properties:
+        vulInfoStat:
+          type: integer
+          enum: [5, 9]
+          description: 处置目标状态（推荐）。5=已修复，9=修复失败/备案。未传时由 lvRsn 推断（有值→9，无→5）
         srcMethod:
           type: integer
           description: A.10；可修复类 1050–1053→5；修复失败/备案→9 须 lvRsn（附录 E）
@@ -1813,6 +2048,7 @@ components:
         - TASK_FAILED
         - INSTANCE_VERIFY_FIX_COMPLETED
         - EXPORT_READY
+        - ARTIFACT_READY
 
     TaskCompletedPayload:
       type: object
@@ -1960,11 +2196,29 @@ components:
 
     ExportStage:
       type: string
-      description: 外发触发阶段。
+      description: 外发/产物触发阶段。
       enum:
         - TASK_COMPLETED
         - VERIFY_SCAN
         - VERIFY_FIX_SCAN
+
+    ArtifactSource:
+      type: string
+      description: 扫描报告产物来源。
+      enum:
+        - SCANNER_RAW
+        - PLATFORM_REPORT
+
+    ArtifactFileFormat:
+      type: string
+      description: 产物文件格式扩展名语义。
+      enum:
+        - xml
+        - xlsx
+        - pdf
+        - html
+        - zip
+        - json
 
     ExportDataType:
       type: string
@@ -2203,6 +2457,100 @@ components:
           format: uri
           description: 可选预签名下载 URL（短期有效）
 
+    ArtifactReadyPayload:
+      type: object
+      required: [artifactId, taskId, exportStage, artifactSource, fileName, fileFormat, contentType]
+      properties:
+        artifactId:
+          type: string
+        taskId:
+          type: string
+        extTaskId:
+          type: string
+        exportId:
+          type: string
+          description: 同 exportStage 关联的规范化外发 ID
+        exportStage:
+          $ref: '#/components/schemas/ExportStage'
+        artifactSource:
+          $ref: '#/components/schemas/ArtifactSource'
+        reportTypeCode:
+          type: integer
+          description: 平台内部报告类型码
+        fileName:
+          type: string
+        fileFormat:
+          $ref: '#/components/schemas/ArtifactFileFormat'
+        contentType:
+          type: string
+        byteSize:
+          type: integer
+          format: int64
+        downloadUrl:
+          type: string
+          format: uri
+
+    ArtifactRecord:
+      type: object
+      required:
+        - artifactId
+        - taskId
+        - exportStage
+        - artifactSource
+        - fileName
+        - fileFormat
+        - contentType
+        - status
+      properties:
+        artifactId:
+          type: string
+        taskId:
+          type: string
+        extTaskId:
+          type: string
+        exportId:
+          type: string
+        exportStage:
+          $ref: '#/components/schemas/ExportStage'
+        artifactSource:
+          $ref: '#/components/schemas/ArtifactSource'
+        reportTypeCode:
+          type: integer
+        reportTypeName:
+          type: string
+        scannerVendor:
+          type: string
+        scannerProduct:
+          type: string
+        subTaskId:
+          type: string
+        fileName:
+          type: string
+        fileFormat:
+          $ref: '#/components/schemas/ArtifactFileFormat'
+        contentType:
+          type: string
+        byteSize:
+          type: integer
+          format: int64
+        checksum:
+          type: string
+          description: SHA-256 十六进制摘要
+        status:
+          type: string
+          enum: [PENDING, READY, EXPIRED, FAILED]
+        generatedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        downloadUrl:
+          type: string
+          format: uri
+        errorMessage:
+          type: string
+
     ExportRecord:
       type: object
       required: [exportId, taskId, format, exportStage, dataType, status]
@@ -2258,4 +2606,5 @@ components:
             - $ref: '#/components/schemas/TaskCompletedPayload'
             - $ref: '#/components/schemas/InstanceVerifyFixCompletedPayload'
             - $ref: '#/components/schemas/ExportReadyPayload'
+            - $ref: '#/components/schemas/ArtifactReadyPayload'
           description: 结构随 eventType 变化

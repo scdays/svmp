@@ -1,0 +1,151 @@
+# vul-pass (A) ↔ vuln-task-center (B) 集成契约
+# 状态：冻结 v1.0 · 2026-06-17
+# 说明：B 方按本契约实现；A 方 Feign 客户端 ITaskCenterScanClient 对齐本文件
+
+meta:
+  consumer: vul-pass
+  provider: vuln-task-center
+  prd: svmp/docs/internal/SOC对接全链路-PRD.md
+  isolation: svmp/docs/internal/OPEN状态跃迁与考核隔离说明.md
+
+# ─────────────────────────────────────────────
+# A → B：REST（创建与拉取）
+# ─────────────────────────────────────────────
+rest:
+  existing:
+    - method: POST
+      path: /v1/scan/task/batch/add/first/half
+      summary: 批量创建扫描计划（上半场）
+      reference: vuln-model ITaskClient.createScanTask
+    - method: POST
+      path: /v1/scan/task/add/second/half
+      summary: 下发扫描（下半场）
+      reference: vuln-model ITaskClient.addSecondHalf
+    - method: GET
+      path: /event/scan/task/survey/query/vulnScan/{surveyId}
+      summary: 轮询 survey 状态（过渡，可与 Kafka 并存）
+
+  new:
+    - method: GET
+      path: /v1/scan/task/survey/{surveyId}/results
+      summary: 拉取扫描结构化结果（推荐一次拉全量）
+      query:
+        section:
+          type: string
+          enum: [liveProbe, portScan, vulnerabilities, weakPasswords, baseline, all]
+          default: all
+          description: 可选分段；缺省返回全部数组
+      response:
+        surveyId: string
+        status: string  # FINISHED | FAILED | RUNNING
+        targets: array
+        liveProbeResults: array
+        portScanResults: array
+        vulnerabilities: array
+        weakPasswords: array
+        baselineResults: array
+
+    - method: POST
+      path: /v1/scan/task/survey/{surveyId}/report/generate
+      summary: 发起原始报告生成
+      body:
+        reportTemplateCode: string
+        format: string  # xml | pdf | xlsx
+      response:
+        reportJobId: string
+        status: string  # queued | generating
+
+    - method: GET
+      path: /v1/scan/report/jobs/{reportJobId}
+      summary: 查询报告任务状态
+      response:
+        reportJobId: string
+        status: string  # pending | queued | generating | ready | failed
+        progress: integer
+        downloadUrl: string
+
+    - method: GET
+      path: /v1/scan/report/jobs/{reportJobId}/download
+      summary: 下载原始报告（二进制流）
+
+# ─────────────────────────────────────────────
+# B → A：Kafka 事件
+# ─────────────────────────────────────────────
+kafka:
+  - topic: dr_vul_scan_task_status
+    event: SUB_TASK_STATUS_CHANGED
+    required_fields:
+      - surveyId
+      - subTaskId
+      - vendor
+      - status      # FINISHED | FAILED | RUNNING
+      - progress
+      - passTaskId
+      - passSubTaskId
+      - scanPhase   # 1=排查 2=验证 3=修复核验
+    optional_fields:
+      - finishedAt
+      - errorMessage
+
+  - topic: dr_vul_scan_report_status
+    event: REPORT_JOB_COMPLETED
+    required_fields:
+      - reportJobId
+      - surveyId
+      - status      # ready | failed
+      - passTaskId
+    optional_fields:
+      - downloadUrl
+      - errorMessage
+
+# ─────────────────────────────────────────────
+# 字段结构（§5.6.5 对齐）
+# ─────────────────────────────────────────────
+schemas:
+  liveProbeResult:
+    required: [liveProbeId, targetId, address, alive]
+    properties:
+      liveProbeId: string
+      targetId: string
+      address: string
+      alive: boolean
+      probeMethod: string
+      latencyMs: integer
+      mac: string
+      osGuess: string
+      detectedAt: datetime
+
+  portScanResult:
+    required: [portScanId, targetId, address, port, protocol, state]
+    properties:
+      portScanId: string
+      targetId: string
+      address: string
+      port: integer
+      protocol: string
+      state: string
+      service: string
+      banner: string
+      version: string
+      detectedAt: datetime
+
+  vulnerability:
+    required: [vulID, instances]
+    properties:
+      vulID: string
+      vulLevel: integer
+      vulName: string
+      vulDesc: string
+      instances:
+        type: array
+        items:
+          required: [vulInfoID, vulInfoStat, vulNetAddr]
+          properties:
+            vulInfoID: string
+            targetId: string
+            vulInfoStat: integer
+            vulNetAddr: string
+            vulPort: integer
+            vulSvc: string
+            vulTransProto: string
+            evidence: string

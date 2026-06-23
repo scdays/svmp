@@ -1,0 +1,2368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>扫描治理中心 · 全功能原型 v3（治理中心）</title>
+  <style>
+    :root {
+      --primary: #1890ff; --success: #52c41a; --warning: #faad14; --error: #ff4d4f;
+      --text: rgba(0,0,0,.85); --text-secondary: rgba(0,0,0,.45);
+      --border: #d9d9d9; --bg: #f0f2f5; --card: #fff; --sidebar: #001529;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 14px; color: var(--text); background: var(--bg); }
+    .app-shell { display: flex; min-height: 100vh; }
+    .sidebar { width: 240px; background: var(--sidebar); color: #fff; flex-shrink: 0; overflow-y: auto; }
+    .sidebar-logo { height: 64px; display: flex; align-items: center; padding: 0 20px; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .menu-group { padding: 12px 0 4px; }
+    .menu-group-title { padding: 4px 20px; font-size: 11px; color: rgba(255,255,255,.35); letter-spacing: .5px; }
+    .menu-item { padding: 8px 20px 8px 36px; color: rgba(255,255,255,.65); cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: space-between; }
+    .menu-item:hover { color: #fff; background: rgba(255,255,255,.05); }
+    .menu-item.active { background: var(--primary); color: #fff; }
+    .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .topbar { height: 48px; background: var(--card); border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+    .topbar small { color: var(--text-secondary); }
+    .content { padding: 16px; flex: 1; overflow: auto; }
+    .view { display: none; } .view.active { display: block; }
+    .phase { font-size: 10px; padding: 1px 6px; border-radius: 2px; font-weight: 500; }
+    .p0 { background: #e6f7ff; color: #0958d9; border: 1px solid #91d5ff; }
+    .p1 { background: #f6ffed; color: #389e0d; border: 1px solid #b7eb8f; }
+    .p2 { background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; }
+    .p3 { background: #f9f0ff; color: #531dab; border: 1px solid #d3adf7; }
+    .alert { padding: 8px 15px; border-radius: 2px; margin-bottom: 16px; display: flex; gap: 8px; }
+    .alert-error { background: #fff2f0; border: 1px solid #ffccc7; color: #cf1322; }
+    .alert-info { background: #e6f7ff; border: 1px solid #91d5ff; color: #0958d9; }
+    .hidden { display: none !important; }
+    .breadcrumb { margin-bottom: 16px; color: var(--text-secondary); }
+    .breadcrumb a { color: var(--primary); text-decoration: none; cursor: pointer; }
+    .card { background: var(--card); border-radius: 2px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+    .card-title { padding: 14px 20px; border-bottom: 1px solid #f0f0f0; font-weight: 500; display: flex; align-items: center; justify-content: space-between; }
+    .card-body { padding: 16px 20px; }
+    .btn { height: 32px; padding: 0 15px; border: 1px solid var(--border); background: #fff; border-radius: 2px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn-danger { background: var(--error); border-color: var(--error); color: #fff; }
+    .btn-link { border: none; background: none; color: var(--primary); cursor: pointer; padding: 0 4px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+    .search-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+    .form-item label { display: block; color: var(--text-secondary); margin-bottom: 4px; font-size: 13px; }
+    .form-item input, .form-item select, .form-item textarea { padding: 0 11px; border: 1px solid var(--border); border-radius: 2px; min-width: 160px; font-family: inherit; font-size: 14px; }
+    .form-item input, .form-item select { height: 32px; }
+    .form-item textarea { padding: 8px 11px; min-height: 80px; width: 100%; resize: vertical; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+    th { background: #fafafa; font-weight: 500; }
+    tr:hover td { background: #fafafa; }
+    .tag { display: inline-block; padding: 0 7px; font-size: 12px; border-radius: 2px; line-height: 20px; border: 1px solid; }
+    .tag-green { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
+    .tag-red { background: #fff2f0; border-color: #ffccc7; color: #cf1322; }
+    .tag-blue { background: #e6f7ff; border-color: #91d5ff; color: #0958d9; }
+    .tag-default { background: #fafafa; border-color: #d9d9d9; }
+    .tag-orange { background: #fff7e6; border-color: #ffd591; color: #d46b08; }
+    .tabs { display: flex; border-bottom: 1px solid #f0f0f0; }
+    .tab { padding: 10px 18px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-panel { display: none; padding: 20px; } .tab-panel.active { display: block; }
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    .stat-row.cols-5 { grid-template-columns: repeat(5, 1fr); }
+    .stat-card { background: #fafafa; border: 1px solid #f0f0f0; border-radius: 2px; padding: 14px; cursor: pointer; transition: box-shadow .2s; }
+    .stat-card:hover { box-shadow: 0 2px 6px rgba(0,0,0,.06); }
+    .stat-card .label { color: var(--text-secondary); font-size: 12px; }
+    .stat-card .value { font-size: 22px; font-weight: 500; margin-top: 4px; }
+    .stat-card .sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+    .progress-bar { height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; min-width: 80px; }
+    .progress-bar span { display: block; height: 100%; background: var(--primary); border-radius: 4px; transition: width .3s; }
+    .wizard-steps { display: flex; margin-bottom: 24px; border-bottom: 1px solid #f0f0f0; }
+    .wizard-step { flex: 1; text-align: center; padding: 12px 8px; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--text-secondary); cursor: pointer; font-size: 13px; }
+    .wizard-step.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 500; }
+    .wizard-step.done { color: var(--success); }
+    .wizard-panel { display: none; } .wizard-panel.active { display: block; }
+    .todo-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid #f0f0f0; cursor: pointer; font-size: 13px; }
+    .todo-row:last-child { border-bottom: none; }
+    .todo-row:hover { background: #fafafa; }
+    .workbench-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px; }
+    .report-matrix td { vertical-align: top; text-align: center; min-width: 110px; font-size: 12px; }
+    .report-matrix th { text-align: center; font-size: 12px; }
+    .workspace-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; padding: 16px 20px; background: var(--card); border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+    .workspace-title { font-size: 18px; font-weight: 500; }
+    .workspace-meta { color: var(--text-secondary); font-size: 13px; margin-top: 4px; line-height: 1.6; }
+    .lifecycle-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+    .lifecycle-card { border: 1px solid #91d5ff; background: #e6f7ff; border-radius: 2px; padding: 14px 16px; cursor: pointer; font-size: 13px; line-height: 1.7; transition: box-shadow .2s; }
+    .lifecycle-card:hover { box-shadow: 0 2px 8px rgba(24,144,255,.15); }
+    .lifecycle-card strong { display: block; margin-bottom: 6px; font-size: 14px; color: #0958d9; }
+    .chart-placeholder { height: 200px; background: linear-gradient(180deg,#fafafa,#f0f0f0); border: 1px dashed var(--border); border-radius: 2px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); margin-top: 12px; }
+    .sitemap-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .sitemap-card { border: 1px solid #f0f0f0; border-radius: 2px; padding: 16px; cursor: pointer; transition: box-shadow .2s; }
+    .sitemap-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .sitemap-card h3 { font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .sitemap-card ul { margin-left: 16px; color: var(--text-secondary); font-size: 13px; line-height: 1.8; }
+    .detail-header { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; }
+    .detail-title { font-size: 18px; font-weight: 500; }
+    .detail-meta { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; max-width: 800px; }
+    .form-grid .full { grid-column: 1 / -1; }
+    .checkbox-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .checkbox-item { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #f0f0f0; border-radius: 2px; font-size: 13px; }
+    .helper { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+    .required::before { content: "* "; color: var(--error); }
+    .action-btn { color: var(--primary); cursor: pointer; margin-right: 10px; }
+    .pagination { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding-top: 12px; color: var(--text-secondary); }
+    .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; z-index: 1000; }
+    .drawer-overlay.show { display: block; }
+    .drawer { position: fixed; top: 0; right: 0; width: 520px; max-width: 90vw; height: 100vh; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,.15); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .3s; z-index: 1001; }
+    .drawer-overlay.show .drawer { transform: translateX(0); }
+    .drawer-header { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; font-weight: 500; display: flex; justify-content: space-between; }
+    .drawer-body { padding: 20px; overflow: auto; flex: 1; }
+    .drawer-footer { padding: 12px 20px; border-top: 1px solid #f0f0f0; text-align: right; }
+    .kv-row { display: flex; margin-bottom: 10px; font-size: 13px; }
+    .kv-row .k { width: 120px; color: var(--text-secondary); flex-shrink: 0; }
+    .kv-row .v { flex: 1; word-break: break-all; }
+    .kv-row .v code { background: #f5f5f5; padding: 2px 6px; border-radius: 2px; font-size: 12px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 1002; padding: 24px; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #fff; border-radius: 2px; width: 100%; max-width: 640px; max-height: 90vh; overflow: auto; }
+    .modal-header { padding: 14px 20px; border-bottom: 1px solid #f0f0f0; font-weight: 500; display: flex; justify-content: space-between; }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid #f0f0f0; text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
+    .api-path { font-family: Consolas, monospace; font-size: 12px; color: #531dab; }
+    .filter-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .filter-chip { padding: 4px 12px; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; font-size: 13px; background: #fff; }
+    .filter-chip.active { border-color: var(--primary); color: var(--primary); background: #e6f7ff; }
+    .dev-done { background: #f6ffed; color: #389e0d; border: 1px solid #b7eb8f; }
+    .dev-todo { background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; }
+    .dev-skip { background: #fafafa; color: rgba(0,0,0,.45); border: 1px solid #d9d9d9; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center; font-size: 13px; }
+    .legend span { font-size: 12px; padding: 2px 8px; border-radius: 2px; }
+    .mock-banner { background: #fffbe6; border: 1px solid #ffe58f; padding: 10px 15px; border-radius: 2px; margin-bottom: 16px; font-size: 13px; line-height: 1.7; }
+    .drawer-wide { width: 640px; }
+    .drawer-full { width: min(920px, 92vw); }
+    pre.code-block { background: #fafafa; border: 1px solid #f0f0f0; padding: 12px; border-radius: 2px; font-size: 12px; overflow: auto; max-height: 280px; white-space: pre-wrap; word-break: break-all; }
+    .detail-page-grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .timeline { border-left: 2px solid #f0f0f0; margin-left: 8px; padding-left: 16px; }
+    .timeline-item { position: relative; padding-bottom: 16px; font-size: 13px; }
+    .timeline-item::before { content: ''; position: absolute; left: -21px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--primary); }
+    .timeline-item.fail::before, .timeline-item.warn::before { background: var(--warning); box-shadow: 0 0 0 1px var(--warning); }
+    .timeline-item .t { color: var(--text-secondary); font-size: 12px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .col-box { border: 1px solid #f0f0f0; border-radius: 2px; padding: 12px; font-size: 13px; }
+    .col-box h4 { font-size: 13px; margin-bottom: 8px; color: var(--text-secondary); font-weight: 500; }
+    .quick-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .node-card { border: 1px solid #f0f0f0; border-radius: 2px; padding: 12px 16px; cursor: pointer; }
+    .node-card.selected { border-color: var(--primary); background: #e6f7ff; }
+    .score-badge { background: var(--success); color: #fff; padding: 2px 8px; border-radius: 2px; font-size: 12px; }
+    .matrix-cell { min-width: 100px; }
+    .matrix-progress { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+    .diff-table td.diff-add { background: #f6ffed; }
+    .diff-table td.diff-del { background: #fff2f0; }
+    @media (max-width: 960px) {
+      .stat-row.cols-5 { grid-template-columns: repeat(2, 1fr); }
+      .lifecycle-bar { grid-template-columns: 1fr; }
+      .workbench-grid { grid-template-columns: 1fr; }
+      .detail-grid, .three-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-logo">扫描治理中心<br><small style="font-weight:400;font-size:11px;opacity:.65">vuln-task-center v3</small></div>
+    <nav>
+      <div class="menu-group">
+        <div class="menu-group-title">工作台</div>
+        <div class="menu-item active" data-view="workbench">治理工作台 <span class="phase p0">P0</span></div>
+      </div>
+      <div class="menu-group">
+        <div class="menu-group-title">扫描中心</div>
+        <div class="menu-item" data-view="survey-list">实例列表 survey <span class="phase p0">P0</span></div>
+        <div class="menu-item" data-view="survey-workspace">实例工作台 <span class="phase p0">主轴</span></div>
+        <div class="menu-item" data-view="scan-wizard">新建扫描 <span class="phase p0">P0</span></div>
+      </div>
+      <div class="menu-group">
+        <div class="menu-group-title">资源中心</div>
+        <div class="menu-item" data-view="node-list">扫描节点 <span class="phase p0">P0</span></div>
+        <div class="menu-item" data-view="node-form">新增 / 编辑节点</div>
+        <div class="menu-item" data-view="node-detail">节点详情</div>
+        <div class="menu-item" data-view="scanner-list">逻辑扫描器</div>
+        <div class="menu-item" data-view="scene-list">业务场景</div>
+        <div class="menu-item" data-view="capability-catalog">能力目录 <span class="phase p1">P1</span></div>
+        <div class="menu-item" data-view="template-hub">模板与字典 <span class="phase p2">P2</span></div>
+      </div>
+      <div class="menu-group">
+        <div class="menu-group-title">报告中心</div>
+        <div class="menu-item" data-view="report-jobs">报告任务 <span class="phase p1">P1</span></div>
+        <div class="menu-item" data-view="report-templates">模板映射</div>
+        <div class="menu-item" data-view="report-exports">导出记录</div>
+      </div>
+      <div class="menu-group">
+        <div class="menu-group-title">治理中心</div>
+        <div class="menu-item" data-view="reconcile-list">任务对账 <span class="phase p0">P0</span></div>
+        <div class="menu-item" data-view="reconcile-diff">差异详情</div>
+        <div class="menu-item" data-view="queue">队列监控</div>
+        <div class="menu-item" data-view="dashboard">扫描器仪表盘 <span class="phase p1">P1</span></div>
+        <div class="menu-item" data-view="alert-rules">告警规则</div>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <small>扫描治理中心 v3 · PRD v0.3 · 以 survey 实例工作台为主轴 · Mock vuln-task-center:18087</small>
+      <div style="display:flex;gap:8px">
+        <button class="btn" type="button" onclick="showView('reconcile-list')">对账中心</button>
+        <button class="btn" type="button" onclick="openWorkspace('SUR-77821')">打开 SUR-77821</button>
+        <button class="btn btn-primary" type="button" onclick="showView('scan-wizard')">新建扫描</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="mock-banner">
+        <strong>原型 v3</strong>：以 <code>SUR-77821</code> 实例工作台为交互主轴 · 6 Tab 覆盖全生命周期 ·
+        报告 sub_task×模板矩阵 · S2/S3/S5 引导卡片在工作台 ·
+        标注 <span class="phase dev-done">dev-done</span> / <span class="phase dev-todo">dev-todo</span> 与 <span class="api-path">API 路径</span> 供研发拆任务。
+        执行真相源 <code>scan_sub_task</code>，Mock LM <code>generate_report → progress → download</code>。
+      </div>
+
+      <!-- ========== 工作台 ========== -->
+      <section id="view-workbench" class="view active">
+        <div class="breadcrumb">工作台 / 治理工作台</div>
+        <div class="legend">
+          <span class="phase dev-done">dev-done 已实现</span>
+          <span class="phase dev-todo">dev-todo 待开发</span>
+          <span class="phase p0">P0</span>
+          <span class="phase p1">P1</span>
+          <span class="phase p2">P2</span>
+        </div>
+
+        <div class="stat-row cols-5">
+          <div class="stat-card" onclick="showView('survey-list')">
+            <div class="label">执行中实例</div>
+            <div class="value">18</div>
+            <div class="sub">survey 进行中</div>
+          </div>
+          <div class="stat-card" onclick="showView('reconcile-list')">
+            <div class="label">对账差异</div>
+            <div class="value" style="color:var(--error)">5</div>
+            <div class="sub">ORPHAN 2 · MISSING 1 · DRIFT 2</div>
+          </div>
+          <div class="stat-card" onclick="showView('report-jobs')">
+            <div class="label">报告失败</div>
+            <div class="value" style="color:var(--warning)">3</div>
+            <div class="sub">report_job FAILED</div>
+          </div>
+          <div class="stat-card" onclick="showView('node-list')">
+            <div class="label">offline 节点</div>
+            <div class="value" style="color:var(--error)">1</div>
+            <div class="sub">绿盟-省中心</div>
+          </div>
+          <div class="stat-card" onclick="showView('queue')">
+            <div class="label">队列积压</div>
+            <div class="value">23</div>
+            <div class="sub">send 8 · wait 15</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            待办事项
+            <span class="api-path">GET /v1/governance/todos</span>
+            <span class="phase dev-todo">P0</span>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div class="todo-row" onclick="showView('reconcile-diff')">
+              <span><span class="tag tag-orange">MISSING</span> ST-MISS-001 · 工单-102 · 超时 15min 未出现在 active_list</span>
+              <span class="btn-link">处理 →</span>
+            </div>
+            <div class="todo-row" onclick="openModal('orphan')">
+              <span><span class="tag tag-red">ORPHAN</span> task_id=882 · 绿盟-北京-01 · 设备存在但平台无记录</span>
+              <span class="btn-link">处理 →</span>
+            </div>
+            <div class="todo-row" onclick="showView('report-jobs')">
+              <span><span class="tag tag-red">报告 failed</span> RJ-20260614-003 · baseline_rpt · AH 模板未绑定</span>
+              <span class="btn-link">重试 →</span>
+            </div>
+            <div class="todo-row" onclick="showView('node-detail')">
+              <span><span class="tag tag-red">offline</span> 绿盟-省中心 · 探活失败 08:15:00</span>
+              <span class="btn-link">查看 →</span>
+            </div>
+            <div class="todo-row" onclick="showView('queue')">
+              <span><span class="tag tag-blue">队列</span> waitQueue 15 · 绿盟-上海-02 并发已满</span>
+              <span class="btn-link">监控 →</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="lifecycle-bar">
+          <div class="lifecycle-card" onclick="openWorkspace('SUR-77821')">
+            <strong>S2 · 工单下发</strong>
+            vul-pass 工单 → preview-scanners → Router 选节点 → Adapter 下发 → scan_sub_task 回填 plan_id
+          </div>
+          <div class="lifecycle-card" onclick="showView('reconcile-list')">
+            <strong>S3 · 对账恢复</strong>
+            Cron reconcile · active_list 对比 → MISSING 告警 → POST retry 或标记失败
+          </div>
+          <div class="lifecycle-card" onclick="openSubTaskDrawer('ST-20260614-002')">
+            <strong>S5 · 漂移操控</strong>
+            DRIFT 检测 → sync-status 对齐 → pause / resume 人工干预
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">快捷操作</div>
+          <div class="card-body">
+            <div class="quick-actions">
+              <button class="btn btn-primary" onclick="showView('scan-wizard')">新建扫描</button>
+              <button class="btn" onclick="showView('reconcile-list')">对账中心</button>
+              <button class="btn" onclick="toast('POST /v1/reconcile/tasks/trigger')">立即 reconcile</button>
+              <button class="btn" onclick="showView('report-jobs')">报告中心</button>
+              <button class="btn" onclick="showView('node-list')">节点管理</button>
+              <button class="btn" onclick="openWorkspace('SUR-77821')">打开实例工作台</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="workbench-grid">
+          <div class="sitemap-card" onclick="openWorkspace('SUR-77821')">
+            <h3>实例工作台 <span class="phase p0">主轴</span></h3>
+            <ul>
+              <li>6 Tab：概览 / 子任务 / 下发 / 对账 / 结果 / 报告</li>
+              <li>报告矩阵 generate / retry / download</li>
+              <li>SUR-77821 Mock 完整数据</li>
+            </ul>
+          </div>
+          <div class="sitemap-card" onclick="showView('capability-catalog')">
+            <h3>能力目录 LM/AH <span class="phase p1">P1</span></h3>
+            <ul>
+              <li>厂商 Profile 切换</li>
+              <li>Capability Registry</li>
+              <li>syn_type 映射</li>
+            </ul>
+          </div>
+          <div class="sitemap-card" onclick="showView('report-jobs')">
+            <h3>报告中心 <span class="phase p1">P1</span></h3>
+            <ul>
+              <li>report_job 全平台</li>
+              <li>模板 code ? LM report_type</li>
+              <li>导出投递历史</li>
+            </ul>
+          </div>
+          <div class="sitemap-card" onclick="showView('dashboard')">
+            <h3>治理观测 <span class="phase p1">P1</span></h3>
+            <ul>
+              <li>集群负载趋势</li>
+              <li>队列水位</li>
+              <li>告警规则</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 扫描中心 · 实例列表 ========== -->
+      <section id="view-survey-list" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 扫描中心 / 计划实例</div>
+        <div class="card">
+          <div class="card-body">
+            <div class="search-row">
+              <div class="form-item"><label>surveyId / 工单</label><input placeholder="SUR-77821" /></div>
+              <div class="form-item"><label>场景</label><select><option>全部</option><option>漏洞扫描</option><option>基线核查</option><option>弱口令</option></select></div>
+              <div class="form-item"><label>状态</label><select><option>全部</option><option>执行中</option><option>已完成</option><option>失败</option></select></div>
+              <div class="form-item"><label>对账</label><select><option>全部</option><option>有差异</option><option>全部 MATCHED</option></select></div>
+              <div class="form-item"><label>报告</label><select><option>全部</option><option>有失败</option><option>生成中</option></select></div>
+              <div class="form-item"><label>时间范围</label><input type="date" value="2026-06-01" /></div>
+              <div class="form-item"><label>&nbsp;</label><button class="btn btn-primary">查询</button><button class="btn">重置</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span>计划实例 survey <span class="api-path">GET /v1/scan/task</span> <span class="phase dev-done">部分实现</span></span>
+            <div style="display:flex;gap:8px">
+              <button class="btn" onclick="toast('导出 CSV')">导出</button>
+              <button class="btn btn-primary" onclick="showView('scan-wizard')">＋ 新建扫描</button>
+            </div>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <table>
+              <thead>
+                <tr>
+                  <th>surveyId</th>
+                  <th>计划/工单</th>
+                  <th>场景</th>
+                  <th>子任务数</th>
+                  <th>进度</th>
+                  <th>对账</th>
+                  <th>报告</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>SUR-77821</code></td>
+                  <td>工单-102-漏洞排查</td>
+                  <td>漏洞扫描</td>
+                  <td>3</td>
+                  <td><div class="progress-bar"><span style="width:45%"></span></div><small>45%</small></td>
+                  <td><span class="tag tag-orange">1 MISSING</span> <span class="tag tag-blue">1 DRIFT</span></td>
+                  <td><span class="tag tag-green">1/12</span> <span class="tag tag-red">1 failed</span></td>
+                  <td>2026-06-14 10:00</td>
+                  <td>
+                    <span class="action-btn" onclick="openWorkspace('SUR-77821')">进入工作台</span>
+                    <span class="action-btn" onclick="openSubTaskDrawer('ST-20260614-002')">子任务</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>SUR-77805</code></td>
+                  <td>月度漏洞扫描</td>
+                  <td>漏洞扫描</td>
+                  <td>5</td>
+                  <td><div class="progress-bar"><span style="width:78%"></span></div><small>78%</small></td>
+                  <td><span class="tag tag-green">全部 MATCHED</span></td>
+                  <td><span class="tag tag-green">8/20</span></td>
+                  <td>2026-06-13 02:00</td>
+                  <td><span class="action-btn" onclick="openWorkspace('SUR-77805')">进入工作台</span></td>
+                </tr>
+                <tr>
+                  <td><code>SUR-77790</code></td>
+                  <td>基线季度核查</td>
+                  <td>基线核查</td>
+                  <td>2</td>
+                  <td><div class="progress-bar"><span style="width:100%"></span></div><small>100%</small></td>
+                  <td><span class="tag tag-green">MATCHED</span></td>
+                  <td><span class="tag tag-green">4/4</span></td>
+                  <td>2026-06-10 03:00</td>
+                  <td><span class="action-btn" onclick="openWorkspace('SUR-77790')">进入工作台</span></td>
+                </tr>
+                <tr>
+                  <td><code>SUR-77788</code></td>
+                  <td>弱口令专项</td>
+                  <td>弱口令</td>
+                  <td>1</td>
+                  <td><div class="progress-bar"><span style="width:12%"></span></div><small>12%</small></td>
+                  <td><span class="tag tag-default">—</span></td>
+                  <td><span class="tag tag-default">0/3</span></td>
+                  <td>2026-06-14 09:30</td>
+                  <td><span class="action-btn" onclick="openWorkspace('SUR-77788')">进入工作台</span></td>
+                </tr>
+                <tr>
+                  <td><code>SUR-77770</code></td>
+                  <td>暴露面扫描</td>
+                  <td>漏洞扫描</td>
+                  <td>4</td>
+                  <td><div class="progress-bar"><span style="width:92%"></span></div><small>92%</small></td>
+                  <td><span class="tag tag-green">MATCHED</span></td>
+                  <td><span class="tag tag-orange">2 生成中</span></td>
+                  <td>2026-06-12 14:00</td>
+                  <td><span class="action-btn" onclick="openWorkspace('SUR-77770')">进入工作台</span></td>
+                </tr>
+                <tr>
+                  <td><code>SUR-77755</code></td>
+                  <td>工单-098-应急</td>
+                  <td>漏洞扫描</td>
+                  <td>2</td>
+                  <td><div class="progress-bar"><span style="width:100%"></span></div><small>100%</small></td>
+                  <td><span class="tag tag-red">1 ORPHAN</span></td>
+                  <td><span class="tag tag-green">6/6</span></td>
+                  <td>2026-06-11 16:20</td>
+                  <td><span class="action-btn" onclick="openWorkspace('SUR-77755')">进入工作台</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination">
+              <span>共 128 条</span>
+              <button class="btn">上一页</button>
+              <span>1 / 13</span>
+              <button class="btn">下一页</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 扫描中心 · 实例工作台 ========== -->
+      <section id="view-survey-workspace" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / <a onclick="showView('survey-list')">计划实例</a> / 实例工作台</div>
+
+        <div class="workspace-header">
+          <div>
+            <div class="workspace-title" id="ws-title">SUR-77821 · 工单-102-漏洞排查</div>
+            <div class="workspace-meta">
+              场景：漏洞扫描 · 子任务 3 · 综合进度 45% · 创建 2026-06-14 10:00 · workOrderId WO-102 ·
+              <span class="tag tag-blue">执行中</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" onclick="toast('POST pause survey')">暂停实例</button>
+            <button class="btn" onclick="toast('POST sync-status')">sync-status</button>
+            <button class="btn btn-primary" onclick="switchWsTab('report')">报告中心</button>
+            <button class="btn" onclick="showView('survey-list')">返回列表</button>
+          </div>
+        </div>
+
+        <div class="stat-row cols-5">
+          <div class="stat-card"><div class="label">子任务</div><div class="value">3</div><div class="sub">1 完成 · 2 执行中</div></div>
+          <div class="stat-card"><div class="label">对账</div><div class="value" style="color:var(--warning)">2</div><div class="sub">MISSING 1 · DRIFT 1</div></div>
+          <div class="stat-card"><div class="label">报告</div><div class="value">1/12</div><div class="sub">1 生成中 · 1 失败</div></div>
+          <div class="stat-card"><div class="label">漏洞数</div><div class="value">847</div><div class="sub">高危 23 · 中危 156</div></div>
+          <div class="stat-card"><div class="label">节点</div><div class="value">2</div><div class="sub">北京-01 · 上海-02</div></div>
+        </div>
+
+        <div class="card">
+          <div class="tabs" id="wsTabs">
+            <div class="tab active" data-wstab="overview">概览</div>
+            <div class="tab" data-wstab="subtasks">子任务</div>
+            <div class="tab" data-wstab="dispatch">下发详情</div>
+            <div class="tab" data-wstab="reconcile">对账</div>
+            <div class="tab" data-wstab="result">结果摘要</div>
+            <div class="tab" data-wstab="report">报告</div>
+          </div>
+          <div class="card-body">
+            <!-- Tab: 概览 -->
+            <div id="wstab-overview" class="tab-panel active">
+              <div class="detail-grid">
+                <div>
+                  <div class="kv-row"><div class="k">surveyId</div><div class="v"><code>SUR-77821</code></div></div>
+                  <div class="kv-row"><div class="k">工单</div><div class="v">WO-102-漏洞排查</div></div>
+                  <div class="kv-row"><div class="k">场景</div><div class="v">vuln_scan · 漏洞扫描</div></div>
+                  <div class="kv-row"><div class="k">组织</div><div class="v">省公司/信安部</div></div>
+                  <div class="kv-row"><div class="k">扫描模板</div><div class="v">端口扫描 (sysvuln id=10)</div></div>
+                  <div class="kv-row"><div class="k">状态</div><div class="v"><span class="tag tag-blue">执行中</span></div></div>
+                  <div class="kv-row"><div class="k">API</div><div class="v"><span class="api-path">GET /v1/scan/task/SUR-77821</span></div></div>
+                </div>
+                <div>
+                  <h4 style="margin-bottom:12px;font-weight:500">目标范围与子任务映射</h4>
+                  <pre class="code-block">10.65.195.0/24  → 绿盟-北京-01  (ST-20260614-001 已完成)
+10.65.196.0/24  → 绿盟-北京-01  (ST-20260614-002 DRIFT 45%)
+10.65.197.0/24  → 绿盟-上海-02  (ST-MISS-001 MISSING 12%)</pre>
+                  <h4 style="margin:16px 0 8px;font-weight:500">审计时间线</h4>
+                  <div class="timeline">
+                    <div class="timeline-item"><div class="t">10:00:00</div>vul-pass 创建 survey SUR-77821</div>
+                    <div class="timeline-item"><div class="t">10:00:05</div>preview-scanners 路由完成，生成 3 个子任务</div>
+                    <div class="timeline-item"><div class="t">10:05:00</div>Adapter task.create 下发 plan_id 874/875</div>
+                    <div class="timeline-item warn"><div class="t">10:20:00</div>对账 MISSING：ST-MISS-001 超时未出现在 active_list</div>
+                    <div class="timeline-item warn"><div class="t">10:25:00</div>对账 DRIFT：ST-20260614-002 设备侧已暂停</div>
+                    <div class="timeline-item"><div class="t">10:30:00</div>报告 RJ-001 生成完成（漏洞汇总）</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab: 子任务 -->
+            <div id="wstab-subtasks" class="tab-panel">
+              <div class="toolbar">
+                <span><span class="api-path">GET /v1/scan/sub-task?surveyId=SUR-77821</span> <span class="phase dev-done">部分</span></span>
+                <div style="display:flex;gap:8px">
+                  <button class="btn" onclick="toast('POST sync-status all')">批量 sync-status</button>
+                  <button class="btn btn-primary" onclick="toast('POST retry-all')">批量重试</button>
+                </div>
+              </div>
+              <table>
+                <thead>
+                  <tr><th>sub_task_id</th><th>节点</th><th>目标</th><th>plan_id</th><th>进度</th><th>状态</th><th>对账</th><th>操作</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>ST-20260614-001</code></td><td>绿盟-北京-01</td><td>10.65.195.0/24</td><td>874</td><td>100%</td>
+                    <td><span class="tag tag-green">已完成</span></td><td>MATCHED</td>
+                    <td><span class="action-btn" onclick="openSubTaskDrawer('ST-20260614-001')">详情</span></td>
+                  </tr>
+                  <tr>
+                    <td><code>ST-20260614-002</code></td><td>绿盟-北京-01</td><td>10.65.196.0/24</td><td>875</td><td>45%</td>
+                    <td><span class="tag tag-blue">执行中</span></td><td><span class="tag tag-blue">DRIFT</span></td>
+                    <td><span class="action-btn" onclick="openSubTaskDrawer('ST-20260614-002')">操控 S5</span></td>
+                  </tr>
+                  <tr>
+                    <td><code>ST-MISS-001</code></td><td>绿盟-上海-02</td><td>10.65.197.0/24</td><td>—</td><td>12%</td>
+                    <td><span class="tag tag-orange">执行中</span></td><td><span class="tag tag-orange">MISSING</span></td>
+                    <td>
+                      <span class="action-btn" onclick="toast('POST retry')">重试</span>
+                      <span class="action-btn" onclick="showView('reconcile-diff')">对账</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Tab: 下发详情 -->
+            <div id="wstab-dispatch" class="tab-panel">
+              <p class="helper" style="margin-bottom:12px">
+                <span class="api-path">GET /v1/scan/task/SUR-77821/dispatch-detail</span>
+                · 三栏：平台请求 / 路由结果 / 子任务聚合
+              </p>
+              <div class="three-col">
+                <div class="col-box">
+                  <h4>① 平台请求体</h4>
+                  <pre class="code-block">{
+  "workOrderId": "WO-102",
+  "scene": "vuln_scan",
+  "targets": [
+    "10.65.195.0/24",
+    "10.65.196.0/24",
+    "10.65.197.0/24"
+  ],
+  "orgId": "ORG-001",
+  "templateId": 10,
+  "templateName": "端口扫描"
+}</pre>
+                </div>
+                <div class="col-box">
+                  <h4>② 路由 / preview-scanners</h4>
+                  <ul style="font-size:12px;line-height:1.8;padding-left:16px;margin-bottom:8px">
+                    <li>10.65.195.0/24 → 绿盟-北京-01 (92分)</li>
+                    <li>10.65.196.0/24 → 绿盟-北京-01 (88分)</li>
+                    <li>10.65.197.0/24 → 绿盟-上海-02 (71分)</li>
+                  </ul>
+                  <p class="helper">QueueAppServiceImpl.getNodeScannerMap</p>
+                  <p class="helper">排除：绿盟-省中心 offline · 绿盟-测试-03 范围不匹配</p>
+                </div>
+                <div class="col-box">
+                  <h4>③ 子任务聚合</h4>
+                  <table style="font-size:12px">
+                    <tr><td>ST-001</td><td>100%</td><td>MATCHED</td></tr>
+                    <tr><td>ST-002</td><td>45%</td><td><span class="tag tag-blue">DRIFT</span></td></tr>
+                    <tr><td>ST-MISS</td><td>12%</td><td><span class="tag tag-orange">MISSING</span></td></tr>
+                  </table>
+                  <p style="margin-top:8px;font-size:12px">聚合 45% · matched 1 / missing 1 / drift 1</p>
+                  <button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="toast('POST retry dispatch')">重试失败子任务</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab: 对账 -->
+            <div id="wstab-reconcile" class="tab-panel">
+              <div class="toolbar">
+                <span>实例维度对账快照 · Cron 5min · <span class="phase p0">P0</span></span>
+                <button class="btn btn-primary" onclick="toast('POST /v1/reconcile/tasks/trigger')">立即对账</button>
+              </div>
+              <div class="stat-row" style="grid-template-columns:repeat(4,1fr)">
+                <div class="stat-card"><div class="label">MATCHED</div><div class="value" style="color:var(--success)">1</div></div>
+                <div class="stat-card"><div class="label">MISSING</div><div class="value" style="color:var(--warning)">1</div></div>
+                <div class="stat-card"><div class="label">DRIFT</div><div class="value" style="color:var(--primary)">1</div></div>
+                <div class="stat-card"><div class="label">ORPHAN</div><div class="value">0</div></div>
+              </div>
+              <table>
+                <thead><tr><th>类型</th><th>sub_task</th><th>task_id</th><th>平台</th><th>设备</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="tag tag-green">MATCHED</span></td><td>ST-20260614-001</td><td>874</td><td>已完成</td><td>完成</td><td>—</td></tr>
+                  <tr>
+                    <td><span class="tag tag-blue">DRIFT</span></td><td>ST-20260614-002</td><td>875</td><td>执行中 45%</td><td>暂停 60%</td>
+                    <td><span class="action-btn" onclick="openSubTaskDrawer('ST-20260614-002')">sync/pause</span></td>
+                  </tr>
+                  <tr>
+                    <td><span class="tag tag-orange">MISSING</span></td><td>ST-MISS-001</td><td>—</td><td>执行中 12%</td><td>—</td>
+                    <td>
+                      <span class="action-btn" onclick="showView('reconcile-diff')">详情</span>
+                      <span class="action-btn" onclick="toast('retry')">重试</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Tab: 结果摘要 -->
+            <div id="wstab-result" class="tab-panel">
+              <div class="stat-row cols-5">
+                <div class="stat-card"><div class="label">漏洞总数</div><div class="value">847</div></div>
+                <div class="stat-card"><div class="label">高危</div><div class="value" style="color:var(--error)">23</div></div>
+                <div class="stat-card"><div class="label">中危</div><div class="value" style="color:var(--warning)">156</div></div>
+                <div class="stat-card"><div class="label">低危</div><div class="value">668</div></div>
+                <div class="stat-card"><div class="label">主机数</div><div class="value">512</div></div>
+              </div>
+              <div class="chart-placeholder">漏洞分布 TOP10 · 按子任务聚合 · <span class="api-path">GET /v1/scan/task/SUR-77821/result-summary</span></div>
+              <table style="margin-top:16px">
+                <thead><tr><th>子任务</th><th>目标</th><th>总数</th><th>高危</th><th>中危</th><th>低危</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr><td>ST-20260614-001</td><td>10.65.195.0/24</td><td>256</td><td>12</td><td>89</td><td>412</td><td><span class="tag tag-green">已完成</span></td></tr>
+                  <tr><td>ST-20260614-002</td><td>10.65.196.0/24</td><td>156</td><td>8</td><td>45</td><td>198</td><td><span class="tag tag-blue">部分完成</span></td></tr>
+                  <tr><td>ST-MISS-001</td><td>10.65.197.0/24</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="tag tag-orange">等待结果</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Tab: 报告 -->
+            <div id="wstab-report" class="tab-panel">
+              <div class="toolbar">
+                <span>
+                  子任务 × 报告模板矩阵
+                  <span class="api-path">POST /v1/report/generate</span>
+                  <span class="phase dev-todo">P1</span>
+                </span>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn btn-primary" onclick="openReportGenerateModal('ST-20260614-002','vuln_summary')">批量生成</button>
+                  <button class="btn" onclick="toast('批量重试 failed jobs')">批量重试</button>
+                  <button class="btn" onclick="toast('打包下载 ZIP')">批量下载</button>
+                </div>
+              </div>
+              <table class="report-matrix">
+                <thead>
+                  <tr>
+                    <th>子任务 \ 报告模板</th>
+                    <th>漏洞汇总报告<br><small style="font-weight:400;color:var(--text-secondary)">LM · report_type=1</small></th>
+                    <th>主机漏洞明细<br><small style="font-weight:400;color:var(--text-secondary)">LM · report_type=2</small></th>
+                    <th>基线核查报告<br><small style="font-weight:400;color:var(--text-secondary)">AH · report_type=3</small></th>
+                    <th>弱口令报告<br><small style="font-weight:400;color:var(--text-secondary)">LM · report_type=4</small></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="text-align:left">
+                      <strong>ST-20260614-001</strong><br>
+                      <small>plan=874 · 10.65.195.0/24</small><br>
+                      <span class="tag tag-green">已完成</span> · MATCHED
+                    </td>
+                    <td class="matrix-cell">
+                      <span class="tag tag-green">已生成</span>
+                      <div class="matrix-progress">2026-06-14 10:18</div>
+                      <button class="btn-link" onclick="toast('下载 PDF RJ-001')">下载</button>
+                    </td>
+                    <td class="matrix-cell">
+                      <span class="tag tag-default">未生成</span>
+                      <button class="btn-link" onclick="openReportGenerateModal('ST-20260614-001','host_detail')">生成</button>
+                    </td>
+                    <td class="matrix-cell">
+                      <span class="tag tag-default">不适用</span>
+                    </td>
+                    <td class="matrix-cell">
+                      <span class="tag tag-default">未生成</span>
+                      <button class="btn-link" onclick="openReportGenerateModal('ST-20260614-001','weakpwd_rpt')">生成</button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="text-align:left">
+                      <strong>ST-20260614-002</strong><br>
+                      <small>plan=875 · 10.65.196.0/24</small><br>
+                      <span class="tag tag-blue">执行中</span> · DRIFT
+                    </td>
+                    <td class="matrix-cell">
+                      <span class="tag tag-default">未生成</span>
+                      <button class="btn-link" onclick="openReportGenerateModal('ST-20260614-002','vuln_summary')">生成</button>
+                    </td>
+                    <td class="matrix-cell">
+                      <span class="tag tag-orange">生成中</span>
+                      <div class="progress-bar" style="margin:6px 0"><span style="width:62%"></span></div>
+                      <div class="matrix-progress">LM generate_report 62%</div>
+                      <button class="btn-link" onclick="mockReportProgress('RJ-002')">刷新</button>
+                    </td>
+                    <td class="matrix-cell">
+                      <span class="tag tag-red">失败</span>
+                      <div class="matrix-progress">AH 模板未绑定</div>
+                      <button class="btn-link" onclick="openReportGenerateModal('ST-20260614-002','baseline_rpt')">重试</button>
+                    </td>
+                    <td class="matrix-cell">
+                      <span class="tag tag-default">未生成</span>
+                      <button class="btn-link" onclick="openReportGenerateModal('ST-20260614-002','weakpwd_rpt')">生成</button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="text-align:left">
+                      <strong>ST-MISS-001</strong><br>
+                      <small>plan=— · 10.65.197.0/24</small><br>
+                      <span class="tag tag-orange">执行中</span> · MISSING
+                    </td>
+                    <td class="matrix-cell"><span class="tag tag-default">等待扫描</span><button class="btn-link" disabled style="opacity:.45">生成</button></td>
+                    <td class="matrix-cell"><span class="tag tag-default">等待扫描</span><button class="btn-link" disabled style="opacity:.45">生成</button></td>
+                    <td class="matrix-cell"><span class="tag tag-default">等待扫描</span><button class="btn-link" disabled style="opacity:.45">生成</button></td>
+                    <td class="matrix-cell"><span class="tag tag-default">等待扫描</span><button class="btn-link" disabled style="opacity:.45">生成</button></td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="helper" style="margin-top:12px">
+                Mock 流程：LM <code>generate_report</code> → progress 轮询 → download；
+                失败可 retry；AH 模板需先在 report-templates 绑定。
+              </p>
+              <h4 style="margin:16px 0 8px;font-weight:500">关联 report_job</h4>
+              <table>
+                <thead><tr><th>job_id</th><th>sub_task</th><th>模板</th><th>状态</th><th>进度</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td>RJ-001</td><td>ST-20260614-001</td><td>漏洞汇总报告</td>
+                    <td><span class="tag tag-green">SUCCESS</span></td><td>100%</td>
+                    <td><span class="action-btn" onclick="toast('下载 PDF')">下载</span></td>
+                  </tr>
+                  <tr>
+                    <td>RJ-002</td><td>ST-20260614-002</td><td>主机漏洞明细</td>
+                    <td><span class="tag tag-orange">RUNNING</span></td><td>62%</td>
+                    <td><span class="action-btn" onclick="mockReportProgress('RJ-002')">刷新</span></td>
+                  </tr>
+                  <tr>
+                    <td>RJ-003</td><td>ST-20260614-002</td><td>基线核查报告</td>
+                    <td><span class="tag tag-red">FAILED</span></td><td>—</td>
+                    <td><span class="action-btn" onclick="openReportGenerateModal('ST-20260614-002','baseline_rpt')">重试</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 扫描中心 · 新建扫描向导 ========== -->
+      <section id="view-scan-wizard" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 扫描中心 / 新建扫描向导</div>
+        <div class="card">
+          <div class="card-title">
+            新建扫描 · 4 步向导
+            <span class="api-path">POST /v1/scan/task</span>
+            <span class="phase dev-done">QueueAppServiceImpl</span>
+            <span class="phase p0">P0</span>
+          </div>
+          <div class="card-body">
+            <div class="wizard-steps" id="wizardSteps">
+              <div class="wizard-step active" data-wstep="1">① 场景</div>
+              <div class="wizard-step" data-wstep="2">② 目标 IP</div>
+              <div class="wizard-step" data-wstep="3">③ preview-scanners</div>
+              <div class="wizard-step" data-wstep="4">④ 确认下发</div>
+            </div>
+
+            <div id="wstep-1" class="wizard-panel active">
+              <div class="form-grid">
+                <div class="form-item">
+                  <label class="required">业务场景</label>
+                  <select id="wizScene">
+                    <option value="vuln_scan">漏洞扫描 vuln_scan</option>
+                    <option value="baseline">基线核查 baseline</option>
+                    <option value="weakpwd">弱口令 weakpwd</option>
+                  </select>
+                </div>
+                <div class="form-item">
+                  <label class="required">扫描模板</label>
+                  <select><option>端口扫描 (sysvuln id=10)</option><option>全端口扫描</option><option>Windows 配置规范</option></select>
+                </div>
+                <div class="form-item"><label>工单号</label><input placeholder="WO-xxx（可选）" value="WO-103" /></div>
+                <div class="form-item">
+                  <label>组织</label>
+                  <select><option>省公司/信安部</option><option>地市/网络部</option></select>
+                </div>
+                <div class="form-item full"><label>备注</label><textarea>例行漏洞扫描 · 来自 vul-pass 工单</textarea></div>
+              </div>
+            </div>
+
+            <div id="wstep-2" class="wizard-panel">
+              <div class="form-grid">
+                <div class="form-item full">
+                  <label class="required">扫描目标 IP / 网段</label>
+                  <textarea id="wizTargets" style="width:100%;min-height:120px">10.65.195.0/24
+10.65.196.0/24
+10.65.197.0/24</textarea>
+                  <p class="helper">每行一个目标，支持 CIDR · 最多 50 条</p>
+                </div>
+                <div class="form-item"><label>凭据组</label><select><option>默认 SSH 凭据</option><option>SNMP v2c</option></select></div>
+                <div class="form-item"><label>扫描策略</label><select><option>标准</option><option>深度</option><option>快速</option></select></div>
+              </div>
+            </div>
+
+            <div id="wstep-3" class="wizard-panel">
+              <p class="helper" style="margin-bottom:12px">
+                <span class="api-path">POST /v1/scan/task/preview-scanners</span>
+                · 调用路由引擎预览候选扫描器
+              </p>
+              <button class="btn btn-primary" onclick="runWizardPreview()" style="margin-bottom:16px">预览候选扫描器</button>
+              <div id="wizPreviewResult" class="hidden">
+                <div class="node-card selected" style="margin-bottom:8px">
+                  <h4 style="display:flex;justify-content:space-between;font-size:14px">绿盟-北京-01 <span class="score-badge">92</span></h4>
+                  <p style="font-size:13px;color:var(--text-secondary)">10.65.195.0/24 + 196.0/24 · 负载 3/10 · 能力匹配</p>
+                </div>
+                <div class="node-card" style="margin-bottom:8px">
+                  <h4 style="display:flex;justify-content:space-between;font-size:14px">绿盟-上海-02 <span style="color:var(--warning)">71</span></h4>
+                  <p style="font-size:13px;color:var(--text-secondary)">10.65.197.0/24 · 负载 9/10 · 范围匹配</p>
+                </div>
+                <ul style="font-size:12px;color:var(--text-secondary);margin-top:12px;padding-left:20px;line-height:1.8">
+                  <li>绿盟-省中心 — excluded：offline</li>
+                  <li>绿盟-测试-03 — excluded：扫描范围不匹配</li>
+                </ul>
+              </div>
+            </div>
+
+            <div id="wstep-4" class="wizard-panel">
+              <h4 style="margin-bottom:12px;font-weight:500">确认下发</h4>
+              <div class="kv-row"><div class="k">场景</div><div class="v">漏洞扫描 · 端口扫描</div></div>
+              <div class="kv-row"><div class="k">目标</div><div class="v">3 个网段 · 预计 3 个子任务</div></div>
+              <div class="kv-row"><div class="k">路由</div><div class="v">绿盟-北京-01 (2) · 绿盟-上海-02 (1)</div></div>
+              <div class="kv-row"><div class="k">API</div><div class="v"><span class="api-path">POST /v1/scan/task</span> → surveyId</div></div>
+              <pre class="code-block" style="margin-top:12px">{
+  "scene": "vuln_scan",
+  "targets": ["10.65.195.0/24", "10.65.196.0/24", "10.65.197.0/24"],
+  "templateId": 10,
+  "orgId": "ORG-001",
+  "workOrderId": "WO-103"
+}</pre>
+              <div class="alert alert-info" style="margin-top:16px">
+                <span>?</span>
+                <div>下发后将创建 survey 实例并进入<strong>实例工作台</strong>，可在报告 Tab 批量生成报告。</div>
+              </div>
+            </div>
+
+            <div style="margin-top:24px;display:flex;justify-content:space-between">
+              <button class="btn" id="wizPrevBtn" onclick="wizardPrev()" disabled>上一步</button>
+              <div style="display:flex;gap:8px">
+                <button class="btn" onclick="showView('survey-list')">取消</button>
+                <button class="btn btn-primary" id="wizNextBtn" onclick="wizardNext()">下一步</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 资源中心 · 扫描节点列表 ========== -->
+      <section id="view-node-list" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 资源中心 / 扫描节点</div>
+        <div class="card">
+          <div class="card-body">
+            <div class="search-row">
+              <div class="form-item"><label>节点名称</label><input placeholder="绿盟-北京" /></div>
+              <div class="form-item"><label>厂商</label><select><option>全部</option><option selected>绿盟 LM</option><option>安恒 AH</option></select></div>
+              <div class="form-item"><label>健康状态</label><select><option>全部</option><option>healthy</option><option>degraded</option><option>offline</option></select></div>
+              <div class="form-item"><label>组织</label><select><option>全部</option><option>省公司/信安部</option><option>地市</option></select></div>
+              <div class="form-item"><label>&nbsp;</label><button class="btn btn-primary">查询</button><button class="btn">重置</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span>扫描节点 <span class="api-path">GET /v1/scan/node</span> <span class="phase dev-done">部分实现</span> <span class="phase p0">P0</span></span>
+            <div style="display:flex;gap:8px">
+              <button class="btn" onclick="toast('POST probe-all')">批量探活</button>
+              <button class="btn btn-primary" onclick="showView('node-form')">＋ 新增节点</button>
+            </div>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <table>
+              <thead><tr><th>名称</th><th>厂商</th><th>URL</th><th>健康</th><th>负载</th><th>能力</th><th>最后探活</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><a class="btn-link" onclick="showView('node-detail')">绿盟-北京-01</a></td>
+                  <td>绿盟 LM</td><td><code>https://10.65.6.156</code></td>
+                  <td><span class="tag tag-green">healthy</span></td><td>3/10</td><td>14/14</td><td>10:32:01</td>
+                  <td>
+                    <span class="action-btn" onclick="toast('POST probe')">探活</span>
+                    <span class="action-btn" onclick="showView('node-form')">编辑</span>
+                    <span class="action-btn" onclick="showView('node-detail')">详情</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a class="btn-link" onclick="showView('node-detail')">绿盟-上海-02</a></td>
+                  <td>绿盟 LM</td><td><code>https://10.65.6.157</code></td>
+                  <td><span class="tag tag-orange">degraded</span></td><td>9/10</td><td>12/14</td><td>10:28:44</td>
+                  <td><span class="action-btn" onclick="toast('POST probe')">探活</span><span class="action-btn" onclick="showView('node-form')">编辑</span></td>
+                </tr>
+                <tr>
+                  <td>绿盟-省中心</td>
+                  <td>绿盟 LM</td><td><code>https://10.20.1.88</code></td>
+                  <td><span class="tag tag-red">offline</span></td><td>—</td><td>6/14</td><td>08:15:00</td>
+                  <td><span class="action-btn" onclick="toast('POST probe')">探活</span><span class="action-btn" onclick="showView('node-form')">编辑</span></td>
+                </tr>
+                <tr>
+                  <td>安恒-杭州-01</td>
+                  <td>安恒 AH</td><td><code>https://10.70.1.10</code></td>
+                  <td><span class="tag tag-green">healthy</span></td><td>2/8</td><td>8/10</td><td>10:30:12</td>
+                  <td><span class="action-btn" onclick="showView('node-form')">编辑</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination"><span>共 12 条</span><button class="btn">上一页</button><span>1 / 2</span><button class="btn">下一页</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 资源中心 · 节点表单 CRUD ========== -->
+      <section id="view-node-form" class="view">
+        <div class="breadcrumb"><a onclick="showView('node-list')">扫描节点</a> / 新增 / 编辑</div>
+        <div class="card">
+          <div class="card-title">
+            节点表单
+            <span class="api-path">POST /v1/scan/node · PUT /v1/scan/node/{id}</span>
+            <span class="phase dev-todo">待开发</span>
+            <span class="phase p0">P0</span>
+          </div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-item"><label class="required">节点名称</label><input value="绿盟-北京-01" /><div class="helper">全局唯一，便于路由展示</div></div>
+              <div class="form-item">
+                <label class="required">厂商版本</label>
+                <select><option>绿盟 RSAS V6.0.8</option><option>安恒明鉴 V2.x</option></select>
+              </div>
+              <div class="form-item full"><label class="required">设备 URL</label><input value="https://10.65.6.156" style="width:100%" /></div>
+              <div class="form-item"><label class="required">API 用户名</label><input value="api_user" /></div>
+              <div class="form-item"><label class="required">API 密码</label><input type="password" value="******" /></div>
+              <div class="form-item"><label>最大并发任务</label><input type="number" value="10" /></div>
+              <div class="form-item"><label>所属组织</label><select><option>省公司/信安部</option><option>地市/网络部</option></select></div>
+              <div class="form-item"><label>扫描范围</label><input value="10.65.0.0/16" placeholder="CIDR，路由匹配用" /></div>
+              <div class="form-item"><label>Adapter</label><input value="ScannerAdapter-LM" readonly /></div>
+              <div class="form-item"><label>探活间隔(秒)</label><input type="number" value="300" /></div>
+              <div class="form-item full"><label>备注</label><textarea>生产 RSAS，定时 syn_type 同步模板与字典</textarea></div>
+              <div class="form-item full">
+                <label>启用能力（创建后可在详情页调整）</label>
+                <div class="checkbox-grid">
+                  <label class="checkbox-item"><input type="checkbox" checked /> task.create</label>
+                  <label class="checkbox-item"><input type="checkbox" checked /> task.active_list</label>
+                  <label class="checkbox-item"><input type="checkbox" checked /> system.status</label>
+                  <label class="checkbox-item"><input type="checkbox" checked /> task.pause</label>
+                  <label class="checkbox-item"><input type="checkbox" checked /> task.resume</label>
+                  <label class="checkbox-item"><input type="checkbox" checked /> report.generate</label>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:8px">
+              <button class="btn btn-primary" onclick="toast('保存成功');showView('node-list')">保存</button>
+              <button class="btn" onclick="toast('POST probe 探活')">保存并探活</button>
+              <button class="btn" onclick="showView('node-list')">取消</button>
+              <button class="btn btn-danger" style="margin-left:auto" onclick="toast('确认删除节点？')">删除节点</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 资源中心 · 节点详情 ========== -->
+      <section id="view-node-detail" class="view">
+        <div class="breadcrumb"><a onclick="showView('node-list')">扫描节点</a> / 绿盟-北京-01</div>
+        <div class="workspace-header">
+          <div>
+            <div class="workspace-title">绿盟-北京-01 <span class="tag tag-green">healthy</span></div>
+            <div class="workspace-meta">
+              绿盟 RSAS V6.0.8 · <code>https://10.65.6.156</code> · 负载 3/10 · Adapter ScannerAdapter-LM
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" onclick="toast('GET metrics 刷新')">刷新指标</button>
+            <button class="btn" onclick="showView('node-form')">编辑</button>
+            <button class="btn btn-primary" onclick="toast('POST templates/sync')">模板同步</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="tabs" id="nodeDetailTabs">
+            <div class="tab active" data-ndtab="metrics">metrics 指标</div>
+            <div class="tab" data-ndtab="capabilities">capabilities 能力</div>
+            <div class="tab" data-ndtab="scan-templates">scan-templates 扫描模板</div>
+            <div class="tab" data-ndtab="report-templates">report-templates 报告模板</div>
+          </div>
+          <div class="card-body">
+            <div id="ndtab-metrics" class="tab-panel active">
+              <span class="api-path">GET /v1/scanner/node/{id}/metrics</span> <span class="phase dev-done">部分</span>
+              <div class="stat-row" style="margin-top:12px">
+                <div class="stat-card"><div class="label">CPU</div><div class="value">12%</div></div>
+                <div class="stat-card"><div class="label">内存</div><div class="value">36%</div></div>
+                <div class="stat-card"><div class="label">磁盘</div><div class="value">23%</div></div>
+                <div class="stat-card"><div class="label">活跃任务</div><div class="value">3</div></div>
+              </div>
+              <div class="chart-placeholder">system.status 近 24h 趋势（ECharts）· RSAS V6.0R04F00SP05 · 漏洞库 V6.0R02F01.2103</div>
+              <table style="margin-top:16px">
+                <thead><tr><th>指标</th><th>当前值</th><th>阈值</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr><td>CPU 使用率</td><td>12%</td><td>&lt; 80%</td><td><span class="tag tag-green">正常</span></td></tr>
+                  <tr><td>并发任务</td><td>3/10</td><td>max=10</td><td><span class="tag tag-green">正常</span></td></tr>
+                  <tr><td>凭证有效期</td><td>2026-12-31</td><td>—</td><td><span class="tag tag-green">有效</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="ndtab-capabilities" class="tab-panel">
+              <div class="toolbar">
+                <span>节点能力勾选（14/14） <span class="phase dev-todo">Capability Registry</span></span>
+                <button class="btn btn-primary" onclick="toast('PUT capabilities')">保存能力配置</button>
+              </div>
+              <div class="checkbox-grid">
+                <label class="checkbox-item"><input type="checkbox" checked disabled /> task.create</label>
+                <label class="checkbox-item"><input type="checkbox" checked disabled /> task.active_list</label>
+                <label class="checkbox-item"><input type="checkbox" checked disabled /> system.status</label>
+                <label class="checkbox-item"><input type="checkbox" checked disabled /> task.pause</label>
+                <label class="checkbox-item"><input type="checkbox" checked disabled /> task.resume</label>
+                <label class="checkbox-item"><input type="checkbox" checked disabled /> task.delete</label>
+                <label class="checkbox-item"><input type="checkbox" checked disabled /> template.baseline.list</label>
+                <label class="checkbox-item"><input type="checkbox" checked disabled /> template.sysvuln.list</label>
+                <label class="checkbox-item"><input type="checkbox" checked disabled /> userpwd.list</label>
+                <label class="checkbox-item"><input type="checkbox" checked disabled /> report.generate</label>
+                <label class="checkbox-item"><input type="checkbox" checked disabled /> report.download</label>
+                <label class="checkbox-item"><input type="checkbox" checked disabled /> report.progress</label>
+              </div>
+              <p class="helper" style="margin-top:12px">能力与厂商 Profile 对齐，见 <span class="action-btn" onclick="showView('capability-catalog')">能力目录</span></p>
+            </div>
+            <div id="ndtab-scan-templates" class="tab-panel">
+              <div class="toolbar">
+                <span>节点已同步扫描模板 <span class="api-path">GET /v1/scanner/node/{id}/templates/scan</span></span>
+                <button class="btn btn-primary" onclick="toast('POST syn_sysvuln_data')">同步 sysvuln</button>
+              </div>
+              <table>
+                <thead><tr><th>类型</th><th>ID/uuid</th><th>名称</th><th>本地版本</th><th>设备版本</th><th>diff</th><th>同步时间</th></tr></thead>
+                <tbody>
+                  <tr><td>sysvuln</td><td>10</td><td>端口扫描</td><td>v3</td><td>v3</td><td><span class="tag tag-green">一致</span></td><td>2026-06-14 00:45</td></tr>
+                  <tr><td>sysvuln</td><td>11</td><td>全端口扫描</td><td>v2</td><td>v2</td><td><span class="tag tag-green">一致</span></td><td>2026-06-14 00:45</td></tr>
+                  <tr><td>baseline</td><td>66c221be-…</td><td>Windows 配置规范</td><td>v2</td><td>v1</td><td><button class="btn-link" onclick="openModal('templateDiff')">查看 diff</button></td><td>2026-06-13</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="ndtab-report-templates" class="tab-panel">
+              <div class="toolbar">
+                <span>节点报告模板映射 <span class="api-path">GET /v1/scanner/node/{id}/templates/report</span> <span class="phase dev-todo">P1</span></span>
+                <button class="btn" onclick="showView('report-templates')">平台模板映射</button>
+              </div>
+              <table>
+                <thead><tr><th>平台 code</th><th>名称</th><th>LM report_type</th><th>设备模板 ID</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr><td><code>vuln_summary</code></td><td>漏洞汇总报告</td><td>1</td><td>RPT-001</td><td><span class="tag tag-green">已绑定</span></td><td><button class="btn-link">编辑</button></td></tr>
+                  <tr><td><code>host_detail</code></td><td>主机漏洞明细</td><td>2</td><td>RPT-002</td><td><span class="tag tag-green">已绑定</span></td><td><button class="btn-link">编辑</button></td></tr>
+                  <tr><td><code>weakpwd_rpt</code></td><td>弱口令报告</td><td>4</td><td>RPT-004</td><td><span class="tag tag-green">已绑定</span></td><td><button class="btn-link">编辑</button></td></tr>
+                  <tr><td><code>baseline_rpt</code></td><td>基线核查报告</td><td>3</td><td>—</td><td><span class="tag tag-red">未绑定</span></td><td><button class="btn-link" onclick="showView('report-templates')">去绑定</button></td></tr>
+                </tbody>
+              </table>
+              <p class="helper" style="margin-top:12px">报告生成时按映射调用 LM generate_report(report_type=…)</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 资源中心 · 逻辑扫描器 ========== -->
+      <section id="view-scanner-list" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 资源中心 / 逻辑扫描器</div>
+        <div class="card">
+          <div class="card-body">
+            <div class="search-row">
+              <div class="form-item"><label>名称</label><input placeholder="省公司" /></div>
+              <div class="form-item"><label>绑定节点</label><select><option>全部</option><option>绿盟-北京-01</option></select></div>
+              <div class="form-item"><label>场景</label><select><option>全部</option><option>漏洞扫描</option><option>基线核查</option></select></div>
+              <div class="form-item"><label>&nbsp;</label><button class="btn btn-primary">查询</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span>逻辑扫描器 <span class="api-path">GET /v1/scanner</span> <span class="phase dev-done">部分</span></span>
+            <button class="btn btn-primary">＋ 新增扫描器</button>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <table>
+              <thead><tr><th>名称</th><th>绑定节点</th><th>组织</th><th>扫描范围</th><th>场景</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>省公司-漏洞扫描-A</td><td>绿盟-北京-01</td><td>省公司/信安部</td><td>10.65.0.0/16</td><td>漏洞扫描</td>
+                  <td><span class="tag tag-green">正常</span></td>
+                  <td><span class="action-btn">编辑</span><span class="action-btn" onclick="toast('路由权重')">权重</span></td>
+                </tr>
+                <tr>
+                  <td>地市-基线扫描</td><td>绿盟-上海-02</td><td>地市</td><td>暴露面资产</td><td>基线核查</td>
+                  <td><span class="tag tag-orange">节点 degraded</span></td>
+                  <td><span class="action-btn">编辑</span></td>
+                </tr>
+                <tr>
+                  <td>安恒-Web扫描</td><td>安恒-杭州-01</td><td>省公司</td><td>*.example.com</td><td>Web 扫描</td>
+                  <td><span class="tag tag-green">正常</span></td>
+                  <td><span class="action-btn">编辑</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination"><span>共 8 条</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 资源中心 · 业务场景 ========== -->
+      <section id="view-scene-list" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 资源中心 / 业务场景</div>
+        <div class="card">
+          <div class="card-title">
+            场景配置
+            <span class="api-path">GET /v1/scanner/scene</span>
+            <span class="phase dev-todo">待开发</span>
+            <span class="phase p0">P0</span>
+          </div>
+          <div class="card-body">
+            <div class="toolbar" style="margin-bottom:16px">
+              <p class="helper">场景决定任务类型、默认模板与路由策略，新建扫描向导 Step1 引用</p>
+              <button class="btn btn-primary">新增场景</button>
+            </div>
+            <table>
+              <thead><tr><th>场景码</th><th>名称</th><th>任务类型</th><th>默认模板</th><th>路由策略</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><code>vuln_scan</code></td><td>漏洞扫描</td><td>host_scan</td><td>端口扫描</td><td>负载最低 + 范围匹配</td>
+                  <td><span class="tag tag-green">启用</span></td><td><span class="action-btn">编辑</span></td>
+                </tr>
+                <tr>
+                  <td><code>baseline</code></td><td>基线核查</td><td>baseline_scan</td><td>Windows 配置规范</td><td>能力匹配</td>
+                  <td><span class="tag tag-green">启用</span></td><td><span class="action-btn">编辑</span></td>
+                </tr>
+                <tr>
+                  <td><code>weakpwd</code></td><td>弱口令</td><td>pwd_scan</td><td>SSH默认用户</td><td>负载最低</td>
+                  <td><span class="tag tag-green">启用</span></td><td><span class="action-btn">编辑</span></td>
+                </tr>
+                <tr>
+                  <td><code>web_scan</code></td><td>Web 扫描</td><td>web_scan</td><td>—</td><td>AH 节点优先</td>
+                  <td><span class="tag tag-default">停用</span></td><td><span class="action-btn">编辑</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 资源中心 · 能力目录 LM/AH ========== -->
+      <section id="view-capability-catalog" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 资源中心 / 能力目录</div>
+        <div class="card">
+          <div class="card-body">
+            <div class="filter-chips" id="vendorFilters">
+              <span class="filter-chip active" data-vendor="LM">绿盟 LM</span>
+              <span class="filter-chip" data-vendor="AH">安恒 AH</span>
+            </div>
+            <div class="filter-chips" id="capFilters">
+              <span class="filter-chip active" data-cap="all">全部</span>
+              <span class="filter-chip" data-cap="task">任务</span>
+              <span class="filter-chip" data-cap="template">模板</span>
+              <span class="filter-chip" data-cap="report">报告</span>
+              <span class="filter-chip" data-cap="system">系统</span>
+            </div>
+            <p class="catalog-meta">Capability Registry · PRD 4.3 · 按厂商 Profile 维护 Adapter 必选能力与 syn_type 映射</p>
+          </div>
+        </div>
+        <div class="card" id="capTableLM">
+          <div class="card-title">
+            绿盟 RSAS V6.0.8 Profile
+            <span class="api-path">GET /v1/scanner/capability/catalog?vendor=LM</span>
+            <span class="phase p1">P1</span>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <table id="capTable">
+              <thead><tr><th>capability_code</th><th>RSAS API</th><th>必选</th><th>syn_type</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr data-cap="task"><td><code>task.create</code></td><td>POST /api/task/create</td><td>是</td><td>—</td><td><span class="phase dev-done">Adapter</span></td></tr>
+                <tr data-cap="task"><td><code>task.active_list</code></td><td>GET /api/task/active_list</td><td>是</td><td>active_list</td><td><span class="phase dev-done">VulnTaskListenerLM</span></td></tr>
+                <tr data-cap="system"><td><code>system.status</code></td><td>GET /api/system/status</td><td>是</td><td>sys_status</td><td><span class="phase dev-done">已实现</span></td></tr>
+                <tr data-cap="task"><td><code>task.pause</code></td><td>POST /api/task/pause/{id}</td><td>否</td><td>task_pause</td><td><span class="phase dev-todo">P0</span></td></tr>
+                <tr data-cap="task"><td><code>task.resume</code></td><td>POST /api/task/resume/{id}</td><td>否</td><td>—</td><td><span class="phase dev-todo">P0</span></td></tr>
+                <tr data-cap="report"><td><code>report.generate</code></td><td>POST /api/report/generate</td><td>否</td><td>—</td><td><span class="phase dev-todo">P1</span></td></tr>
+                <tr data-cap="report"><td><code>report.download</code></td><td>GET /api/report/download/{id}</td><td>否</td><td>—</td><td><span class="phase dev-todo">P1</span></td></tr>
+                <tr data-cap="template"><td><code>template.baseline.list</code></td><td>GET /api/template/baseline/list</td><td>否</td><td>syn_baseline_data</td><td><span class="phase dev-done">SynVulnData</span></td></tr>
+                <tr data-cap="template"><td><code>template.sysvuln.list</code></td><td>GET /api/template/sysvuln/list</td><td>否</td><td>syn_sysvuln_data</td><td><span class="phase dev-done">SynVulnData</span></td></tr>
+                <tr data-cap="template"><td><code>userpwd.list</code></td><td>GET /api/userpwd/list</td><td>否</td><td>syn_userpwd_data</td><td><span class="phase dev-done">SynVulnData</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card hidden" id="capTableAH">
+          <div class="card-title">
+            安恒明鉴 V2.x Profile
+            <span class="api-path">GET /v1/scanner/capability/catalog?vendor=AH</span>
+            <span class="phase dev-todo">P1</span>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <table>
+              <thead><tr><th>capability_code</th><th>AH API</th><th>必选</th><th>syn_type</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr><td><code>scan.host</code></td><td>POST /ah/scan/host</td><td>是</td><td>—</td><td><span class="phase dev-todo">AH Adapter</span></td></tr>
+                <tr><td><code>scan.web</code></td><td>POST /ah/scan/web</td><td>否</td><td>—</td><td><span class="phase dev-todo">P1</span></td></tr>
+                <tr><td><code>report.export</code></td><td>GET /ah/report/{id}/export</td><td>否</td><td>—</td><td><span class="phase dev-todo">P1</span></td></tr>
+                <tr><td><code>asset.sync</code></td><td>POST /ah/asset/sync</td><td>否</td><td>asset_sync</td><td><span class="phase dev-skip">P2</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 资源中心 · 模板与字典 Hub ========== -->
+      <section id="view-template-hub" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 资源中心 / 模板与字典</div>
+        <div class="card">
+          <div class="tabs" id="templateHubTabs">
+            <div class="tab active" data-thtab="scan">扫描模板 scan-templates</div>
+            <div class="tab" data-thtab="report">报告模板 report-templates</div>
+            <div class="tab" data-thtab="weakpwd">弱口令字典 weakpwd</div>
+          </div>
+          <div class="card-body">
+            <!-- Tab: 扫描模板 -->
+            <div id="thtab-scan" class="tab-panel active">
+              <div class="toolbar">
+                <span><span class="api-path">GET /v1/scanner/templates/scan</span> · syn_sysvuln / syn_baseline <span class="phase p2">P2</span></span>
+                <button class="btn btn-primary" onclick="toast('POST templates/sync')">全量同步</button>
+              </div>
+              <div class="search-row" style="margin-bottom:12px">
+                <div class="form-item"><label>节点</label><select><option>绿盟-北京-01</option><option>全部节点</option></select></div>
+                <div class="form-item"><label>模板类型</label><select><option>全部</option><option>sysvuln</option><option>baseline</option></select></div>
+                <div class="form-item"><label>&nbsp;</label><button class="btn btn-primary">查询</button></div>
+              </div>
+              <table>
+                <thead><tr><th>类型</th><th>ID/uuid</th><th>名称</th><th>本地版本</th><th>设备版本</th><th>diff</th><th>同步时间</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr><td>sysvuln</td><td>10</td><td>端口扫描</td><td>v3</td><td>v3</td><td><span class="tag tag-green">一致</span></td><td>2026-06-14 00:45</td><td><button class="btn-link" onclick="toast('同步')">同步</button></td></tr>
+                  <tr><td>sysvuln</td><td>11</td><td>全端口扫描</td><td>v2</td><td>v2</td><td><span class="tag tag-green">一致</span></td><td>2026-06-14 00:45</td><td><button class="btn-link">同步</button></td></tr>
+                  <tr><td>baseline</td><td>66c221be-…</td><td>Windows 配置规范</td><td>v2</td><td>v1</td><td><button class="btn-link" onclick="openModal('templateDiff')">查看 diff</button></td><td>2026-06-13</td><td><button class="btn-link">同步</button></td></tr>
+                  <tr><td>baseline</td><td>77d332cf-…</td><td>Linux 安全基线</td><td>v1</td><td>v1</td><td><span class="tag tag-green">一致</span></td><td>2026-06-12</td><td><button class="btn-link">同步</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- Tab: 报告模板 -->
+            <div id="thtab-report" class="tab-panel">
+              <div class="toolbar">
+                <span><span class="api-path">GET /v1/report/templates</span> · 平台 code ? LM report_type / AH 参数 <span class="phase p1">P1</span></span>
+                <button class="btn btn-primary">新增映射</button>
+              </div>
+              <table>
+                <thead><tr><th>平台 code</th><th>名称</th><th>厂商</th><th>LM report_type</th><th>AH 参数</th><th>输出格式</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr><td><code>vuln_summary</code></td><td>漏洞汇总报告</td><td>LM</td><td>1</td><td>—</td><td>PDF/HTML</td><td><span class="tag tag-green">启用</span></td><td><span class="action-btn">编辑</span></td></tr>
+                  <tr><td><code>host_detail</code></td><td>主机漏洞明细</td><td>LM</td><td>2</td><td>—</td><td>PDF</td><td><span class="tag tag-green">启用</span></td><td><span class="action-btn">编辑</span></td></tr>
+                  <tr><td><code>baseline_rpt</code></td><td>基线核查报告</td><td>AH</td><td>—</td><td>templateId=BL-01</td><td>PDF</td><td><span class="tag tag-orange">待绑定</span></td><td><span class="action-btn">编辑</span></td></tr>
+                  <tr><td><code>weakpwd_rpt</code></td><td>弱口令报告</td><td>LM</td><td>4</td><td>—</td><td>PDF</td><td><span class="tag tag-green">启用</span></td><td><span class="action-btn">编辑</span></td></tr>
+                </tbody>
+              </table>
+              <p class="helper" style="margin-top:12px">实例工作台报告矩阵列头引用此映射；未绑定模板会导致 report_job FAILED</p>
+            </div>
+            <!-- Tab: 弱口令字典 -->
+            <div id="thtab-weakpwd" class="tab-panel">
+              <div class="toolbar">
+                <span>弱口令字典 <span class="api-path">syn_userpwd_data · GET /api/userpwd/list</span> <span class="phase p2">P2</span></span>
+                <button class="btn btn-primary" onclick="toast('POST syn_userpwd_data')">全量同步</button>
+              </div>
+              <div class="search-row" style="margin-bottom:12px">
+                <div class="form-item"><label>节点</label><select><option>绿盟-北京-01</option></select></div>
+                <div class="form-item"><label>同步状态</label><select><option>全部</option><option>已同步</option><option>待同步</option></select></div>
+                <div class="form-item"><label>&nbsp;</label><button class="btn btn-primary">查询</button></div>
+              </div>
+              <table>
+                <thead><tr><th>字典 ID</th><th>名称</th><th>条目数</th><th>协议</th><th>同步状态</th><th>同步时间</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr><td>188</td><td>SSH默认用户</td><td>1,204</td><td>SSH</td><td><span class="tag tag-green">已同步</span></td><td>2026-06-14 00:50</td><td><span class="action-btn" onclick="toast('同步')">同步</span></td></tr>
+                  <tr><td>189</td><td>数据库弱口令</td><td>856</td><td>MySQL/Oracle</td><td><span class="tag tag-orange">待同步</span></td><td>2026-06-10</td><td><span class="action-btn">同步</span></td></tr>
+                  <tr><td>190</td><td>RDP 常见密码</td><td>432</td><td>RDP</td><td><span class="tag tag-green">已同步</span></td><td>2026-06-13</td><td><span class="action-btn">同步</span></td></tr>
+                  <tr><td>191</td><td>Telnet 默认</td><td>98</td><td>Telnet</td><td><span class="tag tag-red">同步失败</span></td><td>2026-06-12</td><td><span class="action-btn">重试</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- ========== 报告中心 · 报告任务列表 ========== -->
+      <section id="view-report-jobs" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 报告中心 / 报告任务</div>
+        <div class="card">
+          <div class="card-body">
+            <div class="search-row">
+              <div class="form-item"><label>job_id / surveyId</label><input placeholder="RJ-001 或 SUR-77821" /></div>
+              <div class="form-item"><label>状态</label>
+                <select><option>全部</option><option>SUCCESS</option><option>RUNNING</option><option>FAILED</option><option>PENDING</option></select>
+              </div>
+              <div class="form-item"><label>报告模板</label>
+                <select><option>全部</option><option>vuln_summary</option><option>host_detail</option><option>baseline_rpt</option><option>weakpwd_rpt</option></select>
+              </div>
+              <div class="form-item"><label>厂商</label>
+                <select><option>全部</option><option>LM 绿盟</option><option>AH 安恒</option></select>
+              </div>
+              <div class="form-item"><label>时间范围</label><input type="text" value="2026-06-01 ~ 2026-06-14" /></div>
+              <div class="form-item"><label>&nbsp;</label>
+                <button class="btn btn-primary" onclick="toast('GET /v1/scan/report/jobs')">查询</button>
+                <button class="btn">重置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span>全平台 report_job <span class="api-path">GET /v1/scan/report/jobs</span> <span class="dev-todo">P1</span></span>
+            <div style="display:flex;gap:8px">
+              <button class="btn" onclick="toast('POST /v1/scan/report/jobs/batch-retry')">批量重试</button>
+              <button class="btn btn-primary" onclick="openReportGenerateModal('ST-20260614-002','vuln_summary')">新建生成</button>
+            </div>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <table>
+              <thead>
+                <tr>
+                  <th>job_id</th><th>surveyId</th><th>sub_task</th><th>模板 code</th><th>厂商</th>
+                  <th>状态</th><th>进度</th><th>创建时间</th><th>完成时间</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>RJ-20260614-001</code></td><td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77821','report')">SUR-77821</a></td>
+                  <td>ST-20260614-001</td><td>vuln_summary</td><td>LM</td>
+                  <td><span class="tag tag-green">SUCCESS</span></td>
+                  <td><div class="progress-bar"><span style="width:100%"></span></div><small>100%</small></td>
+                  <td>2026-06-14 10:18</td><td>2026-06-14 10:22</td>
+                  <td>
+                    <button class="btn-link" onclick="toast('GET /v1/scan/report/jobs/RJ-20260614-001/download')">下载</button>
+                    <button class="btn-link" onclick="showView('report-exports')">投递记录</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>RJ-20260614-002</code></td><td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77821','report')">SUR-77821</a></td>
+                  <td>ST-20260614-002</td><td>host_detail</td><td>LM</td>
+                  <td><span class="tag tag-orange">RUNNING</span></td>
+                  <td><div class="progress-bar"><span id="rj-progress-002" style="width:62%"></span></div><small>62%</small></td>
+                  <td>2026-06-14 10:25</td><td>—</td>
+                  <td>
+                    <button class="btn-link" onclick="mockReportProgress('RJ-20260614-002')">刷新进度</button>
+                    <button class="btn-link" onclick="toast('POST cancel')">取消</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>RJ-20260614-003</code></td><td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77821','report')">SUR-77821</a></td>
+                  <td>ST-20260614-002</td><td>baseline_rpt</td><td>AH</td>
+                  <td><span class="tag tag-red">FAILED</span></td>
+                  <td>—</td>
+                  <td>2026-06-14 10:30</td><td>2026-06-14 10:31</td>
+                  <td>
+                    <button class="btn-link" onclick="openReportGenerateModal('ST-20260614-002','baseline_rpt')">重试</button>
+                    <button class="btn-link" onclick="showView('report-templates')">检查模板</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>RJ-20260613-088</code></td><td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77790')">SUR-77790</a></td>
+                  <td>ST-20260613-010</td><td>weakpwd_rpt</td><td>LM</td>
+                  <td><span class="tag tag-green">SUCCESS</span></td>
+                  <td><div class="progress-bar"><span style="width:100%"></span></div><small>100%</small></td>
+                  <td>2026-06-13 04:10</td><td>2026-06-13 04:15</td>
+                  <td>
+                    <button class="btn-link" onclick="toast('下载 PDF+HTML')">下载</button>
+                    <button class="btn-link" onclick="toast('已投递 vul-pass')">投递状态</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>RJ-20260614-004</code></td><td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77805')">SUR-77805</a></td>
+                  <td>ST-20260614-008</td><td>vuln_summary</td><td>LM</td>
+                  <td><span class="tag tag-default">PENDING</span></td>
+                  <td><div class="progress-bar"><span style="width:0%"></span></div><small>排队中</small></td>
+                  <td>2026-06-14 10:35</td><td>—</td>
+                  <td><button class="btn-link" onclick="toast('等待扫描完成')">—</button></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination">
+              <span>共 156 条</span>
+              <button class="btn">上一页</button>
+              <span>1 / 16</span>
+              <button class="btn">下一页</button>
+            </div>
+            <p class="helper" style="margin-top:12px">Mock 链路：POST generate → LM generate_report → GET progress → GET download · 失败可 retry · 关联实例工作台报告 Tab 矩阵</p>
+          </div>
+        </div>
+      </section>
+      <!-- ========== 报告中心 · 模板映射 ========== -->
+      <section id="view-report-templates" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 报告中心 / 模板映射</div>
+        <div class="card">
+          <div class="card-body">
+            <div class="search-row">
+              <div class="form-item"><label>平台模板 code</label><input placeholder="vuln_summary" /></div>
+              <div class="form-item"><label>厂商</label>
+                <select><option>全部</option><option>LM</option><option>AH</option></select>
+              </div>
+              <div class="form-item"><label>业务场景</label>
+                <select><option>全部</option><option>漏洞扫描</option><option>基线核查</option><option>弱口令</option></select>
+              </div>
+              <div class="form-item"><label>&nbsp;</label>
+                <button class="btn btn-primary" onclick="toast('GET /v1/scan/report/templates')">查询</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span>平台模板 ? 设备参数映射 <span class="api-path">GET /v1/scan/report/templates</span> <span class="dev-todo">P1</span></span>
+            <button class="btn btn-primary" onclick="openModal('report-template-edit')">新增映射</button>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <table>
+              <thead>
+                <tr>
+                  <th>平台 code</th><th>显示名称</th><th>场景</th><th>厂商</th>
+                  <th>LM report_type</th><th>AH 参数</th><th>输出格式</th><th>状态</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>vuln_summary</code></td><td>漏洞汇总报告</td><td>漏洞扫描</td><td>LM</td>
+                  <td><code>report_type=1</code></td><td>—</td><td>PDF, HTML</td>
+                  <td><span class="tag tag-green">启用</span></td>
+                  <td><button class="btn-link" onclick="openModal('report-template-edit')">编辑</button></td>
+                </tr>
+                <tr>
+                  <td><code>host_detail</code></td><td>主机漏洞明细</td><td>漏洞扫描</td><td>LM</td>
+                  <td><code>report_type=2</code></td><td>—</td><td>PDF, XLS</td>
+                  <td><span class="tag tag-green">启用</span></td>
+                  <td><button class="btn-link" onclick="openModal('report-template-edit')">编辑</button></td>
+                </tr>
+                <tr>
+                  <td><code>baseline_rpt</code></td><td>基线核查报告</td><td>基线核查</td><td>AH</td>
+                  <td>—</td><td><code>templateId=66c221be</code> · <code>format=pdf</code></td><td>PDF</td>
+                  <td><span class="tag tag-orange">AH 模板未同步</span></td>
+                  <td><button class="btn-link" onclick="openModal('report-template-edit')">编辑</button>
+                      <button class="btn-link" onclick="showView('templates')">同步模板</button></td>
+                </tr>
+                <tr>
+                  <td><code>weakpwd_rpt</code></td><td>弱口令报告</td><td>弱口令</td><td>LM</td>
+                  <td><code>report_type=4</code></td><td>—</td><td>PDF</td>
+                  <td><span class="tag tag-green">启用</span></td>
+                  <td><button class="btn-link" onclick="openModal('report-template-edit')">编辑</button></td>
+                </tr>
+                <tr>
+                  <td><code>web_scan_rpt</code></td><td>Web 扫描报告</td><td>Web 扫描</td><td>AH</td>
+                  <td>—</td><td><code>scanType=web</code> · <code>export=html</code></td><td>HTML</td>
+                  <td><span class="tag tag-default">停用</span></td>
+                  <td><button class="btn-link" onclick="openModal('report-template-edit')">编辑</button></td>
+                </tr>
+              </tbody>
+            </table>
+            <pre class="code-block" style="margin-top:16px">映射示例（编辑 Modal 提交体）：
+{
+  "code": "vuln_summary",
+  "vendor": "LM",
+  "lmParams": { "report_type": 1, "language": "zh_CN" },
+  "ahParams": null,
+  "outputFormats": ["pdf", "html"]
+}</pre>
+          </div>
+        </div>
+      </section>
+      <!-- ========== 报告中心 · 导出记录 ========== -->
+      <section id="view-report-exports" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 报告中心 / 导出记录</div>
+        <div class="card">
+          <div class="card-body">
+            <div class="search-row">
+              <div class="form-item"><label>export_id / job_id</label><input placeholder="EXP-001" /></div>
+              <div class="form-item"><label>surveyId</label><input placeholder="SUR-77821" /></div>
+              <div class="form-item"><label>文件格式</label>
+                <select><option>全部</option><option>PDF</option><option>HTML</option><option>XLS</option></select>
+              </div>
+              <div class="form-item"><label>投递状态</label>
+                <select><option>全部</option><option>已投递</option><option>投递中</option><option>失败</option><option>未投递</option></select>
+              </div>
+              <div class="form-item"><label>&nbsp;</label>
+                <button class="btn btn-primary" onclick="toast('GET /v1/scan/report/exports')">查询</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span>下载与投递历史 <span class="api-path">GET /v1/scan/report/exports</span> <span class="dev-todo">P1</span></span>
+            <button class="btn" onclick="toast('导出 CSV')">导出清单</button>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <table>
+              <thead>
+                <tr>
+                  <th>export_id</th><th>job_id</th><th>关联 survey</th><th>模板</th><th>文件格式</th>
+                  <th>文件大小</th><th>下载时间</th><th>投递 vul-pass</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>EXP-20260614-001</code></td><td>RJ-20260614-001</td>
+                  <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77821','report')">SUR-77821</a></td>
+                  <td>漏洞汇总报告</td><td>PDF</td><td>2.4 MB</td><td>2026-06-14 10:22</td>
+                  <td><span class="tag tag-green">已投递</span><br><small>vul-pass attachmentId=ATT-8821</small></td>
+                  <td><button class="btn-link" onclick="toast('重新下载')">下载</button></td>
+                </tr>
+                <tr>
+                  <td><code>EXP-20260614-002</code></td><td>RJ-20260614-001</td>
+                  <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77821','report')">SUR-77821</a></td>
+                  <td>漏洞汇总报告</td><td>HTML</td><td>856 KB</td><td>2026-06-14 10:23</td>
+                  <td><span class="tag tag-green">已投递</span></td>
+                  <td><button class="btn-link" onclick="toast('重新下载')">下载</button></td>
+                </tr>
+                <tr>
+                  <td><code>EXP-20260613-045</code></td><td>RJ-20260613-088</td>
+                  <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77790')">SUR-77790</a></td>
+                  <td>弱口令报告</td><td>PDF</td><td>1.1 MB</td><td>2026-06-13 04:15</td>
+                  <td><span class="tag tag-green">已投递</span><br><small>workOrder WO-098</small></td>
+                  <td><button class="btn-link" onclick="toast('重新下载')">下载</button></td>
+                </tr>
+                <tr>
+                  <td><code>EXP-20260614-003</code></td><td>RJ-20260614-002</td>
+                  <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77821','report')">SUR-77821</a></td>
+                  <td>主机漏洞明细</td><td>PDF</td><td>—</td><td>—</td>
+                  <td><span class="tag tag-blue">投递中</span><br><small>POST vul-pass/report/attach</small></td>
+                  <td><button class="btn-link" onclick="toast('等待生成完成')">—</button></td>
+                </tr>
+                <tr>
+                  <td><code>EXP-20260612-012</code></td><td>RJ-20260612-033</td>
+                  <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77750')">SUR-77750</a></td>
+                  <td>基线核查报告</td><td>PDF</td><td>3.2 MB</td><td>2026-06-12 18:00</td>
+                  <td><span class="tag tag-red">投递失败</span><br><small>vul-pass 超时 · 可重试</small></td>
+                  <td>
+                    <button class="btn-link" onclick="toast('POST /v1/scan/report/exports/EXP-20260612-012/redeliver')">重新投递</button>
+                    <button class="btn-link" onclick="toast('重新下载')">下载</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination">
+              <span>共 89 条</span>
+              <button class="btn">上一页</button>
+              <span>1 / 9</span>
+              <button class="btn">下一页</button>
+            </div>
+            <p class="helper" style="margin-top:12px">投递链路：report_job SUCCESS → 文件落盘 → POST vul-pass 附件接口 → 回写 delivery_status · 失败支持 redeliver</p>
+          </div>
+        </div>
+      </section>
+      <!-- ========== 治理中心 · 对账列表 ========== -->
+      <section id="view-reconcile-list" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 治理中心 / 任务对账</div>
+        <div class="stat-row">
+          <div class="stat-card"><div class="label">MATCHED</div><div class="value" style="color:var(--success)">42</div><div class="sub">状态一致</div></div>
+          <div class="stat-card" onclick="openModal('orphan')"><div class="label">ORPHAN</div><div class="value" style="color:var(--error)">2</div><div class="sub">设备有、平台无</div></div>
+          <div class="stat-card" onclick="showView('reconcile-diff')"><div class="label">MISSING</div><div class="value" style="color:var(--warning)">1</div><div class="sub">平台有、设备无</div></div>
+          <div class="stat-card" onclick="openSubTaskDrawer('ST-20260614-002')"><div class="label">DRIFT</div><div class="value" style="color:var(--primary)">2</div><div class="sub">状态漂移</div></div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div class="search-row">
+              <div class="form-item"><label>节点</label>
+                <select><option>全部</option><option>绿盟-北京-01</option><option>绿盟-上海-02</option></select>
+              </div>
+              <div class="form-item"><label>差异类型</label>
+                <select><option>全部</option><option>ORPHAN</option><option>MISSING</option><option>DRIFT</option><option>MATCHED</option></select>
+              </div>
+              <div class="form-item"><label>surveyId</label><input placeholder="SUR-77821" /></div>
+              <div class="form-item"><label>对账批次</label><input value="2026-06-14 10:25" /></div>
+              <div class="form-item"><label>&nbsp;</label>
+                <button class="btn btn-primary" onclick="toast('POST /v1/reconcile/tasks/trigger')">立即对账</button>
+                <button class="btn">导出</button>
+              </div>
+            </div>
+            <p class="helper">平台 scan_sub_task ? 设备 GET /api/task/active_list · Cron 默认 5min · VulnTaskListener 驱动</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span>对账结果 <span class="api-path">GET /v1/reconcile/tasks</span> <span class="dev-todo">P0</span></span>
+            <button class="btn" onclick="showView('reconcile-diff')">查看 MISSING diff</button>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <table>
+              <thead>
+                <tr>
+                  <th>类型</th><th>节点</th><th>sub_task</th><th>task_id</th><th>survey / 任务名</th>
+                  <th>平台状态</th><th>设备状态</th><th>对账时间</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="tag tag-red">ORPHAN</span></td><td>绿盟-北京-01</td><td>—</td><td>882</td>
+                  <td>admin_手工扫描</td><td>—</td><td>扫描中 35%</td><td>10:25:00</td>
+                  <td><button class="btn-link" onclick="openModal('orphan')">处理</button></td>
+                </tr>
+                <tr>
+                  <td><span class="tag tag-red">ORPHAN</span></td><td>绿盟-上海-02</td><td>—</td><td>901</td>
+                  <td>test_scan</td><td>—</td><td>已完成</td><td>10:25:00</td>
+                  <td><button class="btn-link" onclick="openModal('orphan')">处理</button></td>
+                </tr>
+                <tr>
+                  <td><span class="tag tag-orange">MISSING</span></td><td>绿盟-上海-02</td><td>ST-MISS-001</td><td>—</td>
+                  <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77821','reconcile')">SUR-77821</a> 工单-102</td>
+                  <td>执行中 12%</td><td>—</td><td>10:20:00</td>
+                  <td>
+                    <button class="btn-link" onclick="showView('reconcile-diff')">diff</button>
+                    <button class="btn-link" onclick="toast('POST /v1/scan/sub-task/ST-MISS-001/retry')">重试</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><span class="tag tag-blue">DRIFT</span></td><td>绿盟-北京-01</td><td>ST-20260614-002</td><td>875</td>
+                  <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77821')">SUR-77821</a> 月扫-196.0/24</td>
+                  <td>执行中 45%</td><td>暂停 60%</td><td>10:25:00</td>
+                  <td><button class="btn-link" onclick="openSubTaskDrawer('ST-20260614-002')">操控 S5</button></td>
+                </tr>
+                <tr>
+                  <td><span class="tag tag-blue">DRIFT</span></td><td>绿盟-北京-01</td><td>ST-20260610-005</td><td>860</td>
+                  <td>SUR-77720 例行扫描</td><td>已完成</td><td>扫描中 98%</td><td>10:25:00</td>
+                  <td><button class="btn-link" onclick="toast('POST sync-status')">同步</button></td>
+                </tr>
+                <tr>
+                  <td><span class="tag tag-green">MATCHED</span></td><td>绿盟-北京-01</td><td>ST-20260614-001</td><td>874</td>
+                  <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77821')">SUR-77821</a></td>
+                  <td>已完成</td><td>完成</td><td>10:25:00</td><td>—</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination">
+              <span>共 47 条</span>
+              <button class="btn">上一页</button>
+              <span>1 / 5</span>
+              <button class="btn">下一页</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- ========== 治理中心 · 差异详情 ========== -->
+      <section id="view-reconcile-diff" class="view">
+        <div class="breadcrumb">
+          <a onclick="showView('workbench')">工作台</a> /
+          <a onclick="showView('reconcile-list')">任务对账</a> / 差异详情 ST-MISS-001
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span>MISSING · diff 详情 <span class="api-path">GET /v1/reconcile/tasks/{id}</span></span>
+            <button class="btn-link" onclick="openSurveyWorkspace('SUR-77821','reconcile')">打开实例工作台对账 Tab</button>
+          </div>
+          <div class="card-body">
+            <div class="stat-row" style="margin-bottom:16px">
+              <div class="stat-card"><div class="label">差异类型</div><div class="value" style="font-size:16px"><span class="tag tag-orange">MISSING</span></div></div>
+              <div class="stat-card"><div class="label">sub_task</div><div class="value" style="font-size:16px"><code>ST-MISS-001</code></div></div>
+              <div class="stat-card"><div class="label">节点</div><div class="value" style="font-size:16px">绿盟-上海-02</div></div>
+              <div class="stat-card"><div class="label">持续时长</div><div class="value" style="font-size:16px;color:var(--warning)">15min</div></div>
+            </div>
+            <table class="diff-table">
+              <thead><tr><th>字段</th><th>平台 scan_sub_task</th><th>设备 active_list</th></tr></thead>
+              <tbody>
+                <tr><td>task_id / plan_id</td><td class="diff-add">—（未回填）</td><td class="diff-del">无匹配项</td></tr>
+                <tr><td>sub_task_id</td><td class="diff-add">ST-MISS-001</td><td class="diff-del">—</td></tr>
+                <tr><td>surveyId</td><td>SUR-77821</td><td>—</td></tr>
+                <tr><td>status</td><td class="diff-add">RUNNING</td><td class="diff-del">—</td></tr>
+                <tr><td>progress</td><td>12%</td><td>—</td></tr>
+                <tr><td>target</td><td>10.65.197.0/24</td><td>—</td></tr>
+                <tr><td>last_dispatch_at</td><td>2026-06-14 10:05:00</td><td>—</td></tr>
+                <tr><td>dispatch_attempts</td><td>2</td><td>—</td></tr>
+                <tr><td>reconcile_at</td><td colspan="2">2026-06-14 10:20:00 · 结论 MISSING（超时 15min 未出现在 active_list）</td></tr>
+              </tbody>
+            </table>
+            <div class="timeline" style="margin-top:20px">
+              <div class="timeline-item"><div class="t">10:05:00</div>sub_task 创建，入 sendQueue</div>
+              <div class="timeline-item"><div class="t">10:05:03</div>Adapter 下发失败（节点满载），转入 waitQueue</div>
+              <div class="timeline-item"><div class="t">10:08:12</div>第二次下发，平台标记 RUNNING 12%</div>
+              <div class="timeline-item fail"><div class="t">10:20:00</div>对账 MISSING：active_list 无 plan_id 回填</div>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary" onclick="toast('POST /v1/scan/sub-task/ST-MISS-001/retry')">重试下发</button>
+              <button class="btn" onclick="toast('POST mark-failed')">标记失败</button>
+              <button class="btn" onclick="showView('queue-monitor')">查看队列</button>
+              <button class="btn" onclick="openSubTaskDrawer('ST-MISS-001')">子任务抽屉</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- ========== 治理中心 · 队列监控 ========== -->
+      <section id="view-queue-monitor" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 治理中心 / 队列监控</div>
+        <div class="stat-row">
+          <div class="stat-card"><div class="label">sendQueue</div><div class="value">8</div><div class="sub">待下发</div></div>
+          <div class="stat-card"><div class="label">waitQueue</div><div class="value" style="color:var(--warning)">15</div><div class="sub">节点满载等待</div></div>
+          <div class="stat-card"><div class="label">executeQueue</div><div class="value">47</div><div class="sub">已下发执行中</div></div>
+          <div class="stat-card"><div class="label">死信 / 异常</div><div class="value" style="color:var(--error)">3</div><div class="sub">需人工处理</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span>队列三分 Tab <span class="api-path">GET /v1/scan/queue/monitor</span> <span class="dev-done">QueueAppService</span></span>
+            <button class="btn" onclick="toast('POST /v1/scan/queue/rebalance')">重平衡</button>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <div class="tabs" id="queueTabs">
+              <div class="tab active" data-qtab="send">sendQueue (8)</div>
+              <div class="tab" data-qtab="wait">waitQueue (15)</div>
+              <div class="tab" data-qtab="execute">executeQueue (47)</div>
+            </div>
+            <div id="qtab-send" class="tab-panel active">
+              <table>
+                <thead><tr><th>surveyId</th><th>sub_task</th><th>目标节点</th><th>场景</th><th>入队时间</th><th>重试次数</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77822')">SUR-77822</a></td>
+                    <td>ST-pending-01</td><td>绿盟-北京-01</td><td>漏洞扫描</td><td>10:31:02</td><td>0</td>
+                    <td><button class="btn-link" onclick="toast('优先下发')">优先</button></td>
+                  </tr>
+                  <tr>
+                    <td>SUR-77823</td><td>ST-pending-02</td><td>绿盟-上海-02</td><td>基线核查</td><td>10:32:15</td><td>0</td>
+                    <td><button class="btn-link" onclick="toast('优先下发')">优先</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="qtab-wait" class="tab-panel">
+              <table>
+                <thead><tr><th>surveyId</th><th>sub_task</th><th>等待原因</th><th>等待节点</th><th>等待时长</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77810')">SUR-77810</a></td>
+                    <td>ST-wait-03</td><td>节点并发已满 10/10</td><td>绿盟-上海-02</td><td>3m 12s</td>
+                    <td><button class="btn-link" onclick="toast('切换节点')">换节点</button></td>
+                  </tr>
+                  <tr>
+                    <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77821')">SUR-77821</a></td>
+                    <td>ST-MISS-001</td><td>首次下发失败，排队重试</td><td>绿盟-上海-02</td><td>12m 45s</td>
+                    <td><button class="btn-link" onclick="showView('reconcile-diff')">对账 diff</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="qtab-execute" class="tab-panel">
+              <table>
+                <thead><tr><th>sub_task</th><th>surveyId</th><th>plan_id</th><th>节点</th><th>进度</th><th>状态</th><th>对账</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td>ST-20260614-002</td>
+                    <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77821')">SUR-77821</a></td>
+                    <td>875</td><td>绿盟-北京-01</td>
+                    <td><div class="progress-bar"><span style="width:45%"></span></div></td>
+                    <td>执行中</td><td><span class="tag tag-blue">DRIFT</span></td>
+                    <td><button class="btn-link" onclick="openSubTaskDrawer('ST-20260614-002')">操控</button></td>
+                  </tr>
+                  <tr>
+                    <td>ST-20260614-001</td>
+                    <td><a class="btn-link" onclick="openSurveyWorkspace('SUR-77821')">SUR-77821</a></td>
+                    <td>874</td><td>绿盟-北京-01</td>
+                    <td><div class="progress-bar"><span style="width:100%"></span></div></td>
+                    <td>已完成</td><td><span class="tag tag-green">MATCHED</span></td>
+                    <td>—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- ========== 治理中心 · 仪表盘 ========== -->
+      <section id="view-dashboard" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 治理中心 / 扫描器仪表盘</div>
+        <div class="stat-row cols-5">
+          <div class="stat-card"><div class="label">在线节点</div><div class="value">11/12</div><div class="sub">1 offline</div></div>
+          <div class="stat-card"><div class="label">平均 CPU</div><div class="value">18%</div><div class="sub">集群均值</div></div>
+          <div class="stat-card"><div class="label">活跃子任务</div><div class="value">47</div><div class="sub">executeQueue</div></div>
+          <div class="stat-card"><div class="label">凭证过期</div><div class="value" style="color:var(--warning)">2</div><div class="sub">7 天内到期</div></div>
+          <div class="stat-card" onclick="showView('reconcile-list')"><div class="label">对账差异</div><div class="value" style="color:var(--error)">5</div><div class="sub">ORPHAN 2 · MISSING 1</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>集群观测 <span class="api-path">GET /v1/scanner/dashboard</span> <span class="phase p1">P1</span></span></div>
+          <div class="card-body">
+            <div class="chart-placeholder">集群负载趋势图 · 对账差异 24h 趋势 · 队列水位 send/wait/execute</div>
+            <div class="detail-grid" style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div class="col-box">
+                <h4>节点负载 TOP5</h4>
+                <table style="font-size:12px">
+                  <tr><td>绿盟-上海-02</td><td>9/10</td><td><span class="tag tag-orange">高负载</span></td></tr>
+                  <tr><td>绿盟-北京-01</td><td>3/10</td><td><span class="tag tag-green">正常</span></td></tr>
+                  <tr><td>绿盟-广州-01</td><td>2/10</td><td><span class="tag tag-green">正常</span></td></tr>
+                </table>
+              </div>
+              <div class="col-box">
+                <h4>今日报告生成</h4>
+                <table style="font-size:12px">
+                  <tr><td>SUCCESS</td><td>42</td></tr>
+                  <tr><td>RUNNING</td><td>3</td></tr>
+                  <tr><td>FAILED</td><td style="color:var(--error)">3</td></tr>
+                </table>
+                <button class="btn-link" style="margin-top:8px" onclick="showView('report-jobs')">报告任务列表 →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- ========== 治理中心 · 告警规则 ========== -->
+      <section id="view-alert-rules" class="view">
+        <div class="breadcrumb"><a onclick="showView('workbench')">工作台</a> / 治理中心 / 告警规则</div>
+        <div class="card">
+          <div class="card-title">
+            <span>告警规则 <span class="api-path">GET /v1/governance/alert-rules</span> <span class="phase p1">P1</span></span>
+            <button class="btn btn-primary" onclick="toast('新增规则 Modal')">新增规则</button>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <table>
+              <thead><tr><th>规则名</th><th>条件</th><th>级别</th><th>通知渠道</th><th>关联动作</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>节点离线</td><td>health_status=offline 持续 &gt; 5min</td>
+                  <td><span class="tag tag-red">严重</span></td><td>钉钉 + 邮件</td>
+                  <td>跳转节点详情</td><td><span class="tag tag-green">启用</span></td>
+                  <td><button class="btn-link">编辑</button></td>
+                </tr>
+                <tr>
+                  <td>负载过高</td><td>current/max &gt; 90% 持续 10min</td>
+                  <td><span class="tag tag-orange">警告</span></td><td>钉钉</td>
+                  <td>限流新任务</td><td><span class="tag tag-green">启用</span></td>
+                  <td><button class="btn-link">编辑</button></td>
+                </tr>
+                <tr>
+                  <td>对账 ORPHAN</td><td>ORPHAN 计数 &gt; 0</td>
+                  <td><span class="tag tag-blue">提示</span></td><td>站内信</td>
+                  <td>打开对账列表</td><td><span class="tag tag-green">启用</span></td>
+                  <td><button class="btn-link" onclick="showView('reconcile-list')">验证</button></td>
+                </tr>
+                <tr>
+                  <td>MISSING 超时</td><td>MISSING 未处理 &gt; 30min</td>
+                  <td><span class="tag tag-red">严重</span></td><td>钉钉</td>
+                  <td>自动 retry</td><td><span class="dev-todo">P1 待开发</span></td>
+                  <td><button class="btn-link">编辑</button></td>
+                </tr>
+                <tr>
+                  <td>报告生成失败</td><td>report_job FAILED 计数 &gt; 0（1h）</td>
+                  <td><span class="tag tag-orange">警告</span></td><td>邮件</td>
+                  <td>跳转报告中心</td><td><span class="tag tag-green">启用</span></td>
+                  <td><button class="btn-link" onclick="showView('report-jobs')">验证</button></td>
+                </tr>
+                <tr>
+                  <td>队列积压</td><td>waitQueue &gt; 20 持续 15min</td>
+                  <td><span class="tag tag-orange">警告</span></td><td>钉钉</td>
+                  <td>队列监控</td><td><span class="tag tag-green">启用</span></td>
+                  <td><button class="btn-link" onclick="showView('queue-monitor')">验证</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <div class="page-note">vuln-task-center 扫描治理中心 · PRD v0.3 · 原型 v3 · 2026-06-14 · survey 实例工作台为主轴 · Mock vuln-task-center:18087</div>
+    </main>
+  </div>
+</div>
+<!-- ========== 子任务抽屉（4 Tab） ========== -->
+<div id="drawer-subtask" class="drawer-overlay" onclick="if(event.target===this)closeDrawer()">
+  <div class="drawer drawer-full" onclick="event.stopPropagation()">
+    <div class="drawer-header">
+      <span id="st-drawer-title">子任务详情 · ST-20260614-002</span>
+      <button class="btn-link" onclick="closeDrawer()">关闭</button>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-tabs" id="stDrawerTabs">
+        <div class="drawer-tab active" data-dtab="st-info">基本信息</div>
+        <div class="drawer-tab" data-dtab="st-params">下发参数</div>
+        <div class="drawer-tab" data-dtab="st-reconcile">对账 / 操控</div>
+        <div class="drawer-tab" data-dtab="st-timeline">时间线</div>
+      </div>
+      <div id="st-info" class="drawer-panel active">
+        <div class="kv-row"><div class="k">sub_task_id</div><div class="v" id="st-id"><code>ST-20260614-002</code></div></div>
+        <div class="kv-row"><div class="k">surveyId</div><div class="v"><a class="btn-link" onclick="closeDrawer();openSurveyWorkspace('SUR-77821')">SUR-77821</a></div></div>
+        <div class="kv-row"><div class="k">plan_id (RSAS)</div><div class="v"><code>875</code></div></div>
+        <div class="kv-row"><div class="k">节点</div><div class="v">绿盟-北京-01</div></div>
+        <div class="kv-row"><div class="k">目标</div><div class="v">10.65.196.0/24</div></div>
+        <div class="kv-row"><div class="k">平台进度</div><div class="v">45% · <span class="tag tag-blue">执行中</span></div></div>
+        <div class="kv-row"><div class="k">设备进度</div><div class="v">60% · 已暂停</div></div>
+        <div class="kv-row"><div class="k">对账</div><div class="v"><span class="tag tag-blue">DRIFT</span></div></div>
+      </div>
+      <div id="st-params" class="drawer-panel">
+        <pre class="code-block" id="st-params-json">{
+  "taskType": "vuln_scan",
+  "scanIp": "10.65.196.0/24",
+  "templateId": 10,
+  "templateName": "端口扫描",
+  "credentials": "*** masked ***"
+}</pre>
+        <p class="helper"><span class="api-path">GET /v1/scan/task/{surveyId}/dispatch-detail</span> · 子任务维度参数</p>
+      </div>
+      <div id="st-reconcile" class="drawer-panel">
+        <p style="margin-bottom:12px">S5 漂移操控：检测到 DRIFT，可 sync-status 同步设备状态或人工 pause / resume</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+          <button class="btn btn-primary" onclick="toast('POST /v1/scan/sub-task/{id}/sync-status')">sync-status 同步</button>
+          <button class="btn" onclick="toast('POST /api/task/pause/875')">pause 暂停</button>
+          <button class="btn" onclick="toast('POST /api/task/resume/875')">resume 恢复</button>
+          <button class="btn" onclick="toast('POST /v1/scan/sub-task/{id}/retry')">retry 重试</button>
+        </div>
+        <table class="diff-table" style="font-size:12px">
+          <thead><tr><th>字段</th><th>平台</th><th>设备</th></tr></thead>
+          <tbody>
+            <tr><td>status</td><td class="diff-add">RUNNING</td><td class="diff-del">PAUSED</td></tr>
+            <tr><td>progress</td><td>45%</td><td>60%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="st-timeline" class="drawer-panel">
+        <div class="timeline" id="st-timeline-body">
+          <div class="timeline-item"><div class="t">10:05:00</div>创建 sub_task，入 sendQueue</div>
+          <div class="timeline-item"><div class="t">10:05:02</div>Adapter task.create → plan_id=875</div>
+          <div class="timeline-item"><div class="t">10:15:00</div>对账 MATCHED</div>
+          <div class="timeline-item warn"><div class="t">10:25:00</div>对账 DRIFT：设备已暂停，平台仍执行中</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn" onclick="toast('POST pause')">暂停</button>
+      <button class="btn" onclick="toast('POST resume')">恢复</button>
+      <button class="btn" onclick="toast('POST sync-status')">同步状态</button>
+      <button class="btn btn-danger" onclick="toast('POST cancel 取消任务')">取消任务</button>
+      <button class="btn" onclick="closeDrawer()">关闭</button>
+    </div>
+  </div>
+</div>
+<!-- ========== 下发详情抽屉（三栏） ========== -->
+<div id="drawer-dispatch" class="drawer-overlay" onclick="if(event.target===this)closeDrawer()">
+  <div class="drawer drawer-full" onclick="event.stopPropagation()">
+    <div class="drawer-header">
+      <span id="dispatch-title">下发详情 · SUR-77821</span>
+      <button class="btn-link" onclick="closeDrawer()">关闭</button>
+    </div>
+    <div class="drawer-body">
+      <p class="helper" style="margin-bottom:12px"><span class="api-path">GET /v1/scan/task/{surveyId}/dispatch-detail</span> · 三栏：平台请求 / 路由结果 / 子任务聚合</p>
+      <div class="three-col">
+        <div class="col-box">
+          <h4>① 平台请求参数</h4>
+          <pre class="code-block" style="max-height:220px">{
+  "workOrderId": "WO-102",
+  "scene": "vuln_scan",
+  "targets": [
+    "10.65.195.0/24",
+    "10.65.196.0/24",
+    "10.65.197.0/24"
+  ],
+  "orgId": "ORG-001",
+  "templateId": 10,
+  "templateName": "端口扫描"
+}</pre>
+        </div>
+        <div class="col-box">
+          <h4>② 路由 / preview-scanners</h4>
+          <ul style="font-size:12px;line-height:1.8;padding-left:16px">
+            <li>10.65.195.0/24 → 绿盟-北京-01 (92分)</li>
+            <li>10.65.196.0/24 → 绿盟-北京-01 (88分)</li>
+            <li>10.65.197.0/24 → 绿盟-上海-02 (71分)</li>
+          </ul>
+          <p class="helper">QueueAppServiceImpl.getNodeScannerMap</p>
+          <ul class="excluded-list" style="margin-top:8px">
+            <li>绿盟-省中心 — excluded：offline</li>
+            <li>绿盟-测试-03 — excluded：范围不匹配</li>
+          </ul>
+        </div>
+        <div class="col-box">
+          <h4>③ 子任务聚合</h4>
+          <table style="font-size:12px">
+            <tr><td>ST-20260614-001</td><td>100%</td><td><span class="tag tag-green">MATCHED</span></td></tr>
+            <tr><td>ST-20260614-002</td><td>45%</td><td><span class="tag tag-blue">DRIFT</span></td></tr>
+            <tr><td>ST-MISS-001</td><td>12%</td><td><span class="tag tag-orange">MISSING</span></td></tr>
+          </table>
+          <p style="margin-top:8px">综合进度 45% · matched 1 / missing 1 / drift 1</p>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn" onclick="showView('reconcile-list');closeDrawer()">打开对账</button>
+      <button class="btn" onclick="openSurveyWorkspace('SUR-77821','dispatch');closeDrawer()">实例工作台</button>
+      <button class="btn btn-primary" onclick="closeDrawer()">关闭</button>
+    </div>
+  </div>
+</div>
+<!-- ========== ORPHAN 处理 Modal ========== -->
+<div id="modal-orphan" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">处理 ORPHAN 任务 <button class="btn-link" onclick="closeModal()">×</button></div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px">设备 task_id=<strong>882</strong> 在 active_list 中存在，但平台无对应 scan_sub_task</p>
+      <div class="kv-row"><div class="k">节点</div><div class="v">绿盟-北京-01</div></div>
+      <div class="kv-row"><div class="k">设备任务名</div><div class="v">admin_手工扫描</div></div>
+      <div class="kv-row"><div class="k">设备状态</div><div class="v">扫描中 35%</div></div>
+      <div class="form-item" style="margin-top:16px"><label>处理方式</label>
+        <select>
+          <option>IGNORE 忽略（记录审计日志）</option>
+          <option>STOP 终止设备任务</option>
+          <option>ADOPT 纳管（创建 sub_task 并关联）</option>
+        </select>
+      </div>
+      <p class="helper" style="margin-top:12px"><span class="api-path">POST /v1/reconcile/tasks/orphan/handle</span></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="toast('ORPHAN 已处理');closeModal()">确认处理</button>
+    </div>
+  </div>
+</div>
+<!-- ========== 报告生成进度 Modal ========== -->
+<div id="modal-report-generate" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      报告生成进度
+      <span class="modal-note" id="rg-modal-subtitle">ST-20260614-002 · baseline_rpt</span>
+      <button class="btn-link" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="kv-row"><div class="k">job_id</div><div class="v" id="rg-job-id"><code>RJ-NEW</code></div></div>
+      <div class="kv-row"><div class="k">厂商</div><div class="v" id="rg-vendor">LM</div></div>
+      <div class="kv-row"><div class="k">API</div><div class="v"><span class="api-path">POST /v1/scan/report/generate</span></div></div>
+      <div style="margin:16px 0">
+        <div class="progress-bar"><span id="rg-progress-bar" style="width:0%"></span></div>
+        <p id="rg-progress-text" style="margin-top:8px;font-size:13px;color:var(--text-secondary)">等待开始…</p>
+      </div>
+      <div class="timeline" id="rg-timeline">
+        <div class="timeline-item"><div class="t" id="rg-step-1">—</div>提交 generate 请求</div>
+        <div class="timeline-item"><div class="t" id="rg-step-2">—</div>LM generate_report 执行中</div>
+        <div class="timeline-item"><div class="t" id="rg-step-3">—</div>轮询 progress</div>
+        <div class="timeline-item"><div class="t" id="rg-step-4">—</div>文件就绪，可 download</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="rg-cancel-btn" onclick="closeModal()">关闭</button>
+      <button class="btn btn-primary" id="rg-start-btn" onclick="mockReportGenerateStart()">开始 Mock 生成</button>
+      <button class="btn btn-primary hidden" id="rg-download-btn" onclick="toast('GET download · 已投递 vul-pass')">下载并投递</button>
+    </div>
+  </div>
+</div>
+<!-- ========== 报告模板编辑 Modal ========== -->
+<div id="modal-report-template-edit" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">编辑模板映射 <button class="btn-link" onclick="closeModal()">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-item"><label class="required">平台 code</label><input value="vuln_summary" /></div>
+        <div class="form-item"><label class="required">显示名称</label><input value="漏洞汇总报告" /></div>
+        <div class="form-item"><label>厂商</label><select><option>LM</option><option>AH</option></select></div>
+        <div class="form-item"><label>场景</label><select><option>漏洞扫描</option><option>基线核查</option></select></div>
+        <div class="form-item full"><label>LM report_type</label><input value="1" /></div>
+        <div class="form-item full"><label>AH 参数 JSON</label><textarea style="width:100%;min-height:60px">{ "templateId": "", "format": "pdf" }</textarea></div>
+      </div>
+      <p class="helper"><span class="api-path">PUT /v1/scan/report/templates/{code}</span></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="toast('模板映射已保存');closeModal()">保存</button>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+<script>
+(function(){
+  var wizardStep = 1;
+  var wizardMax = 4;
+  var rgTimer = null;
+  function showView(name){
+    document.querySelectorAll('.view').forEach(function(v){
+      v.classList.toggle('active', v.id === 'view-' + name);
+    });
+    document.querySelectorAll('.menu-item[data-view]').forEach(function(m){
+      m.classList.toggle('active', m.getAttribute('data-view') === name);
+    });
+    window.scrollTo(0, 0);
+  }
+  function openSurveyWorkspace(surveyId, tabOptional){
+    var title = document.getElementById('ws-title');
+    if(title) title.textContent = surveyId + ' · 工单实例';
+    showView('survey-workspace');
+    if(tabOptional) switchWsTab(tabOptional);
+    toast('打开实例工作台 ' + surveyId + (tabOptional ? ' · Tab=' + tabOptional : ''));
+  }
+  function switchWsTab(tabName){
+    var tabs = document.getElementById('wsTabs');
+    if(!tabs) return;
+    tabs.querySelectorAll('.tab[data-wstab]').forEach(function(t){
+      t.classList.toggle('active', t.getAttribute('data-wstab') === tabName);
+    });
+    document.querySelectorAll('[id^="wstab-"]').forEach(function(p){
+      p.classList.toggle('active', p.id === 'wstab-' + tabName);
+    });
+  }
+  function wizardGo(step){
+    wizardStep = step;
+    document.querySelectorAll('.wizard-step').forEach(function(s){
+      var n = parseInt(s.getAttribute('data-wstep'), 10);
+      s.classList.toggle('active', n === step);
+      s.classList.toggle('done', n < step);
+    });
+    document.querySelectorAll('.wizard-panel').forEach(function(p){
+      p.classList.toggle('active', p.id === 'wstep-' + step);
+    });
+    var prev = document.getElementById('wizPrevBtn');
+    var next = document.getElementById('wizNextBtn');
+    if(prev) prev.disabled = step <= 1;
+    if(next) next.textContent = step >= wizardMax ? '确认下发' : '下一步';
+  }
+  function wizardNext(){
+    if(wizardStep >= wizardMax){
+      toast('POST /v1/scan/task → surveyId SUR-NEW');
+      showView('survey-list');
+      return;
+    }
+    if(wizardStep === 3){
+      var box = document.getElementById('wizPreviewResult');
+      if(box) box.classList.remove('hidden');
+    }
+    wizardGo(wizardStep + 1);
+  }
+  function wizardPrev(){
+    if(wizardStep > 1) wizardGo(wizardStep - 1);
+  }
+  function runWizardPreview(){
+    var box = document.getElementById('wizPreviewResult');
+    if(box) box.classList.remove('hidden');
+    toast('POST /v1/scan/task/preview-scanners 完成');
+  }
+  function openDrawer(type){
+    closeDrawer();
+    var d = document.getElementById('drawer-' + type);
+    if(d) d.classList.add('show');
+  }
+  function closeDrawer(){
+    document.querySelectorAll('.drawer-overlay').forEach(function(d){ d.classList.remove('show'); });
+  }
+  function openSubTaskDrawer(id){
+    var el = document.getElementById('st-id');
+    var title = document.getElementById('st-drawer-title');
+    if(el) el.innerHTML = '<code>' + id + '</code>';
+    if(title) title.textContent = '子任务详情 · ' + id;
+    openDrawer('subtask');
+  }
+  function openDispatchDrawer(surveyId){
+    var t = document.getElementById('dispatch-title');
+    if(t) t.textContent = '下发详情 · ' + surveyId;
+    openDrawer('dispatch');
+  }
+  var modalMap = {
+    orphan: 'modal-orphan',
+    'report-generate': 'modal-report-generate',
+    'report-template-edit': 'modal-report-template-edit'
+  };
+  function openModal(id){
+    closeModal();
+    var el = document.getElementById(modalMap[id] || ('modal-' + id));
+    if(el) el.classList.add('show');
+  }
+  function closeModal(){
+    document.querySelectorAll('.modal-overlay').forEach(function(m){ m.classList.remove('show'); });
+    if(rgTimer){ clearInterval(rgTimer); rgTimer = null; }
+  }
+  var toastTimer;
+  function toast(msg){
+    var t = document.getElementById('toast');
+    if(!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2600);
+  }
+  function openReportGenerateModal(subTaskId, templateCode){
+    var sub = document.getElementById('rg-modal-subtitle');
+    if(sub) sub.textContent = subTaskId + ' · ' + templateCode;
+    var vendor = document.getElementById('rg-vendor');
+    if(vendor) vendor.textContent = templateCode.indexOf('baseline') >= 0 ? 'AH' : 'LM';
+    var bar = document.getElementById('rg-progress-bar');
+    var txt = document.getElementById('rg-progress-text');
+    if(bar) bar.style.width = '0%';
+    if(txt) txt.textContent = '等待开始…';
+    document.getElementById('rg-start-btn').classList.remove('hidden');
+    document.getElementById('rg-download-btn').classList.add('hidden');
+    openModal('report-generate');
+  }
+  function mockReportGenerateStart(){
+    var pct = 0;
+    var bar = document.getElementById('rg-progress-bar');
+    var txt = document.getElementById('rg-progress-text');
+    var job = document.getElementById('rg-job-id');
+    if(job) job.innerHTML = '<code>RJ-MOCK-' + Date.now().toString().slice(-6) + '</code>';
+    document.getElementById('rg-start-btn').classList.add('hidden');
+    toast('POST /v1/scan/report/generate');
+    if(rgTimer) clearInterval(rgTimer);
+    rgTimer = setInterval(function(){
+      pct += 8 + Math.floor(Math.random() * 12);
+      if(pct > 100) pct = 100;
+      if(bar) bar.style.width = pct + '%';
+      if(txt) txt.textContent = 'LM generate_report ' + pct + '%';
+      if(pct >= 100){
+        clearInterval(rgTimer);
+        rgTimer = null;
+        if(txt) txt.textContent = '生成完成 · 可下载';
+        document.getElementById('rg-download-btn').classList.remove('hidden');
+        toast('report_job SUCCESS');
+      }
+    }, 400);
+  }
+  function mockReportProgress(jobId){
+    var el = document.getElementById('rj-progress-002');
+    if(el){
+      var w = parseInt(el.style.width, 10) || 62;
+      w = Math.min(100, w + 15);
+      el.style.width = w + '%';
+      toast(jobId + ' 进度 ' + w + '%');
+      if(w >= 100) toast(jobId + ' 生成完成，可下载');
+    } else {
+      toast('刷新 ' + jobId + ' 进度');
+    }
+  }
+  function mockReportMatrixGenerate(subTaskId, templateCode){
+    openReportGenerateModal(subTaskId, templateCode);
+    setTimeout(mockReportGenerateStart, 300);
+  }
+  function bindDrawerTabs(){
+    document.querySelectorAll('.drawer-tabs').forEach(function(wrap){
+      wrap.querySelectorAll('.drawer-tab[data-dtab]').forEach(function(tab){
+        tab.addEventListener('click', function(){
+          wrap.querySelectorAll('.drawer-tab').forEach(function(t){ t.classList.remove('active'); });
+          tab.classList.add('active');
+          var pid = tab.getAttribute('data-dtab');
+          var body = wrap.parentElement;
+          body.querySelectorAll('.drawer-panel').forEach(function(p){
+            p.classList.toggle('active', p.id === pid);
+          });
+        });
+      });
+    });
+  }
+  function bindWsTabs(){
+    var ws = document.getElementById('wsTabs');
+    if(!ws) return;
+    ws.addEventListener('click', function(e){
+      var tab = e.target.closest('.tab[data-wstab]');
+      if(!tab) return;
+      switchWsTab(tab.getAttribute('data-wstab'));
+    });
+  }
+  function bindQueueTabs(){
+    var qt = document.getElementById('queueTabs');
+    if(!qt) return;
+    qt.addEventListener('click', function(e){
+      var tab = e.target.closest('.tab[data-qtab]');
+      if(!tab) return;
+      qt.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+      document.querySelectorAll('[id^="qtab-"]').forEach(function(p){ p.classList.remove('active'); });
+      tab.classList.add('active');
+      var panel = document.getElementById('qtab-' + tab.getAttribute('data-qtab'));
+      if(panel) panel.classList.add('active');
+    });
+  }
+  function bindCapabilityVendorFilter(){
+    var chips = document.getElementById('capVendorFilters');
+    var table = document.getElementById('capTable');
+    if(!chips || !table) return;
+    chips.addEventListener('click', function(e){
+      var chip = e.target.closest('[data-vendor]');
+      if(!chip) return;
+      var vendor = chip.getAttribute('data-vendor');
+      chips.querySelectorAll('.filter-chip').forEach(function(c){
+        c.classList.toggle('active', c === chip);
+      });
+      table.querySelectorAll('tbody tr').forEach(function(row){
+        var v = row.getAttribute('data-vendor');
+        row.style.display = (vendor === 'all' || v === vendor) ? '' : 'none';
+      });
+    });
+  }
+  function bindCapCategoryFilter(){
+    var chips = document.getElementById('capFilters');
+    var table = document.getElementById('capTable');
+    if(!chips || !table) return;
+    chips.addEventListener('click', function(e){
+      var chip = e.target.closest('[data-cap]');
+      if(!chip) return;
+      var cap = chip.getAttribute('data-cap');
+      chips.querySelectorAll('.filter-chip').forEach(function(c){
+        c.classList.toggle('active', c === chip);
+      });
+      table.querySelectorAll('tbody tr').forEach(function(row){
+        var c = row.getAttribute('data-cap');
+        row.style.display = (cap === 'all' || c === cap) ? '' : 'none';
+      });
+    });
+  }
+  document.querySelectorAll('.menu-item[data-view]').forEach(function(item){
+    item.addEventListener('click', function(){
+      showView(item.getAttribute('data-view'));
+    });
+  });
+  bindDrawerTabs();
+  bindWsTabs();
+  bindQueueTabs();
+  bindCapabilityVendorFilter();
+  bindCapCategoryFilter();
+  wizardGo(1);
+  window.showView = showView;
+  window.openSurveyWorkspace = openSurveyWorkspace;
+  window.openWorkspace = openSurveyWorkspace;
+  window.switchWsTab = switchWsTab;
+  window.wizardNext = wizardNext;
+  window.wizardPrev = wizardPrev;
+  window.wizardGo = wizardGo;
+  window.runWizardPreview = runWizardPreview;
+  window.openDrawer = openDrawer;
+  window.closeDrawer = closeDrawer;
+  window.openSubTaskDrawer = openSubTaskDrawer;
+  window.openDispatchDrawer = openDispatchDrawer;
+  window.openModal = openModal;
+  window.closeModal = closeModal;
+  window.toast = toast;
+  window.openReportGenerateModal = openReportGenerateModal;
+  window.mockReportGenerateStart = mockReportGenerateStart;
+  window.mockReportProgress = mockReportProgress;
+  window.mockReportMatrixGenerate = mockReportMatrixGenerate;
+})();
+</script>
+</body>
+</html>

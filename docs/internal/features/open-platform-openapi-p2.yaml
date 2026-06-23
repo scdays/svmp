@@ -1,0 +1,169 @@
+feature:
+  id: OP-OPENAPI-P2
+  name: 开放平台对外 REST 执行面 P2
+  phase: P2
+  prd: null
+  landing_plan: svmp/docs/internal/开放平台对外REST执行面-分期落地方案.md
+  page_design: null
+  openapi: svmp/openapi/v1/openapi.yaml
+
+shared_reads:
+  - .cursor/skills/esmp-rd-standards/SKILL.md
+  - svmp/docs/internal/开放平台对外REST执行面-分期落地方案.md
+  - svmp/docs/internal/Open API与vul-pass内部接口映射表.md
+  - svmp/docs/external/网络安全漏洞管理平台 · API 接口文档V1.0.4.md
+  - svmp/openapi/v1/openapi.yaml
+  - .cursor/skills/esmp-backend-dev/SKILL.md
+  - .cursor/rules/open-api-service-ddd.mdc
+
+acceptance:
+  - GET /exports/{exportId}、/download、/tasks/{taskId}/exports 与 §5.6 一致
+  - TaskExport 聚合结构符合 §5.6.3（非原始 XML 透传）
+  - exportStage 支持 TASK_COMPLETED / VERIFY_SCAN / VERIFY_FIX_SCAN
+  - EXPORT_READY Webhook 触发且 webhook_delivery_log 有记录
+  - Partner 无法下载他人 exportId → 40003
+  - partner-gateway EXPORT_READ capability 校验通过
+
+agents:
+  - id: AA
+    name: Mapping-P2-Export-Freeze
+    owner: 架构/联调
+    repos:
+      - project_backend/svmp
+    allow_paths:
+      - svmp/docs/internal/Open API与vul-pass内部接口映射表.md
+      - vul-pass/**/export/**
+    deny_paths:
+      - project_frontend/**
+    reads:
+      - svmp/docs/internal/Open API与vul-pass内部接口映射表.md
+      - svmp/openapi/v1/openapi.yaml
+    delivers:
+      - 映射表 §4 外发域全部确认
+      - §6 决策记录第 4 项（外发存储）结论
+    verify:
+      - §4 无 🟡 阻塞 P2 编码
+    depends_on: []
+    prompt: |
+      你是 Agent AA · P2 外发映射冻结负责人。
+
+      【目标】冻结 §4 外发三接口与 vul-pass/文件存储关系；确认 TaskExport 数据来源。
+
+  - id: AB
+    name: Backend-P2-Export-Read
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/open-api-service
+    allow_paths:
+      - open-api-service/**/export/**
+      - open-api-service/**/ui/open/**
+      - open-api-service/**/domain/export/**
+      - open-api-service/**/infra/**
+      - open-api-service/**/db/**
+    deny_paths:
+      - project_frontend/**
+    reads:
+      - svmp/docs/internal/Open API与vul-pass内部接口映射表.md
+      - svmp/openapi/v1/openapi.yaml
+    delivers:
+      - OpenExportUI 三接口
+      - open_export 表（若尚未存在则 Liquibase）
+      - InvocationPipeline + Partner 隔离
+    verify:
+      - powershell -File svmp/docs/internal/scripts/verify-open-api-ddd.ps1 -Compile
+    depends_on:
+      - AA
+    prompt: |
+      你是 Agent AB · 外发读接口负责人。
+
+      【目标】§5.6 三 GET 接口；metadata + download 流 + 任务下列表。
+
+  - id: AC
+    name: Backend-P2-TaskExport-Assembler
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/open-api-service
+    allow_paths:
+      - open-api-service/**/export/**
+      - open-api-service/**/domain/export/**
+      - open-api-service/**/infra/adapter/**
+    deny_paths:
+      - project_frontend/**
+    reads:
+      - svmp/docs/external/网络安全漏洞管理平台 · API 接口文档V1.0.4.md
+    delivers:
+      - TaskExport 组装器（targets/liveProbeResults/vulnerabilities）
+      - exportStage 枚举与触发点挂钩（任务完成/验证复扫/核验复扫）
+    verify:
+      - 样例 export 与 §5.6.3 JSON 结构一致
+    depends_on:
+      - AB
+    prompt: |
+      你是 Agent AC · TaskExport 组装负责人。
+
+      【目标】从 vul-pass/扫描结果聚合 TaskExport；download 返回 xml/json。
+
+  - id: AD
+    name: Backend-P2-Export-Webhook
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/open-api-service
+    allow_paths:
+      - open-api-service/**/webhook/**
+      - open-api-service/**/domain/webhook/**
+    deny_paths:
+      - project_frontend/**
+    reads:
+      - svmp/docs/internal/开放平台对外REST执行面-分期落地方案.md
+    delivers:
+      - EXPORT_READY 出站事件（复用 P1 Webhook 引擎）
+    verify:
+      - 外发就绪后 delivery_log eventType=EXPORT_READY
+    depends_on:
+      - AC
+    prompt: |
+      你是 Agent AD · EXPORT_READY Webhook 负责人。
+
+      【依赖】P1 Webhook 出站引擎（Agent V）；外发组装完成时触发。
+
+  - id: AE
+    name: Gateway-P2-Export-Capability
+    owner: 网关
+    repos:
+      - project_backend/svmp/partner-gateway
+    allow_paths:
+      - partner-gateway/**
+    deny_paths:
+      - open-api-service/**
+    delivers:
+      - /exports/* 路径 EXPORT_READ capability
+    verify:
+      - 无 EXPORT_READ → 40301
+    depends_on:
+      - AB
+    prompt: |
+      你是 Agent AE · gateway 外发 capability 负责人。
+
+  - id: AF
+    name: Integration-P2-OpenAPI
+    owner: 联调验收
+    repos: []
+    allow_paths:
+      - svmp/docs/internal/**
+    deny_paths: []
+    reads:
+      - svmp/docs/internal/开放平台对外REST执行面-分期落地方案.md
+    delivers:
+      - 联调手册-P2-OpenAPI.md
+      - acceptance 逐项结论
+    verify:
+      - acceptance 全部通过
+    depends_on:
+      - AB
+      - AC
+      - AD
+      - AE
+    prompt: |
+      你是 Agent AF · OP-OPENAPI-P2 联调验收负责人。
+
+      【产出】联调手册-P2-OpenAPI.md：任务完成 → list exports → get → download → EXPORT_READY Webhook。

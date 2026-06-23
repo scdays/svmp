@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OPEN 编排任务 · 双阶段交叉扫描全链路原型 v2</title>
+  <style>
+    :root {
+      --primary: #1890ff;
+      --primary-dark: #096dd9;
+      --success: #52c41a;
+      --warning: #faad14;
+      --error: #ff4d4f;
+      --purple: #722ed1;
+      --text: rgba(0, 0, 0, 0.85);
+      --text-secondary: rgba(0, 0, 0, 0.45);
+      --border: #d9d9d9;
+      --bg: #f0f2f5;
+      --card: #fff;
+      --sidebar: #001529;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.5715;
+    }
+    .app-shell { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 260px;
+      background: var(--sidebar);
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .sidebar-logo {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      font-weight: 600;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      line-height: 1.4;
+    }
+    .sidebar-logo small { font-weight: 400; opacity: 0.7; display: block; margin-top: 2px; }
+    .menu-group { padding: 12px 0 4px; }
+    .menu-group-title {
+      padding: 4px 20px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.35);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .menu-item {
+      padding: 10px 20px 10px 36px;
+      color: rgba(255, 255, 255, 0.65);
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s;
+    }
+    .menu-item:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
+    .menu-item.active { background: var(--primary); color: #fff; }
+    .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .topbar {
+      height: 48px;
+      background: var(--card);
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+    .topbar-title { font-weight: 500; }
+    .topbar-meta { font-size: 12px; color: var(--text-secondary); }
+    .content { padding: 20px 24px; flex: 1; overflow: auto; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 2px;
+      border: 1px solid;
+      font-weight: 500;
+    }
+    .badge-w1 { background: #f6ffed; color: #389e0d; border-color: #b7eb8f; }
+    .badge-doc { background: #f9f0ff; color: #531dab; border-color: #d3adf7; }
+    .alert {
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .alert-info { background: #e6f7ff; border: 1px solid #91d5ff; color: #0958d9; }
+    .alert-warn { background: #fffbe6; border: 1px solid #ffe58f; color: #ad6800; }
+    .alert-success { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }
+    .card {
+      background: var(--card);
+      border-radius: 4px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+    .card-title {
+      padding: 14px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-body { padding: 16px 20px; }
+    .card-body.flush { padding: 0; }
+    .tag {
+      display: inline-block;
+      padding: 0 8px;
+      font-size: 12px;
+      border-radius: 2px;
+      line-height: 22px;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+    .tag-green { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
+    .tag-blue { background: #e6f7ff; border-color: #91d5ff; color: #0958d9; }
+    .tag-orange { background: #fff7e6; border-color: #ffd591; color: #d46b08; }
+    .tag-purple { background: #f9f0ff; border-color: #d3adf7; color: #531dab; }
+    .tag-red { background: #fff2f0; border-color: #ffccc7; color: #cf1322; }
+    .tag-gray { background: #fafafa; border-color: #d9d9d9; color: rgba(0,0,0,.65); }
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid #f0f0f0;
+      border-radius: 4px;
+      padding: 16px 18px;
+      cursor: pointer;
+      transition: box-shadow 0.2s;
+    }
+    .stat-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .stat-card .label { color: var(--text-secondary); font-size: 12px; }
+    .stat-card .value { font-size: 26px; font-weight: 600; margin-top: 6px; line-height: 1; }
+    .stat-card .sub { font-size: 11px; color: var(--text-secondary); margin-top: 6px; }
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #f0f0f0;
+      background: var(--card);
+      padding: 0 4px;
+    }
+    .tab {
+      padding: 12px 20px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-bottom: -1px;
+    }
+    .tab:hover { color: var(--primary); }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 500; }
+    .tab-panel { display: none; padding: 20px; background: var(--card); min-height: 360px; }
+    .tab-panel.active { display: block; }
+    .workspace-header {
+      padding: 20px 24px;
+      background: var(--card);
+      border-radius: 4px 4px 0 0;
+      box-shadow: 0 1px 2px rgba(0,0,0,.03);
+      margin-bottom: 0;
+    }
+    .workspace-title { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .workspace-meta {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-top: 10px;
+      line-height: 1.8;
+    }
+    .workspace-meta code { font-size: 12px; }
+    .phase-banner {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 12px;
+      align-items: stretch;
+      margin-bottom: 20px;
+    }
+    .phase-box {
+      border: 1px solid #f0f0f0;
+      border-radius: 4px;
+      padding: 16px;
+      position: relative;
+    }
+    .phase-box.active { border-color: #91d5ff; background: #e6f7ff; }
+    .phase-box.done { border-color: #b7eb8f; background: #f6ffed; }
+    .phase-box.pending { opacity: 0.55; }
+    .phase-box h4 { font-size: 13px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .phase-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      font-size: 20px;
+      padding: 0 4px;
+    }
+    .dual-scan { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .scan-node {
+      border: 1px solid #f0f0f0;
+      border-radius: 4px;
+      padding: 16px;
+      background: #fafafa;
+    }
+    .scan-node h4 { margin-bottom: 12px; font-size: 14px; }
+    .merge-visual {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 28px 20px;
+      flex-wrap: wrap;
+      background: #fafafa;
+      border-radius: 4px;
+      border: 1px dashed var(--border);
+    }
+    .merge-box {
+      border: 2px solid #91d5ff;
+      background: #e6f7ff;
+      padding: 18px 28px;
+      text-align: center;
+      min-width: 130px;
+      border-radius: 4px;
+    }
+    .merge-box.result { border-color: #b7eb8f; background: #f6ffed; }
+    .merge-box.strategy { border-color: #d3adf7; background: #f9f0ff; min-width: 160px; }
+    .merge-op { font-size: 22px; font-weight: 300; color: var(--text-secondary); }
+    .timeline { border-left: 2px solid #e8e8e8; padding-left: 24px; margin-left: 10px; }
+    .timeline-item {
+      margin-bottom: 16px;
+      position: relative;
+      padding-left: 4px;
+      font-size: 13px;
+    }
+    .timeline-item::before {
+      content: '';
+      width: 10px;
+      height: 10px;
+      background: #d9d9d9;
+      border-radius: 50%;
+      position: absolute;
+      left: -30px;
+      top: 5px;
+    }
+    .timeline-item.done::before { background: var(--success); }
+    .timeline-item.active::before { background: var(--primary); box-shadow: 0 0 0 3px rgba(24,144,255,.2); }
+    .timeline-item.pending { opacity: 0.45; }
+    .timeline-item .time { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+    .flow-diagram {
+      background: #fafafa;
+      border: 1px solid #f0f0f0;
+      border-radius: 4px;
+      padding: 20px 24px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      line-height: 1.8;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 11px 14px; border-bottom: 1px solid #f0f0f0; text-align: left; vertical-align: middle; }
+    th { background: #fafafa; font-weight: 500; color: rgba(0,0,0,.65); }
+    tr:hover td { background: #fafafa; }
+    .breadcrumb { margin-bottom: 16px; color: var(--text-secondary); font-size: 13px; }
+    .breadcrumb a { color: var(--primary); cursor: pointer; text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+    .btn-link {
+      border: none;
+      background: none;
+      color: var(--primary);
+      cursor: pointer;
+      font-size: 13px;
+      padding: 0;
+    }
+    .btn-link:hover { text-decoration: underline; }
+    .page-footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      border-top: 1px solid #f0f0f0;
+      margin-top: 8px;
+    }
+    .api-path { font-family: Consolas, monospace; font-size: 12px; color: #531dab; }
+    .kv-row { display: flex; margin-bottom: 10px; font-size: 13px; }
+    .kv-row .k { width: 140px; color: var(--text-secondary); flex-shrink: 0; }
+    .kv-row .v { flex: 1; word-break: break-all; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .progress-bar {
+      height: 6px;
+      background: #f0f0f0;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-bar .fill { height: 100%; background: var(--primary); border-radius: 3px; }
+    .stat-mini { display: flex; gap: 24px; flex-wrap: wrap; margin: 16px 0; }
+    .stat-mini .item { text-align: center; min-width: 80px; }
+    .stat-mini .num { font-size: 24px; font-weight: 600; }
+    .stat-mini .lbl { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+    .stat-2 .num { color: var(--success); }
+    .stat-3 .num { color: var(--warning); }
+    .stat-1 .num { color: var(--primary); }
+    code { background: #f5f5f5; padding: 1px 6px; border-radius: 2px; font-size: 12px; }
+    .section-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin: 16px 0 8px;
+      font-weight: 500;
+    }
+    .compare-table td:nth-child(2), .compare-table td:nth-child(3) { width: 38%; }
+    .highlight-row { background: #fffbe6 !important; }
+    .badge-w3 { background: #f9f0ff; color: #531dab; border-color: #d3adf7; }
+    .search-bar {
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+      padding: 16px 20px; background: #fafafa; border-bottom: 1px solid #f0f0f0;
+    }
+    .form-field { display: flex; flex-direction: column; gap: 4px; }
+    .form-field label { font-size: 12px; color: var(--text-secondary); }
+    .form-field input, .form-field select {
+      height: 32px; padding: 4px 11px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; min-width: 140px;
+    }
+    .btn {
+      height: 32px; padding: 0 15px; border-radius: 4px; border: 1px solid var(--border);
+      background: #fff; cursor: pointer; font-size: 13px;
+    }
+    .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-danger { color: var(--error); border-color: #ffccc7; }
+    .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .dev-meta {
+      margin-top: 12px; padding: 10px 14px; background: #f6ffed; border: 1px dashed #b7eb8f;
+      border-radius: 4px; font-size: 12px; line-height: 1.7; color: #135200;
+    }
+    .dev-meta strong { color: #389e0d; }
+    .drawer-mask {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000;
+    }
+    .drawer-mask.open { display: block; }
+    .drawer {
+      position: fixed; top: 0; right: -560px; width: 560px; max-width: 100%; height: 100%;
+      background: #fff; z-index: 1001; transition: right .28s; overflow-y: auto;
+      box-shadow: -4px 0 16px rgba(0,0,0,.12);
+    }
+    .drawer.open { right: 0; }
+    .drawer-head {
+      padding: 16px 20px; border-bottom: 1px solid #f0f0f0; font-weight: 600;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .drawer-body { padding: 16px 20px 24px; }
+    .modal-mask {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1100;
+      align-items: center; justify-content: center; padding: 24px;
+    }
+    .modal-mask.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 6px; width: 520px; max-width: 100%;
+      max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    }
+    .modal-head { padding: 14px 20px; border-bottom: 1px solid #f0f0f0; font-weight: 600; }
+    .modal-body { padding: 20px; }
+    .modal-foot { padding: 12px 20px; border-top: 1px solid #f0f0f0; text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
+    .op-card {
+      border: 1px solid #f0f0f0; border-radius: 4px; padding: 14px 16px; margin-bottom: 12px;
+    }
+    .op-card h5 { font-size: 13px; margin-bottom: 6px; }
+    .op-card p { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.6; }
+    .phase-box.verify-fix { border-color: #d3adf7; background: #f9f0ff; }
+    .action-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .cap-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .cap-pill {
+      padding: 6px 12px; border-radius: 4px; font-size: 12px; border: 1px solid;
+      cursor: pointer; background: #fafafa;
+    }
+    .cap-pill.on { background: #e6f7ff; border-color: #91d5ff; color: #0958d9; font-weight: 500; }
+    .cap-pill.off { opacity: 0.5; text-decoration: line-through; }
+    .sub-tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+    .sub-tab {
+      padding: 6px 14px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 12px;
+      cursor: pointer; background: #fff;
+    }
+    .sub-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .sub-panel { display: none; }
+    .sub-panel.active { display: block; }
+    .type-badge-1 { background: #e6f7ff; color: #0958d9; border-color: #91d5ff; }
+    .type-badge-2 { background: #fff7e6; color: #d46b08; border-color: #ffd591; }
+    .type-badge-3 { background: #fff2f0; color: #cf1322; border-color: #ffccc7; }
+    @media (max-width: 1200px) {
+      .stat-row { grid-template-columns: repeat(3, 1fr); }
+      .dual-scan, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .phase-banner { grid-template-columns: 1fr; }
+      .phase-arrow { transform: rotate(90deg); padding: 8px 0; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      网络安全漏洞管理平台
+      <small>OPEN 编排 · 双阶段交叉扫描</small>
+    </div>
+    <div class="menu-group">
+      <div class="menu-group-title">运营工作台</div>
+      <div class="menu-item active" data-view="dashboard">工作台 <span class="badge badge-w1">W1</span></div>
+      <div class="menu-item" data-view="task-list">OPEN 编排任务</div>
+      <div class="menu-item" data-view="task-workspace">任务实例工作台</div>
+    </div>
+    <div class="menu-group">
+      <div class="menu-group-title">实例生命周期 W3</div>
+      <div class="menu-item" data-view="instance-list">漏洞实例列表</div>
+      <div class="menu-item" data-view="verify-fix-jobs">修复核验任务</div>
+      <div class="menu-item" data-view="instance-batch">批量实例操作</div>
+    </div>
+    <div class="menu-group">
+      <div class="menu-group-title">开放平台</div>
+      <div class="menu-item" data-view="partner-policy">Partner 接入配置</div>
+      <div class="menu-item" data-view="merge-strategy">双扫合并策略说明</div>
+      <div class="menu-item" data-view="task-scan-types">任务类型与扫描能力</div>
+      <div class="menu-item" data-view="webhook-log">Webhook 投递日志</div>
+    </div>
+    <div class="menu-group">
+      <div class="menu-group-title">扫描治理</div>
+      <div class="menu-item" data-view="vtc-link">task-center 子任务</div>
+    </div>
+    <div class="menu-group">
+      <div class="menu-group-title">设计参考</div>
+      <div class="menu-item" data-view="architecture">全链路架构</div>
+      <div class="menu-item" data-view="api-map">API 映射</div>
+      <div class="menu-item" data-view="state-flow">状态流转</div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-title">OPEN 编排任务原型 <span class="badge badge-doc">PRD v2 · API v1.0.6</span></div>
+      <div class="topbar-meta">双阶段扫描 · type 1/2/3 · 存活/端口/漏洞 · autoVerify · §5.5 修复核验</div>
+    </header>
+
+    <main class="content">
+
+      <!-- 工作台 -->
+      <section id="view-dashboard" class="view active">
+        <div class="alert alert-info">
+          <strong>双阶段交叉扫描：</strong>排查阶段单扫描器下发，实例初始发现（<code>vulInfoStat=1</code>）；
+          <code>autoVerify=true</code>（默认）时自动触发验证阶段（多扫描器），全部完成后统一回调
+          <code>TASK_COMPLETED</code> 与 <code>EXPORT_READY</code>。
+          双扫合并策略在 Partner 接入时定制（部侧交集 / SOC 并集）。
+          任务类型见附录 F（<strong>1 漏洞 / 2 WEB / 3 口令</strong>）；type=1 漏洞扫描含<strong>存活探测 → 端口扫描 → 漏洞扫描</strong>全链路。
+        </div>
+        <div class="stat-row">
+          <div class="stat-card" onclick="showView('task-list')">
+            <div class="label">今日 OPEN 任务</div>
+            <div class="value">18</div>
+            <div class="sub">含 12 个 autoVerify</div>
+          </div>
+          <div class="stat-card" onclick="showView('task-workspace')">
+            <div class="label">验证阶段进行中</div>
+            <div class="value" style="color:var(--primary)">6</div>
+            <div class="sub">双扫描器并行</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">等待统一回调</div>
+            <div class="value" style="color:var(--warning)">3</div>
+            <div class="sub">排查+验证均完成</div>
+          </div>
+          <div class="stat-card" onclick="showView('webhook-log')">
+            <div class="label">Webhook 待重试</div>
+            <div class="value" style="color:var(--error)">1</div>
+            <div class="sub">TASK_COMPLETED</div>
+          </div>
+          <div class="stat-card" onclick="showView('verify-fix-jobs')">
+            <div class="label">修复核验进行中</div>
+            <div class="value" style="color:var(--purple)">2</div>
+            <div class="sub">verify-fix 全量复扫</div>
+          </div>
+          <div class="stat-card" onclick="showView('instance-list')">
+            <div class="label">待核验实例 (stat=5)</div>
+            <div class="value">5</div>
+            <div class="sub">可发起 verify-fix</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">待办事项</div>
+          <div class="card-body flush">
+            <table>
+              <thead>
+                <tr><th>类型</th><th>任务</th><th>Partner</th><th>阶段</th><th>状态</th><th>操作</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="tag tag-purple">验证</span></td>
+                  <td><button class="btn-link" onclick="showView('task-workspace')">TASK-7f3a2b1c</button></td>
+                  <td>SOC-CLIENT-A</td>
+                  <td>阶段2 · Nessus + 绿盟</td>
+                  <td><span class="tag tag-orange">Nessus 78% · 绿盟 100%</span></td>
+                  <td><button class="btn-link" onclick="showView('task-workspace')">工作台</button></td>
+                </tr>
+                <tr>
+                  <td><span class="tag tag-blue">排查</span></td>
+                  <td><button class="btn-link">TASK-b2c4d5e6</button></td>
+                  <td>SOC-CLIENT-B</td>
+                  <td>阶段1 · 单扫</td>
+                  <td><span class="tag tag-blue">RUNNING 45%</span></td>
+                  <td><button class="btn-link">工作台</button></td>
+                </tr>
+                <tr>
+                  <td><span class="tag tag-green">回调</span></td>
+                  <td>TASK-a1b2 · Webhook 502</td>
+                  <td>SOC-CLIENT-A</td>
+                  <td>已完成</td>
+                  <td><span class="tag tag-red">重试 3/5</span></td>
+                  <td><button class="btn-link" onclick="showView('webhook-log')">日志</button></td>
+                </tr>
+                <tr>
+                  <td><span class="tag tag-purple">核验</span></td>
+                  <td><button class="btn-link" onclick="showView('verify-fix-jobs')">VFJ-20260617-001</button></td>
+                  <td>SOC-CLIENT-A</td>
+                  <td>修复核验 · Nessus 全量</td>
+                  <td><span class="tag tag-blue">RUNNING 62%</span></td>
+                  <td><button class="btn-link" onclick="openVerifyFixWorkspace('VFJ-20260617-001')">详情</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 任务列表 -->
+      <section id="view-task-list" class="view">
+        <div class="breadcrumb"><a onclick="showView('dashboard')">工作台</a> / OPEN 编排任务</div>
+        <div class="card">
+          <div class="card-title">
+            <span>OPEN 编排任务列表</span>
+            <span style="font-size:12px;font-weight:400;color:var(--text-secondary)">biz_line=OPEN</span>
+          </div>
+          <div class="card-body flush">
+            <table>
+              <thead>
+                <tr>
+                  <th>taskId</th><th>extTaskId</th><th>Partner</th><th>任务名</th>
+                  <th>type</th><th>scanTemplate</th><th>autoVerify</th><th>合并策略</th><th>当前阶段</th><th>状态</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>TASK-7f3a2b1c</code></td>
+                  <td>EXT-2026-0001</td>
+                  <td>SOC-CLIENT-A</td>
+                  <td>2026Q2-核心业务排查</td>
+                  <td><span class="tag type-badge-1">1 漏洞扫描</span></td>
+                  <td><code>1001</code></td>
+                  <td><span class="tag tag-green">true</span></td>
+                  <td><span class="tag tag-purple">SOC 并集</span></td>
+                  <td>验证（tskPhase=2）</td>
+                  <td><span class="tag tag-blue">RUNNING</span></td>
+                  <td><button class="btn-link" onclick="showView('task-workspace')">工作台</button></td>
+                </tr>
+                <tr>
+                  <td><code>TASK-c3d4e5f6</code></td>
+                  <td>EXT-2026-0002</td>
+                  <td>PARTNER-DEMO</td>
+                  <td>季度漏洞排查</td>
+                  <td><span class="tag type-badge-1">1 漏洞扫描</span></td>
+                  <td><code>1001</code></td>
+                  <td><span class="tag tag-gray">false</span></td>
+                  <td>—</td>
+                  <td>排查（tskPhase=1）</td>
+                  <td><span class="tag tag-green">FINISHED</span></td>
+                  <td><button class="btn-link">工作台</button></td>
+                </tr>
+                <tr>
+                  <td><code>TASK-web-001</code></td>
+                  <td>EXT-WEB-001</td>
+                  <td>SOC-CLIENT-B</td>
+                  <td>Web 应用安全扫描</td>
+                  <td><span class="tag type-badge-2">2 WEB 扫描</span></td>
+                  <td><code>1001</code></td>
+                  <td><span class="tag tag-green">true</span></td>
+                  <td><span class="tag tag-purple">SOC 并集</span></td>
+                  <td>排查</td>
+                  <td><span class="tag tag-blue">RUNNING</span></td>
+                  <td><button class="btn-link">工作台</button></td>
+                </tr>
+                <tr>
+                  <td><code>TASK-pwd-002</code></td>
+                  <td>EXT-PWD-002</td>
+                  <td>PARTNER-DEMO</td>
+                  <td>SSH 弱口令排查</td>
+                  <td><span class="tag type-badge-3">3 口令猜测</span></td>
+                  <td><code>1001</code></td>
+                  <td><span class="tag tag-gray">false</span></td>
+                  <td>—</td>
+                  <td>排查</td>
+                  <td><span class="tag tag-green">FINISHED</span></td>
+                  <td><button class="btn-link">工作台</button></td>
+                </tr>
+                <tr>
+                  <td><code>TASK-a1b2c3d4</code></td>
+                  <td>EXT-2026-0003</td>
+                  <td>SOC-CLIENT-A</td>
+                  <td>外网资产存活探测</td>
+                  <td><span class="tag type-badge-1">1</span></td>
+                  <td><code>1002</code> 存活</td>
+                  <td><span class="tag tag-gray">false</span></td>
+                  <td>—</td>
+                  <td>已完成</td>
+                  <td><span class="tag tag-green">COMPLETED</span></td>
+                  <td><button class="btn-link">工作台</button></td>
+                </tr>
+                <tr>
+                  <td><code>TASK-port-003</code></td>
+                  <td>EXT-PORT-003</td>
+                  <td>SOC-CLIENT-A</td>
+                  <td>核心网段端口普查</td>
+                  <td><span class="tag type-badge-1">1</span></td>
+                  <td><code>1003</code> 端口</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td>排查</td>
+                  <td><span class="tag tag-green">FINISHED</span></td>
+                  <td><button class="btn-link">工作台</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dev-meta" style="margin-top:12px">
+          <strong>落地：</strong>路由 <code>/open-task/list</code> · 组件 <code>OpenTaskList.vue</code> ·
+          列字段含 <code>type</code>（附录 F 1/2/3）、<code>scanTemplateId</code>（1001/1002/1003）·
+          筛选：按 type / 扫描能力 · 参考页 <a class="btn-link" onclick="showView('task-scan-types')">任务类型与扫描能力</a>
+        </div>
+      </section>
+      <section id="view-task-workspace" class="view">
+        <div class="breadcrumb">
+          <a onclick="showView('dashboard')">工作台</a> /
+          <a onclick="showView('task-list')">OPEN 编排任务</a> /
+          任务实例工作台
+        </div>
+
+        <div class="workspace-header">
+          <div class="workspace-title">
+            2026Q2-核心业务排查
+            <span class="tag tag-blue">RUNNING</span>
+            <span class="tag tag-green">autoVerify</span>
+            <span class="tag tag-purple">SOC 并集</span>
+          </div>
+          <div class="workspace-meta">
+            taskId <code>TASK-7f3a2b1c</code> &middot;
+            passTaskId <code>10086001</code> &middot;
+            extTaskId <code>EXT-TASK-2026-0001</code> &middot;
+            <strong>type</strong> <code>1</code> 漏洞扫描 &middot;
+            scanTemplateId <code>1001</code> &middot;
+            Partner <code>SOC-CLIENT-A</code> &middot;
+            目标 <code>10.10.1.2, 10.10.1.3</code> &middot;
+            procMethod 排查 <code>1021</code> / 验证 <code>1026</code>
+          </div>
+        </div>
+
+        <div class="phase-banner" style="margin-top:16px">
+          <div class="phase-box done">
+            <h4><span class="tag tag-green">阶段1</span> 排查 · tskPhase=1</h4>
+            <div class="kv-row"><span class="k">扫描器</span><span class="v">Nessus（engHash 轮询）</span></div>
+            <div class="kv-row"><span class="k">surveyId</span><span class="v"><code>SV-SURVEY-001</code></span></div>
+            <div class="kv-row"><span class="k">状态</span><span class="v"><span class="tag tag-green">FINISHED</span></span></div>
+            <div class="kv-row"><span class="k">实例入库</span><span class="v">12 条 · vulInfoStat=1</span></div>
+            <div class="kv-row"><span class="k">扫描链</span><span class="v">存活探测 → 端口扫描 → 漏洞扫描</span></div>
+            <div class="kv-row"><span class="k">回调</span><span class="v" style="color:var(--warning)">已推迟（autoVerify=true）</span></div>
+          </div>
+          <div class="phase-arrow">&rarr;</div>
+          <div class="phase-box active">
+            <h4><span class="tag tag-blue">阶段2</span> 验证 · tskPhase=2</h4>
+            <div class="kv-row"><span class="k">扫描器</span><span class="v">Nessus + 绿盟（双扫）</span></div>
+            <div class="kv-row"><span class="k">合并策略</span><span class="v"><span class="tag tag-purple">SOC 并集</span></span></div>
+            <div class="kv-row"><span class="k">进度</span><span class="v">Nessus 78% · 绿盟 100%</span></div>
+            <div class="progress-bar"><div class="fill" style="width:78%"></div></div>
+            <div class="kv-row" style="margin-top:10px"><span class="k">回调</span><span class="v">待全部完成后统一触发</span></div>
+          </div>
+        </div>
+
+        <div class="tabs" id="workspace-tabs">
+          <div class="tab active" data-tab="overview">概览</div>
+          <div class="tab" data-tab="survey">排查结果</div>
+          <div class="tab" data-tab="verify">验证子任务</div>
+          <div class="tab" data-tab="merge">合并与状态</div>
+          <div class="tab" data-tab="lifecycle">漏洞实例</div>
+          <div class="tab" data-tab="export">数据外发</div>
+          <div class="tab" data-tab="callback">Partner 回调</div>
+        </div>
+
+        <div id="tab-overview" class="tab-panel active">
+          <div class="alert alert-warn">
+            <strong>推迟回调：</strong>autoVerify=true 时，排查阶段完成不触发 TASK_COMPLETED / EXPORT_READY；
+            验证阶段全部子任务完成后，统一回调，<code>instances[].vulInfoStat</code> 反映验证后终态。
+          </div>
+          <div class="section-label">全链路时序</div>
+          <div class="timeline">
+            <div class="timeline-item done">
+              Partner POST /api/open/v1/tasks/vul { autoVerify: true }
+              <div class="time">2026-06-17 09:00:12</div>
+            </div>
+            <div class="timeline-item done">
+              open-api 创建 open_task → vul-pass dispatch（排查阶段，单扫描器）
+              <div class="time">09:00:15</div>
+            </div>
+            <div class="timeline-item done">
+              排查完成 · 12 实例入库 vulInfoStat=1 · 不回调
+              <div class="time">09:42:08</div>
+            </div>
+            <div class="timeline-item done">
+              自动触发验证阶段 · procMethod=1026 · Nessus + 绿盟双扫下发
+              <div class="time">09:42:10</div>
+            </div>
+            <div class="timeline-item active">
+              绿盟 FINISHED · Nessus RUNNING 78%
+              <div class="time">进行中</div>
+            </div>
+            <div class="timeline-item pending">
+              mergeVerifyResults（SOC 并集）→ transition 状态跃迁
+            </div>
+            <div class="timeline-item pending">
+              统一回调 TASK_COMPLETED + EXPORT_READY（两阶段合并结果）
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-survey" class="tab-panel">
+          <div class="alert alert-info">
+            当前任务 <strong>type=1 漏洞扫描</strong> · scanTemplateId=<code>1001</code> · scan_phase=1 排查阶段。
+            按 §5.6.3：<strong>漏洞扫描</strong>外发含 <code>liveProbeResults[]</code> + <code>portScanResults[]</code> + <code>vulnerabilities[]</code>；
+            <strong>仅存活探测</strong>（1002）/ <strong>仅端口扫描</strong>（1003）不含完整漏洞链；
+            <strong>type=2 WEB</strong> / <strong>type=3 口令猜测</strong> 不执行主机存活探测。
+          </div>
+          <div class="cap-pills" id="survey-cap-pills">
+            <span class="cap-pill on" title="漏洞扫描前置步骤">存活探测 liveProbe</span>
+            <span class="cap-pill on" title="漏洞扫描前置步骤">端口扫描 portScan</span>
+            <span class="cap-pill on" title="排查阶段主产出">漏洞扫描 vulnScan</span>
+          </div>
+          <div class="sub-tabs" id="survey-sub-tabs">
+            <div class="sub-tab active" data-subtab="survey-config">扫描配置</div>
+            <div class="sub-tab" data-subtab="survey-live">存活探测 liveProbeResults[]</div>
+            <div class="sub-tab" data-subtab="survey-port">端口扫描 portScanResults[]</div>
+            <div class="sub-tab" data-subtab="survey-vuln">漏洞扫描 vulnerabilities[]</div>
+            <div class="sub-tab" data-subtab="survey-targets">目标 targets[]</div>
+          </div>
+
+          <div id="subtab-survey-config" class="sub-panel active">
+            <div class="section-label">任务类型与模板（附录 F / H）</div>
+            <table class="compare-table">
+              <thead>
+                <tr><th>字段</th><th>当前值</th><th>说明</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>type</td><td><span class="tag type-badge-1">1 漏洞扫描</span></td><td>附录 F：1 漏洞 / 2 WEB / 3 口令猜测</td></tr>
+                <tr><td>scanTemplateId</td><td><code>1001</code> 漏洞扫描</td><td>1002 存活探测 · 1003 端口扫描</td></tr>
+                <tr><td>liveProbe.enabled</td><td><span class="tag tag-green">true</span></td><td>仅 type=1 全量漏洞扫描链需要；1002 专项亦开启</td></tr>
+                <tr><td>portScan.enabled</td><td><span class="tag tag-green">true</span></td><td>1001 / 1003 开启；1002 关闭</td></tr>
+                <tr><td>vulnScan.enabled</td><td><span class="tag tag-green">true</span></td><td>type=1 开启；type=2 为 Web 扫描；type=3 为 pwdGuess</td></tr>
+                <tr><td>scanner_vendor</td><td>Nessus</td><td>排查子任务 SV-SURVEY-001</td></tr>
+              </tbody>
+            </table>
+            <div class="section-label">各 type 扫描能力对照</div>
+            <table class="compare-table">
+              <thead>
+                <tr><th>type</th><th>存活探测</th><th>端口扫描</th><th>漏洞/Web/口令</th><th>外发 dataProfile 要点</th></tr>
+              </thead>
+              <tbody>
+                <tr class="highlight-row">
+                  <td><strong>1</strong> 漏洞扫描</td>
+                  <td>✓ 需要</td><td>✓</td><td>vulnScan</td>
+                  <td>MIXED：liveProbe + portScan + vulnerabilities</td>
+                </tr>
+                <tr>
+                  <td><strong>2</strong> WEB 应用扫描</td>
+                  <td>— 不需要</td><td>—</td><td>Web vulnScan</td>
+                  <td>SYSTEM_VULNERABILITY：主要为 vulnerabilities</td>
+                </tr>
+                <tr>
+                  <td><strong>3</strong> 口令猜测</td>
+                  <td>— 不需要</td><td>○ 可选</td><td>pwdGuess</td>
+                  <td>weakPasswords / 口令结果</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div id="subtab-survey-live" class="sub-panel">
+            <div class="section-label">liveProbeResults[] — 主机存活探测（§5.6.5）</div>
+            <div class="stat-mini" style="margin-bottom:12px">
+              <div class="item stat-2"><div class="num">2</div><div class="lbl">存活</div></div>
+              <div class="item stat-3"><div class="num">0</div><div class="lbl">不存活</div></div>
+              <div class="item"><div class="num">2</div><div class="lbl">总目标</div></div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>liveProbeId</th><th>targetId</th><th>address</th><th>alive</th>
+                  <th>probeMethod</th><th>latencyMs</th><th>mac</th><th>osGuess</th><th>detectedAt</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>LP-001</code></td><td><code>TGT-001</code></td><td>10.10.1.2</td>
+                  <td><span class="tag tag-green">true</span></td><td>ICMP</td><td>12</td>
+                  <td>00:1A:2B:3C:4D:5E</td><td>Linux 3.x</td><td>2026-06-17 08:00:01</td>
+                </tr>
+                <tr>
+                  <td><code>LP-002</code></td><td><code>TGT-002</code></td><td>10.10.1.3</td>
+                  <td><span class="tag tag-green">true</span></td><td>TCP</td><td>8</td>
+                  <td>00:1A:2B:3C:4D:6F</td><td>—</td><td>2026-06-17 08:00:02</td>
+                </tr>
+              </tbody>
+            </table>
+            <p style="margin-top:10px;font-size:12px;color:var(--text-secondary)">
+              映射路径：<code>/TaskExport/liveProbeResults/liveProbeResult/*</code> · 组件 <code>SurveyLiveProbeTable.vue</code>
+            </p>
+          </div>
+
+          <div id="subtab-survey-port" class="sub-panel">
+            <div class="section-label">portScanResults[] — 端口扫描（§5.6.5）</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>portScanId</th><th>targetId</th><th>address</th><th>port</th>
+                  <th>protocol</th><th>state</th><th>service</th><th>banner</th><th>version</th><th>detectedAt</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>PS-001</code></td><td><code>TGT-001</code></td><td>10.10.1.2</td>
+                  <td>22</td><td>TCP</td><td><span class="tag tag-green">open</span></td>
+                  <td>ssh</td><td>SSH-2.0-OpenSSH_8.2</td><td>8.2</td><td>2026-06-17 08:05:10</td>
+                </tr>
+                <tr>
+                  <td><code>PS-002</code></td><td><code>TGT-001</code></td><td>10.10.1.2</td>
+                  <td>80</td><td>TCP</td><td><span class="tag tag-green">open</span></td>
+                  <td>http</td><td>Apache/2.4.41</td><td>2.4.41</td><td>2026-06-17 08:05:11</td>
+                </tr>
+                <tr>
+                  <td><code>PS-003</code></td><td><code>TGT-001</code></td><td>10.10.1.2</td>
+                  <td>3306</td><td>TCP</td><td><span class="tag tag-green">open</span></td>
+                  <td>mysql</td><td>5.7.34-log</td><td>5.7.34</td><td>2026-06-17 08:05:12</td>
+                </tr>
+                <tr>
+                  <td><code>PS-004</code></td><td><code>TGT-002</code></td><td>10.10.1.3</td>
+                  <td>443</td><td>TCP</td><td><span class="tag tag-green">open</span></td>
+                  <td>https</td><td>nginx/1.18.0</td><td>1.18.0</td><td>2026-06-17 08:05:20</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div id="subtab-survey-vuln" class="sub-panel">
+            <div class="section-label">vulnerabilities[] — 排查阶段漏洞实例（stat=1 初始发现）</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>vulID</th><th>vulInfoID</th><th>资产 address</th><th>port</th><th>漏洞名称</th>
+                  <th>等级</th><th>vulInfoStat</th><th>scanPhase</th><th>scanner_vendor</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>VUL-2021-001</code></td><td><code>VI-001</code></td><td>10.10.1.2</td><td>22</td>
+                  <td>CVE-2021-1 OpenSSH 认证绕过</td><td><span class="tag tag-orange">高</span></td>
+                  <td><span class="tag tag-blue">1 初始发现</span></td><td>1</td><td>Nessus</td>
+                </tr>
+                <tr>
+                  <td><code>VUL-2021-002</code></td><td><code>VI-002</code></td><td>10.10.1.2</td><td>80</td>
+                  <td>CVE-2021-2 Apache 路径遍历</td><td><span class="tag tag-orange">高</span></td>
+                  <td><span class="tag tag-blue">1 初始发现</span></td><td>1</td><td>Nessus</td>
+                </tr>
+                <tr>
+                  <td><code>VUL-2021-003</code></td><td><code>VI-003</code></td><td>10.10.1.3</td><td>443</td>
+                  <td>CVE-2021-3 SSL 弱加密套件</td><td><span class="tag tag-gray">中</span></td>
+                  <td><span class="tag tag-blue">1 初始发现</span></td><td>1</td><td>Nessus</td>
+                </tr>
+              </tbody>
+            </table>
+            <p style="margin-top:10px;font-size:12px;color:var(--text-secondary)">
+              聚合规则：按产品漏洞 <code>vulID</code> 聚合，实例明细在 <code>instances[]</code> 子节点。
+            </p>
+          </div>
+
+          <div id="subtab-survey-targets" class="sub-panel">
+            <div class="section-label">targets[] — 扫描目标主数据</div>
+            <table>
+              <thead>
+                <tr><th>targetId</th><th>address</th><th>assetId</th><th>assetName</th><th>osType</th><th>备注</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>TGT-001</code></td><td>10.10.1.2</td><td>AST-1001</td><td>核心业务服务器-A</td><td>Linux</td><td>关联 LP-001 / PS-001~003</td></tr>
+                <tr><td><code>TGT-002</code></td><td>10.10.1.3</td><td>AST-1002</td><td>核心业务服务器-B</td><td>Linux</td><td>关联 LP-002 / PS-004</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tab-verify" class="tab-panel">
+          <div class="section-label">验证阶段子任务（scan_phase=2 · procMethod=1026）</div>
+          <div class="dual-scan">
+            <div class="scan-node">
+              <h4>Nessus <span class="tag tag-blue">verify_round=1</span></h4>
+              <div class="kv-row"><span class="k">passSubTaskId</span><span class="v"><code>2002</code></span></div>
+              <div class="kv-row"><span class="k">surveyId</span><span class="v"><code>SV-VERIFY-NES-002</code></span></div>
+              <div class="kv-row"><span class="k">scanner_vendor</span><span class="v">NESSUS</span></div>
+              <div class="kv-row"><span class="k">进度</span><span class="v">78% <span class="tag tag-blue">RUNNING</span></span></div>
+              <div class="progress-bar"><div class="fill" style="width:78%"></div></div>
+              <div class="kv-row"><span class="k">已发现</span><span class="v">9 条（未合并）</span></div>
+            </div>
+            <div class="scan-node">
+              <h4>绿盟 RSAS <span class="tag tag-green">verify_round=2</span></h4>
+              <div class="kv-row"><span class="k">passSubTaskId</span><span class="v"><code>2003</code></span></div>
+              <div class="kv-row"><span class="k">surveyId</span><span class="v"><code>SV-VERIFY-LM-003</code></span></div>
+              <div class="kv-row"><span class="k">scanner_vendor</span><span class="v">LM</span></div>
+              <div class="kv-row"><span class="k">进度</span><span class="v">100% <span class="tag tag-green">FINISHED</span></span></div>
+              <div class="progress-bar"><div class="fill" style="width:100%;background:var(--success)"></div></div>
+              <div class="kv-row"><span class="k">已发现</span><span class="v">11 条（未合并）</span></div>
+            </div>
+          </div>
+          <div class="alert alert-info" style="margin-top:16px">
+            全部验证子任务完成后触发 <code>mergeVerifyResults</code>，再执行 transition 状态跃迁并通知 open-api-service（tsk_phase=2）。
+          </div>
+        </div>
+
+        <div id="tab-merge" class="tab-panel">
+          <div class="section-label">SOC 并集合并示意（Partner 接入定制）</div>
+          <div class="merge-visual">
+            <div class="merge-box">Nessus 验证<br><strong>9</strong> 条</div>
+            <div class="merge-op">+</div>
+            <div class="merge-box">绿盟 验证<br><strong>11</strong> 条</div>
+            <div class="merge-op">&rarr;</div>
+            <div class="merge-box strategy">SOC 并集<br><small>取并集去重</small></div>
+            <div class="merge-op">&rarr;</div>
+            <div class="merge-box result">合并结果<br><strong>14</strong> 条</div>
+          </div>
+          <p style="margin:12px 0;font-size:13px;color:var(--text-secondary)">
+            dedupKey = assetId + vulPort + vulTransProto + vulSvc + vulId
+          </p>
+          <div class="section-label">合并后状态确定（SOC 并集规则）</div>
+          <table class="compare-table">
+            <thead>
+              <tr><th>漏洞</th><th>Nessus</th><th>绿盟</th><th>合并后 vulInfoStat</th><th>说明</th></tr>
+            </thead>
+            <tbody>
+              <tr class="highlight-row">
+                <td>CVE-2021-1 @10.10.1.2:22</td>
+                <td>✓</td><td>✓</td>
+                <td><span class="tag tag-green">2 已验证有效</span></td>
+                <td>交叉部分</td>
+              </tr>
+              <tr>
+                <td>CVE-2021-2 @10.10.1.2:80</td>
+                <td>✗</td><td>✓</td>
+                <td><span class="tag tag-blue">1 初始发现</span></td>
+                <td>仅一侧发现，并集保留</td>
+              </tr>
+              <tr>
+                <td>CVE-2021-4 @10.10.1.2:443</td>
+                <td>✓</td><td>✗</td>
+                <td><span class="tag tag-blue">1 初始发现</span></td>
+                <td>验证阶段新发现</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="stat-mini">
+            <div class="item stat-2"><div class="num">1</div><div class="lbl">已验证有效(2)</div></div>
+            <div class="item stat-3"><div class="num">0</div><div class="lbl">已验证误报(3)</div></div>
+            <div class="item stat-1"><div class="num">2</div><div class="lbl">初始发现(1)</div></div>
+          </div>
+        </div>
+
+        <div id="tab-lifecycle" class="tab-panel">
+          <div class="alert alert-info">
+            OPEN 实例写入 <code>vul_archive_inst</code> + <code>vul_inst_log_rela_oper</code>（<code>data_origin=OPEN</code>）。
+            验证完成后 Partner 可继续 <code>remediate</code> / <code>verify-fix</code>（§5.3–5.5）。
+          </div>
+          <div class="dev-meta">
+            <strong>落地：</strong>路由 <code>/open-task/instances</code> · 组件 <code>InstanceList.vue</code>（嵌入工作台 Tab 或独立页）·
+            API <code>GET /api/open/v1/instances/search</code> · 写操作见实例详情抽屉。
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>vulInfoID</th><th>漏洞</th><th>资产:端口</th><th>当前状态</th><th>最近扫描器</th><th>可执行操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>VI-001</code></td><td>CVE-2021-44228</td><td>10.10.1.2:8080</td>
+                <td><span class="tag tag-green">2 已验证有效</span></td>
+                <td>Nessus + 绿盟</td>
+                <td class="action-group">
+                  <button class="btn btn-primary btn-sm" onclick="openInstanceDrawer('VI-001')">详情</button>
+                  <button class="btn btn-sm" onclick="openOpModal('remediate','VI-001')">处置</button>
+                </td>
+              </tr>
+              <tr>
+                <td><code>VI-005</code></td><td>CVE-2022-22965</td><td>10.10.1.3:443</td>
+                <td><span class="tag tag-orange">5 已修复</span></td>
+                <td>绿盟</td>
+                <td class="action-group">
+                  <button class="btn btn-primary btn-sm" onclick="openInstanceDrawer('VI-005')">详情</button>
+                  <button class="btn btn-primary btn-sm" onclick="openOpModal('verify-fix','VI-005')">修复核验</button>
+                </td>
+              </tr>
+              <tr>
+                <td><code>VI-006</code></td><td>CVE-2023-34362</td><td>10.10.1.4:3306</td>
+                <td><span class="tag tag-purple">6 核验修复</span></td>
+                <td>Nessus</td>
+                <td class="action-group">
+                  <button class="btn btn-primary btn-sm" onclick="openInstanceDrawer('VI-006')">详情</button>
+                  <span class="tag tag-gray">终态</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>VI-007</code></td><td>CVE-2023-01234</td><td>10.10.1.2:22</td>
+                <td><span class="tag tag-red">7 核验未修复</span></td>
+                <td>Nessus</td>
+                <td class="action-group">
+                  <button class="btn btn-primary btn-sm" onclick="openInstanceDrawer('VI-007')">详情</button>
+                  <button class="btn btn-sm" onclick="openOpModal('remediate','VI-007')">再次处置</button>
+                  <button class="btn btn-sm" onclick="openOpModal('verify-fix','VI-007')">再次核验</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="tab-export" class="tab-panel">
+          <div class="alert alert-warn">
+            autoVerify=true 时，<code>EXPORT_READY</code> 在验证阶段完成后触发（exportStage=TASK_COMPLETED），
+            外发含排查+验证两阶段合并结果。按 §5.6.3 漏洞扫描须含 <code>liveProbeResults[]</code> + <code>portScanResults[]</code> + <code>vulnerabilities[]</code>。
+          </div>
+          <div class="grid-2" style="margin-bottom:16px">
+            <div class="kv-row"><span class="k">exportId</span><span class="v"><code>EXP-20260617-7f3a</code>（待生成）</span></div>
+            <div class="kv-row"><span class="k">exportStage</span><span class="v">TASK_COMPLETED</span></div>
+            <div class="kv-row"><span class="k">dataType / dataProfile</span><span class="v">MIXED（type=1 全量）</span></div>
+            <div class="kv-row"><span class="k">task.type</span><span class="v"><code>1</code> 漏洞扫描</span></div>
+            <div class="kv-row"><span class="k">format</span><span class="v">json / xml</span></div>
+            <div class="kv-row"><span class="k">reportTemplateId</span><span class="v"><code>2001</code></span></div>
+          </div>
+          <div class="section-label">summary 汇总</div>
+          <div class="stat-mini" style="margin-bottom:16px">
+            <div class="item"><div class="num">2</div><div class="lbl">totalTargets</div></div>
+            <div class="item stat-2"><div class="num">2</div><div class="lbl">aliveTargets</div></div>
+            <div class="item"><div class="num">4</div><div class="lbl">openPorts</div></div>
+            <div class="item"><div class="num">3</div><div class="lbl">totalInstances</div></div>
+            <div class="item stat-2"><div class="num">1</div><div class="lbl">verifiedValid(2)</div></div>
+            <div class="item stat-1"><div class="num">2</div><div class="lbl">initialDiscovery(1)</div></div>
+          </div>
+          <div class="section-label">TaskExport 结构（验证后终态）</div>
+          <div class="flow-diagram">taskExport
+├── export          # exportId, exportStage=TASK_COMPLETED, dataProfile=MIXED
+├── task            # taskId, extTaskId, type=1
+├── summary         # totalTargets, aliveTargets, openPorts, totalInstances…
+├── targets[]       # TGT-001, TGT-002
+├── liveProbeResults[]    # LP-001~002（仅漏洞扫描/存活专项含此项）
+├── portScanResults[]     # PS-001~004
+└── vulnerabilities[]
+    └── instances[]
+        ├── vulInfoStat: 2/3/1
+        └── scanPhase: 1/2</div>
+          <div class="section-label">外发 dataProfile 按任务类型</div>
+          <table class="compare-table">
+            <thead>
+              <tr><th>场景</th><th>type / template</th><th>外发子集</th></tr>
+            </thead>
+            <tbody>
+              <tr class="highlight-row">
+                <td>漏洞扫描（本任务）</td><td>type=1 · 1001</td>
+                <td>targets + liveProbe + portScan + vulnerabilities</td>
+              </tr>
+              <tr><td>存活探测专项</td><td>type=1 · 1002</td><td>targets + liveProbeResults（dataProfile=LIVE_PROBE）</td></tr>
+              <tr><td>端口扫描专项</td><td>type=1 · 1003</td><td>targets + portScanResults（dataProfile=PORT_SCAN）</td></tr>
+              <tr><td>WEB 应用扫描</td><td>type=2</td><td>targets + vulnerabilities（无 liveProbe）</td></tr>
+              <tr><td>口令猜测</td><td>type=3</td><td>weakPasswords / 口令结果（无 liveProbe）</td></tr>
+              <tr><td>修复核验复扫</td><td>—</td><td>VERIFY_FIX_SCAN：liveProbe + portScan + vulnerabilities</td></tr>
+            </tbody>
+          </table>
+          <div class="section-label">报告产物（Artifact）</div>
+          <table>
+            <thead><tr><th>artifactId</th><th>来源</th><th>类型</th><th>阶段</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td><code>ART-LM-001</code></td><td>绿盟</td><td>SCANNER_RAW XML</td><td>验证</td><td><span class="tag tag-green">可下载</span></td></tr>
+              <tr><td><code>ART-NES-001</code></td><td>Nessus</td><td>SCANNER_RAW</td><td>验证</td><td><span class="tag tag-orange">扫描中</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="tab-callback" class="tab-panel">
+          <div class="alert alert-info">
+            验证阶段全部完成后统一触发。不新增 Webhook 事件类型，沿用 TASK_COMPLETED / EXPORT_READY。
+          </div>
+          <div class="section-label">待投递事件（验证完成后）</div>
+          <table>
+            <thead><tr><th>eventType</th><th>触发条件</th><th>payload 要点</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>TASK_COMPLETED</code></td>
+                <td>排查+验证全部完成</td>
+                <td>summary: verifiedValid=1, initialDiscovery=2</td>
+                <td><span class="tag tag-orange">待触发</span></td>
+              </tr>
+              <tr>
+                <td><code>EXPORT_READY</code></td>
+                <td>外发组装完成</td>
+                <td>exportStage=TASK_COMPLETED, 两阶段合并</td>
+                <td><span class="tag tag-orange">待触发</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="section-label">TASK_COMPLETED payload 预览</div>
+          <div class="flow-diagram">{
+  "eventType": "TASK_COMPLETED",
+  "partnerId": "SOC-CLIENT-A",
+  "payload": {
+    "taskId": "TASK-7f3a2b1c",
+    "extTaskId": "EXT-TASK-2026-0001",
+    "status": "COMPLETED",
+    "summary": {
+      "totalInstances": 3,
+      "verifiedValid": 1,
+      "falsePositive": 0,
+      "initialDiscovery": 2
+    }
+  }
+}</div>
+          <div class="kv-row" style="margin-top:16px"><span class="k">callbackUrl</span><span class="v"><code>https://soc.example.com/hooks/vuln</code></span></div>
+        </div>
+        <div class="dev-meta" style="margin-top:16px">
+          <strong>路由：</strong><code>/open-task/workspace/:taskId</code> ·
+          <strong>排查结果 Tab：</strong><code>SurveyResultPanel.vue</code>（子 Tab：配置 / liveProbeResults / portScanResults / vulnerabilities / targets）·
+          <strong>API：</strong><code>GET /internal/open/v1/tasks/{id}/survey-results</code> ·
+          <strong>外发：</strong><code>GET /tasks/{taskId}/export</code> 按 §5.6.3 组装
+        </div>
+      </section>
+      <section id="view-partner-policy" class="view">
+        <div class="breadcrumb"><a onclick="showView('dashboard')">工作台</a> / Partner 接入配置</div>
+        <div class="card">
+          <div class="card-title">Partner 接入配置</div>
+          <div class="card-body flush">
+            <table>
+              <thead>
+                <tr>
+                  <th>partnerId</th><th>defaultAutoVerify</th><th>验证扫描器</th>
+                  <th>合并策略</th><th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>SOC-CLIENT-A</code></td>
+                  <td><span class="tag tag-green">true</span></td>
+                  <td>NESSUS, LM</td>
+                  <td><span class="tag tag-purple">SOC 并集 (UNION)</span></td>
+                  <td>SOC 接入：双扫并集，交叉部分为已验证有效</td>
+                </tr>
+                <tr>
+                  <td><code>SOC-CLIENT-B</code></td>
+                  <td><span class="tag tag-green">true</span></td>
+                  <td>NESSUS, LM</td>
+                  <td><span class="tag tag-purple">SOC 并集 (UNION)</span></td>
+                  <td>SOC 接入</td>
+                </tr>
+                <tr>
+                  <td><code>PARTNER-DEMO</code></td>
+                  <td><span class="tag tag-gray">false</span></td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td>普通 Partner：排查完成即回调，主动 verify</td>
+                </tr>
+                <tr>
+                  <td><code>ASSESS-INTERNAL</code></td>
+                  <td><span class="tag tag-green">true</span></td>
+                  <td>厂商A, 厂商B</td>
+                  <td><span class="tag tag-blue">部侧交集 (INTERSECT)</span></td>
+                  <td>部侧考核：两次均发现为有效，仅一次为误报</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">创建任务参数（API v1.0.6）</div>
+          <div class="card-body">
+            <div class="grid-2">
+              <div>
+                <div class="section-label">POST /tasks/vul（JSON）</div>
+                <div class="flow-diagram">{
+  "extTaskId": "EXT-2026-0001",
+  "taskName": "核心业务排查",
+  "type": 1,
+  "targets": { "hosts": "10.10.1.2" },
+  "scanTemplateId": 1001,
+  "autoVerify": true
+}</div>
+              </div>
+              <div>
+                <div class="section-label">POST /tasks/file（附录 G.2 XML）</div>
+                <div class="flow-diagram">&lt;scanTask&gt;
+  &lt;server&gt;
+    &lt;taskName&gt;核心业务排查&lt;/taskName&gt;
+    &lt;autoVerify&gt;true&lt;/autoVerify&gt;
+    &lt;targets&gt;10.10.1.2&lt;/targets&gt;
+  &lt;/server&gt;
+  &lt;targets/&gt;
+&lt;/scanTask&gt;</div>
+                <p style="font-size:12px;color:var(--text-secondary);margin-top:8px">
+                  §5.1.1 请求体不新增参数行，autoVerify 通过 XML 路径配置。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 任务类型与扫描能力 -->
+      <section id="view-task-scan-types" class="view">
+        <div class="breadcrumb"><a onclick="showView('dashboard')">工作台</a> / 任务类型与扫描能力</div>
+        <div class="card">
+          <div class="card-title">附录 F · 任务类型 type（创建任务必填）</div>
+          <div class="card-body">
+            <table class="compare-table">
+              <thead>
+                <tr><th>type</th><th>名称</th><th>存活探测</th><th>端口扫描</th><th>主扫描能力</th><th>§5.1.1 file</th><th>§5.1.2 vul</th></tr>
+              </thead>
+              <tbody>
+                <tr class="highlight-row">
+                  <td><strong>1</strong></td><td>漏洞扫描</td>
+                  <td><span class="tag tag-green">需要</span></td>
+                  <td><span class="tag tag-green">需要</span></td>
+                  <td>vulnScan</td><td>✓</td><td>✓</td>
+                </tr>
+                <tr>
+                  <td><strong>2</strong></td><td>WEB 应用扫描</td>
+                  <td><span class="tag tag-gray">不需要</span></td>
+                  <td>—</td>
+                  <td>Web vulnScan</td><td>✓</td><td>✓</td>
+                </tr>
+                <tr>
+                  <td><strong>3</strong></td><td>口令猜测</td>
+                  <td><span class="tag tag-gray">不需要</span></td>
+                  <td>○ 可选</td>
+                  <td>pwdGuess</td><td>✓</td><td>✓</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="alert alert-info" style="margin-top:16px">
+              业务规则：<strong>仅漏洞扫描（type=1）全量链路需要存活探测</strong>；端口扫描专项（1003）、WEB（type=2）、口令（type=3）不依赖主机存活探测阶段。
+              非法 type 或 scanTemplateId 与 type 不匹配 → 40004。
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">附录 H · 扫描模板 scanTemplateId 与扫描阶段</div>
+          <div class="card-body">
+            <table>
+              <thead>
+                <tr><th>scanTemplateId</th><th>名称</th><th>applicableTypes</th><th>liveProbe</th><th>portScan</th><th>vulnScan/pwd</th><th>外发要点</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>1001</code></td><td>漏洞扫描</td><td>[1,2,3]</td>
+                  <td>按 type 决定</td><td>按 type 决定</td><td>按 type 决定</td>
+                  <td>type=1 时 MIXED 全包</td>
+                </tr>
+                <tr>
+                  <td><code>1002</code></td><td>存活探测</td><td>[1,2,3]</td>
+                  <td><span class="tag tag-green">enabled</span></td><td>off</td><td>off</td>
+                  <td>仅 liveProbeResults[]</td>
+                </tr>
+                <tr>
+                  <td><code>1003</code></td><td>端口扫描</td><td>[1,2,3]</td>
+                  <td>off</td><td><span class="tag tag-green">enabled</span></td><td>off</td>
+                  <td>仅 portScanResults[]</td>
+                </tr>
+                <tr>
+                  <td><code>0</code></td><td>缺省</td><td>—</td><td colspan="4">按 type 默认选用 1001</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">§5.6.3 扫描能力 → Export 落点</div>
+          <div class="card-body">
+            <table class="compare-table">
+              <thead>
+                <tr><th>扫描能力</th><th>Export 落点</th><th>说明</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>主机存活探测</td>
+                  <td><code>targets[]</code> + <code>liveProbeResults[]</code></td>
+                  <td>探测方式、存活状态、时延等</td>
+                </tr>
+                <tr>
+                  <td>端口扫描</td>
+                  <td><code>targets[]</code> + <code>portScanResults[]</code></td>
+                  <td>端口、协议、服务、Banner</td>
+                </tr>
+                <tr>
+                  <td>漏洞扫描</td>
+                  <td><code>targets[]</code> + <code>liveProbeResults[]</code> + <code>portScanResults[]</code> + <code>vulnerabilities[]</code></td>
+                  <td>目标、存活、端口与漏洞同包；按 vulID 聚合</td>
+                </tr>
+                <tr>
+                  <td>修复核验复扫</td>
+                  <td>同上（exportStage=VERIFY_FIX_SCAN）</td>
+                  <td>§5.5 verify-fix 回收后外发</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="dev-meta" style="margin-top:16px">
+              <strong>落地：</strong>创建任务表单 <code>TaskCreateForm.vue</code> 字段 <code>type</code>、<code>scanTemplateId</code>；
+              排查结果 Tab <code>SurveyResultPanel.vue</code> 子 Tab：LiveProbe / PortScan / VulnInstances；
+              外发预览 <code>TaskExportPreview.vue</code> 按 dataProfile 裁剪展示。
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 合并策略说明 -->
+      <section id="view-merge-strategy" class="view">
+        <div class="breadcrumb"><a onclick="showView('dashboard')">工作台</a> / 双扫合并策略说明</div>
+        <div class="card">
+          <div class="card-title">双扫合并策略（接入 Partner 时定制）</div>
+          <div class="card-body">
+            <table class="compare-table">
+              <thead>
+                <tr><th>维度</th><th>部侧标准（交集 INTERSECT）</th><th>SOC 标准（并集 UNION）</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>适用场景</td><td>部侧考核、交叉扫描验证</td><td>SOC 外部接入</td></tr>
+                <tr><td>第一次扫描</td><td>初始发现（stat=1）</td><td>初始发现（stat=1）</td></tr>
+                <tr><td>第二次扫描</td><td>交叉验证（双扫描器）</td><td>交叉验证（双扫描器）</td></tr>
+                <tr><td>两次均发现</td><td><span class="tag tag-green">2 已验证有效</span></td><td><span class="tag tag-green">2 已验证有效</span></td></tr>
+                <tr><td>仅一次发现</td><td><span class="tag tag-orange">3 已验证误报</span></td><td><span class="tag tag-blue">1 初始发现</span></td></tr>
+                <tr><td>合并逻辑</td><td>取交集（两边都有才保留）</td><td>取并集（任一边有即保留）</td></tr>
+                <tr><td>回调时机</td><td>autoVerify=true 时验证后统一回调</td><td>同左</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">autoVerify 回调时机</div>
+          <div class="card-body">
+            <table>
+              <thead><tr><th>autoVerify</th><th>排查完成</th><th>验证完成</th><th>TASK_COMPLETED</th><th>EXPORT_READY</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><span class="tag tag-green">true（默认）</span></td>
+                  <td>不回调</td>
+                  <td>合并 + transition</td>
+                  <td>验证后统一回调</td>
+                  <td>验证后（两阶段合并）</td>
+                </tr>
+                <tr>
+                  <td><span class="tag tag-gray">false</span></td>
+                  <td>实例 stat=1</td>
+                  <td>不自动触发</td>
+                  <td>排查完成即回调</td>
+                  <td>排查完成后</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Webhook 日志 -->
+      <section id="view-webhook-log" class="view">
+        <div class="breadcrumb"><a onclick="showView('dashboard')">工作台</a> / Webhook 投递日志</div>
+        <div class="card">
+          <div class="card-title">Webhook 投递日志</div>
+          <div class="card-body flush">
+            <table>
+              <thead>
+                <tr><th>eventId</th><th>eventType</th><th>taskId</th><th>Partner</th><th>HTTP</th><th>重试</th><th>时间</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>evt-001</code></td>
+                  <td><code>TASK_COMPLETED</code></td>
+                  <td>TASK-a1b2c3d4</td>
+                  <td>SOC-CLIENT-A</td>
+                  <td><span class="tag tag-red">502</span></td>
+                  <td>3/5</td>
+                  <td>2026-06-17 10:15:00</td>
+                </tr>
+                <tr>
+                  <td><code>evt-002</code></td>
+                  <td><code>EXPORT_READY</code></td>
+                  <td>TASK-a1b2c3d4</td>
+                  <td>SOC-CLIENT-A</td>
+                  <td><span class="tag tag-green">200</span></td>
+                  <td>0</td>
+                  <td>2026-06-17 10:15:02</td>
+                </tr>
+                <tr>
+                  <td><code>evt-003</code></td>
+                  <td><code>TASK_COMPLETED</code></td>
+                  <td>TASK-c3d4e5f6</td>
+                  <td>PARTNER-DEMO</td>
+                  <td><span class="tag tag-green">200</span></td>
+                  <td>0</td>
+                  <td>2026-06-17 09:30:00</td>
+                </tr>
+                <tr>
+                  <td><code>evt-004</code></td>
+                  <td><code>INSTANCE_VERIFY_FIX_COMPLETED</code></td>
+                  <td>VFJ-20260616-088</td>
+                  <td>SOC-CLIENT-A</td>
+                  <td><span class="tag tag-green">200</span></td>
+                  <td>0</td>
+                  <td>2026-06-16 16:20:00</td>
+                </tr>
+                <tr>
+                  <td><code>evt-005</code></td>
+                  <td><code>EXPORT_READY</code></td>
+                  <td>VFJ-20260616-088</td>
+                  <td>SOC-CLIENT-A</td>
+                  <td><span class="tag tag-green">200</span></td>
+                  <td>0</td>
+                  <td>2026-06-16 16:20:03</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- task-center 子任务 -->
+      <section id="view-vtc-link" class="view">
+        <div class="breadcrumb"><a onclick="showView('dashboard')">工作台</a> / task-center 子任务</div>
+        <div class="card">
+          <div class="card-title">vuln-task-center 子任务（关联 TASK-7f3a2b1c）</div>
+          <div class="card-body flush">
+            <table>
+              <thead>
+                <tr>
+                  <th>surveyId</th><th>阶段</th><th>厂商</th><th>verify_round</th>
+                  <th>目标</th><th>进度</th><th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>SV-SURVEY-001</code></td>
+                  <td><span class="tag tag-gray">排查 scan_phase=1</span></td>
+                  <td>Nessus</td>
+                  <td>—</td>
+                  <td>10.10.1.2, 10.10.1.3</td>
+                  <td>100%</td>
+                  <td><span class="tag tag-green">FINISHED</span></td>
+                </tr>
+                <tr>
+                  <td><code>SV-VERIFY-NES-002</code></td>
+                  <td><span class="tag tag-purple">验证 scan_phase=2</span></td>
+                  <td>Nessus</td>
+                  <td>1</td>
+                  <td>10.10.1.2, 10.10.1.3</td>
+                  <td>78%</td>
+                  <td><span class="tag tag-blue">RUNNING</span></td>
+                </tr>
+                <tr>
+                  <td><code>SV-VERIFY-LM-003</code></td>
+                  <td><span class="tag tag-purple">验证 scan_phase=2</span></td>
+                  <td>绿盟</td>
+                  <td>2</td>
+                  <td>10.10.1.2, 10.10.1.3</td>
+                  <td>100%</td>
+                  <td><span class="tag tag-green">FINISHED</span></td>
+                </tr>
+                <tr>
+                  <td><code>SV-VFIX-NES-010</code></td>
+                  <td><span class="tag tag-purple">修复核验 scan_phase=3</span></td>
+                  <td>Nessus</td>
+                  <td>—</td>
+                  <td>10.10.1.2（单 IP 全量）</td>
+                  <td>62%</td>
+                  <td><span class="tag tag-blue">RUNNING</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dev-meta" style="margin:0 0 16px">
+          <strong>落地：</strong>修复核验为<strong>单 survey 全量扫描</strong>，不走双扫 MergeGate。
+          vul-pass <code>VerifyFixOrchestrator</code> 按最近 <code>scanner_vendor</code> 下发；task-center 不支持指定产品漏洞 ID。
+        </div>
+      </section>
+
+      <!-- 漏洞实例列表 -->
+      <section id="view-instance-list" class="view">
+        <div class="breadcrumb"><a onclick="showView('dashboard')">工作台</a> / 漏洞实例列表</div>
+        <div class="card">
+          <div class="card-title">
+            <span>漏洞实例列表</span>
+            <span class="badge badge-w3">W3 · asset-newleak-manage</span>
+          </div>
+          <div class="search-bar">
+            <div class="form-field"><label>taskId</label><input value="TASK-7f3a2b1c" /></div>
+            <div class="form-field"><label>vulInfoStat</label>
+              <select><option>全部</option><option>2 已验证有效</option><option selected>5 已修复</option><option>6/7/10 核验</option></select>
+            </div>
+            <div class="form-field"><label>资产 IP</label><input placeholder="10.10.1.2" /></div>
+            <div class="form-field"><label>CVE / 漏洞名</label><input placeholder="CVE-2021" /></div>
+            <button class="btn btn-primary">查询</button>
+            <button class="btn">重置</button>
+          </div>
+          <div class="card-body flush">
+            <table>
+              <thead>
+                <tr>
+                  <th><input type="checkbox" /></th>
+                  <th>vulInfoID</th><th>漏洞名称</th><th>CVE</th><th>资产:端口</th>
+                  <th>vulInfoStat</th><th>最近扫描器</th><th>Partner</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox" /></td>
+                  <td><code>VI-005</code></td>
+                  <td>Spring4Shell</td>
+                  <td>CVE-2022-22965</td>
+                  <td>10.10.1.3:443</td>
+                  <td><span class="tag tag-orange">5 已修复</span></td>
+                  <td>绿盟</td>
+                  <td>SOC-CLIENT-A</td>
+                  <td class="action-group">
+                    <button class="btn-link" onclick="openInstanceDrawer('VI-005')">详情</button>
+                    <button class="btn-link" onclick="openOpModal('verify-fix','VI-005')">修复核验</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" checked /></td>
+                  <td><code>VI-008</code></td>
+                  <td>Log4Shell</td>
+                  <td>CVE-2021-44228</td>
+                  <td>10.10.1.2:8080</td>
+                  <td><span class="tag tag-orange">5 已修复</span></td>
+                  <td>Nessus</td>
+                  <td>SOC-CLIENT-A</td>
+                  <td class="action-group">
+                    <button class="btn-link" onclick="openInstanceDrawer('VI-008')">详情</button>
+                    <button class="btn-link" onclick="openOpModal('verify-fix','VI-008')">修复核验</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" /></td>
+                  <td><code>VI-006</code></td>
+                  <td>MOVEit SQL注入</td>
+                  <td>CVE-2023-34362</td>
+                  <td>10.10.1.4:3306</td>
+                  <td><span class="tag tag-purple">6 核验修复</span></td>
+                  <td>Nessus</td>
+                  <td>SOC-CLIENT-A</td>
+                  <td><button class="btn-link" onclick="openInstanceDrawer('VI-006')">详情</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dev-meta">
+          <strong>路由：</strong><code>/open-task/instances</code> ·
+          <strong>页面：</strong><code>views/vuln-instance/InstanceList.vue</code> ·
+          <strong>API：</strong><code>GET /api/open/v1/instances/search</code>、<code>GET /instances/{vulInfoID}</code> ·
+          <strong>公共组件：</strong><code>window.commonComponents.Search</code> + <code>s-table</code> ·
+          <strong>筛选字段：</strong>taskId, vulInfoStat, assetIp, vulId, partnerId
+        </div>
+      </section>
+
+      <!-- 修复核验任务 -->
+      <section id="view-verify-fix-jobs" class="view">
+        <div class="breadcrumb"><a onclick="showView('dashboard')">工作台</a> / 修复核验任务</div>
+        <div class="alert alert-info">
+          <strong>§5.5 修复核验：</strong>Partner 对 <code>vulInfoStat=5</code> 实例发起 verify-fix；
+          平台提取 vulInfoID → 系统漏洞库资产 IP → 最近 <code>scanner_vendor</code> → task-center <strong>全量复扫</strong>；
+          回收后<strong>仅匹配目标 vulInfoID</strong> 判定 6 / 7 / 10。
+        </div>
+        <div class="card">
+          <div class="card-title">修复核验任务列表 <span class="badge badge-w3">W3</span></div>
+          <div class="card-body flush">
+            <table>
+              <thead>
+                <tr>
+                  <th>verifyFixJobId</th><th>vulInfoID</th><th>资产 IP</th><th>扫描器</th>
+                  <th>tsk_scn</th><th>surveyId</th><th>进度</th><th>核验结果</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>VFJ-20260617-001</code></td>
+                  <td><code>VI-008</code></td>
+                  <td>10.10.1.2</td>
+                  <td>Nessus</td>
+                  <td>VERIFY_FIX</td>
+                  <td><code>SV-VFIX-NES-010</code></td>
+                  <td><span class="tag tag-blue">RUNNING 62%</span></td>
+                  <td><span class="tag tag-gray">受理中 stat=5</span></td>
+                  <td><button class="btn-link" onclick="openVerifyFixWorkspace('VFJ-20260617-001')">工作台</button></td>
+                </tr>
+                <tr>
+                  <td><code>VFJ-20260616-088</code></td>
+                  <td><code>VI-006</code></td>
+                  <td>10.10.1.4</td>
+                  <td>Nessus</td>
+                  <td>VERIFY_FIX</td>
+                  <td><code>SV-VFIX-NES-009</code></td>
+                  <td>100%</td>
+                  <td><span class="tag tag-green">6 核验修复</span></td>
+                  <td><button class="btn-link" onclick="openVerifyFixWorkspace('VFJ-20260616-088')">工作台</button></td>
+                </tr>
+                <tr>
+                  <td><code>VFJ-20260616-077</code></td>
+                  <td><code>VI-007</code></td>
+                  <td>10.10.1.2</td>
+                  <td>Nessus</td>
+                  <td>VERIFY_FIX</td>
+                  <td><code>SV-VFIX-NES-008</code></td>
+                  <td>100%</td>
+                  <td><span class="tag tag-red">7 核验未修复</span></td>
+                  <td><button class="btn-link" onclick="openVerifyFixWorkspace('VFJ-20260616-077')">工作台</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dev-meta">
+          <strong>路由：</strong><code>/open-task/verify-fix-jobs</code> ·
+          <strong>页面：</strong><code>VerifyFixJobList.vue</code> ·
+          <strong>后端：</strong>vul-pass 表 <code>open_verify_fix_job</code>（建议）·
+          <strong>Partner API：</strong>受理响应含 <code>verifyFixJobId</code>、<code>verifyFixStatus</code>
+        </div>
+      </section>
+
+      <!-- 修复核验工作台 -->
+      <section id="view-verify-fix-workspace" class="view">
+        <div class="breadcrumb">
+          <a onclick="showView('dashboard')">工作台</a> /
+          <a onclick="showView('verify-fix-jobs')">修复核验任务</a> /
+          <span id="vf-breadcrumb-id">VFJ-20260617-001</span>
+        </div>
+        <div class="workspace-header">
+          <div class="workspace-title">
+            修复核验工作台
+            <span class="tag tag-blue">RUNNING</span>
+            <span class="tag tag-purple">§5.5</span>
+          </div>
+          <div class="workspace-meta">
+            verifyFixJobId <code id="vf-job-id">VFJ-20260617-001</code> ·
+            vulInfoID <code>VI-008</code> ·
+            前置状态 <code>vulInfoStat=5</code>（受理期间保持）·
+            passTaskId <code>10086088</code> ·
+            procMethod <code>1060</code>
+          </div>
+        </div>
+        <div class="phase-banner" style="margin-top:16px">
+          <div class="phase-box done">
+            <h4><span class="tag tag-green">步骤1</span> Partner 发起</h4>
+            <div class="kv-row"><span class="k">API</span><span class="v"><span class="api-path">POST /instances/{vulInfoID}/verify-fix</span></span></div>
+            <div class="kv-row"><span class="k">幂等</span><span class="v"><code>verify-fix:{vulInfoID}:{clientRequestId}</code></span></div>
+            <div class="kv-row"><span class="k">受理</span><span class="v"><code>verifyFixStatus=RUNNING</code></span></div>
+          </div>
+          <div class="phase-arrow">&rarr;</div>
+          <div class="phase-box active verify-fix">
+            <h4><span class="tag tag-purple">步骤2</span> 全量复扫</h4>
+            <div class="kv-row"><span class="k">targets</span><span class="v">10.10.1.2（来自 vul_archive_inst）</span></div>
+            <div class="kv-row"><span class="k">scanner</span><span class="v">Nessus（最近 sub.scanner_vendor）</span></div>
+            <div class="kv-row"><span class="k">策略</span><span class="v">SINGLE · 非 SOC_DUAL · 不支持指定产品漏洞</span></div>
+            <div class="progress-bar"><div class="fill" style="width:62%"></div></div>
+          </div>
+          <div class="phase-arrow">&rarr;</div>
+          <div class="phase-box pending">
+            <h4><span class="tag tag-gray">步骤3</span> 结果判定</h4>
+            <div class="kv-row"><span class="k">过滤</span><span class="v">仅目标 vulInfoID / vulId</span></div>
+            <div class="kv-row"><span class="k">终态</span><span class="v">未检出→6 · 仍检出→7 · 失败→10</span></div>
+            <div class="kv-row"><span class="k">回调</span><span class="v">INSTANCE_VERIFY_FIX_COMPLETED + EXPORT_READY</span></div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">请求 / 受理响应（Partner 视角）</div>
+            <div class="card-body">
+              <div class="flow-diagram">POST /api/open/v1/instances/VI-008/verify-fix
+Idempotency-Key: verify-fix:VI-008:req-001
+
+{
+  "transferTime": "1747488000",
+  "remark": "安排复扫 POC"
+}
+
+--- 同步响应 ---
+{
+  "vulInfoID": "VI-008",
+  "vulInfoStat": 5,
+  "verifyFixStatus": "RUNNING",
+  "verifyFixJobId": "VFJ-20260617-001"
+}</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">内部下发参数（vul-pass → task-center）</div>
+            <div class="card-body">
+              <div class="flow-diagram">VerifyFixOrchestrator.dispatch()
+{
+  "biz_line": "OPEN",
+  "tsk_scn": "VERIFY_FIX",
+  "scan_policy": "SINGLE",
+  "scan_phase": 3,
+  "proc_method": 1060,
+  "targets": { "hosts": ["10.10.1.2"] },
+  "scanner_vendor": "NESSUS",
+  "vul_filter": null
+}
+// task-center: 全量主机/系统漏洞扫描模板</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">回收判定逻辑（VerifyFixRecycleHandler）</div>
+          <div class="card-body">
+            <table>
+              <thead><tr><th>全量扫描结果</th><th>目标漏洞匹配</th><th>vulInfoStat 跃迁</th><th>写轨</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>返回 28 条漏洞（全量）</td>
+                  <td>CVE-2021-44228 @ 10.10.1.2:8080 <strong>未出现</strong></td>
+                  <td><span class="tag tag-green">6 核验修复</span></td>
+                  <td>rela_oper + transition</td>
+                </tr>
+                <tr>
+                  <td>返回 31 条漏洞</td>
+                  <td>目标漏洞 <strong>仍检出</strong></td>
+                  <td><span class="tag tag-red">7 核验未修复</span></td>
+                  <td>rela_oper + transition</td>
+                </tr>
+                <tr>
+                  <td>survey FAILED / TIMEOUT</td>
+                  <td>—</td>
+                  <td><span class="tag tag-gray">10 核验失败</span></td>
+                  <td>rela_oper</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="dev-meta">
+              <strong>外发：</strong><code>exportStage=VERIFY_FIX_SCAN</code> · 须含 targets / liveProbeResults / portScanResults / vulnerabilities[]（§5.6.3）
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">VERIFY_FIX_SCAN 外发预览（§5.6.3）</div>
+          <div class="card-body">
+            <div class="stat-mini" style="margin-bottom:12px">
+              <div class="item"><div class="num">1</div><div class="lbl">totalTargets</div></div>
+              <div class="item stat-2"><div class="num">1</div><div class="lbl">aliveTargets</div></div>
+              <div class="item"><div class="num">3</div><div class="lbl">openPorts</div></div>
+            </div>
+            <div class="section-label">liveProbeResults[]（复扫含存活探测）</div>
+            <table style="margin-bottom:16px">
+              <thead><tr><th>liveProbeId</th><th>address</th><th>alive</th><th>probeMethod</th><th>latencyMs</th></tr></thead>
+              <tbody>
+                <tr><td><code>LP-VF-001</code></td><td>10.10.1.2</td><td><span class="tag tag-green">true</span></td><td>ICMP</td><td>15</td></tr>
+              </tbody>
+            </table>
+            <div class="section-label">portScanResults[]</div>
+            <table style="margin-bottom:16px">
+              <thead><tr><th>portScanId</th><th>address</th><th>port</th><th>state</th><th>service</th></tr></thead>
+              <tbody>
+                <tr><td><code>PS-VF-001</code></td><td>10.10.1.2</td><td>8080</td><td><span class="tag tag-green">open</span></td><td>http</td></tr>
+                <tr><td><code>PS-VF-002</code></td><td>10.10.1.2</td><td>22</td><td><span class="tag tag-green">open</span></td><td>ssh</td></tr>
+              </tbody>
+            </table>
+            <div class="section-label">vulnerabilities[]（全量 28 条，仅匹配目标 vulInfoID）</div>
+            <table>
+              <thead><tr><th>vulInfoID</th><th>漏洞</th><th>是否目标</th><th>判定</th></tr></thead>
+              <tbody>
+                <tr><td><code>VI-099</code></td><td>CVE-2020-xxxx</td><td>否</td><td>忽略</td></tr>
+                <tr class="highlight-row"><td><code>VI-008</code></td><td>CVE-2021-44228</td><td><strong>是</strong></td><td>未检出 → stat=6</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Webhook 投递（完成后）</div>
+          <div class="card-body flush">
+            <table>
+              <thead><tr><th>eventType</th><th>触发</th><th>payload 要点</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><code>INSTANCE_VERIFY_FIX_COMPLETED</code></td>
+                  <td>状态已更新为 6/7/10</td>
+                  <td>verifyFixJobId, items[].vulInfoID, vulInfoStat</td>
+                  <td><span class="tag tag-orange">待触发</span></td>
+                </tr>
+                <tr>
+                  <td><code>EXPORT_READY</code></td>
+                  <td>TaskExport 组装完成</td>
+                  <td>exportStage=VERIFY_FIX_SCAN</td>
+                  <td><span class="tag tag-orange">待触发</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dev-meta">
+          <strong>路由：</strong><code>/open-task/verify-fix-jobs/:jobId</code> ·
+          <strong>页面：</strong><code>VerifyFixWorkspace.vue</code> ·
+          <strong>服务链：</strong>open-api <code>InstanceUi</code> → vul-pass <code>OpenInstanceUi</code> → <code>VerifyFixOrchestrator</code> → vuln-task-center survey → Kafka → <code>VerifyFixRecycleHandler</code>
+        </div>
+      </section>
+
+      <!-- 批量实例操作 -->
+      <section id="view-instance-batch" class="view">
+        <div class="breadcrumb"><a onclick="showView('dashboard')">工作台</a> / 批量实例操作</div>
+        <div class="card">
+          <div class="card-title">批量操作 <span class="badge badge-w3">§5.3–5.5 batch</span></div>
+          <div class="card-body">
+            <div class="grid-3">
+              <div class="op-card">
+                <h5>批量验证 verify:batch</h5>
+                <p>前置 stat ∈ {0,1} · 能力码 INSTANCE_VERIFY · 部分成功</p>
+                <button class="btn btn-primary" onclick="openOpModal('verify-batch')">发起批量验证</button>
+              </div>
+              <div class="op-card">
+                <h5>批量处置 remediate:batch</h5>
+                <p>前置 stat ∈ {2,7} · 能力码 INSTANCE_REMEDIATE · 不使用 extTaskId</p>
+                <button class="btn btn-primary" onclick="openOpModal('remediate-batch')">发起批量处置</button>
+              </div>
+              <div class="op-card">
+                <h5>批量修复核验 verify-fix:batch</h5>
+                <p>前置 stat=5 · 每项独立异步复扫 · 幂等 <code>verify-fix:batch:{clientBatchId}</code></p>
+                <button class="btn btn-primary" onclick="openOpModal('verify-fix-batch')">发起批量核验</button>
+              </div>
+            </div>
+            <div class="section-label">已选实例（2 条 · stat=5）</div>
+            <table>
+              <thead><tr><th>vulInfoID</th><th>CVE</th><th>资产</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr><td><code>VI-005</code></td><td>CVE-2022-22965</td><td>10.10.1.3:443</td><td><span class="tag tag-orange">5</span></td></tr>
+                <tr><td><code>VI-008</code></td><td>CVE-2021-44228</td><td>10.10.1.2:8080</td><td><span class="tag tag-orange">5</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dev-meta">
+          <strong>路由：</strong><code>/open-task/instances/batch</code> ·
+          <strong>组件：</strong><code>InstanceBatchOps.vue</code> ·
+          <strong>API：</strong><code>POST /instances/verify:batch</code>、<code>remediate:batch</code>、<code>verify-fix:batch</code>
+        </div>
+      </section>
+
+      <!-- 全链路架构 -->
+      <section id="view-architecture" class="view">
+        <div class="breadcrumb"><a onclick="showView('dashboard')">工作台</a> / 全链路架构</div>
+        <div class="card">
+          <div class="card-title">双阶段交叉扫描全链路（autoVerify=true · SOC 并集）</div>
+          <div class="card-body">
+            <div class="flow-diagram">Partner (SOC)
+  | POST /api/open/v1/tasks/vul  { autoVerify: true }
+  v
+open-api-service
+  | 创建 open_task (auto_verify=1)
+  | POST /internal/open/v1/tasks
+  v
+vul-pass (biz_line=OPEN)
+  |
+  |-- 阶段1 排查 (tsk_phase=1, proc_method=1021)
+  |     | 单扫描器 dispatch
+  |     v
+  |   vuln-task-center -> survey (Nessus)
+  |     | 结果回收 -> vulInfoStat=1
+  |     | 【不回调】
+  |     v
+  |-- 阶段2 验证 (tsk_phase=2, proc_method=1026)  [autoVerify 自动触发]
+        | 双扫描器 dispatch (NESSUS + LM)
+        v
+      vuln-task-center -> survey x2
+        | mergeVerifyResults (SOC 并集 / 部侧交集)
+        | transition -> vulInfoStat 终态
+        | 通知 open-api (tsk_phase=2, FINISHED)
+        v
+open-api-service
+  | 【统一回调】
+  | Webhook: TASK_COMPLETED (summary 含终态统计)
+  | Webhook: EXPORT_READY (两阶段合并 TaskExport)
+  v
+Partner</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">三发起方矩阵</div>
+            <div class="card-body flush">
+              <table>
+                <thead><tr><th>维度</th><th>OPEN (SOC)</th><th>ASSESS (部侧)</th></tr></thead>
+                <tbody>
+                  <tr><td>autoVerify</td><td>true</td><td>不涉及工单</td></tr>
+                  <tr><td>验证扫描器</td><td>NESSUS + LM</td><td>厂商A + B</td></tr>
+                  <tr><td>合并策略</td><td>SOC 并集</td><td>部侧交集</td></tr>
+                  <tr><td>回调时机</td><td>验证后</td><td>不涉及 open-api</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">废弃概念</div>
+            <div class="card-body">
+              <p style="font-size:13px;line-height:1.8">
+                <code>scan_policy=SOC_DUAL</code> 已废弃，替换为：<br>
+                <code>autoVerify=true</code> + <code>verify_scanner_vendors=NESSUS,LM</code> + <code>verify_merge_strategy=UNION</code>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- API 映射 -->
+      <section id="view-api-map" class="view">
+        <div class="breadcrumb"><a onclick="showView('dashboard')">工作台</a> / API 映射</div>
+        <div class="card">
+          <div class="card-title">Partner API ↔ 内部服务映射</div>
+          <div class="card-body flush">
+            <table>
+              <thead>
+                <tr><th>Partner API（对外 v1.0.6）</th><th>open-api-service</th><th>vul-pass</th><th>vuln-task-center</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="api-path">POST /tasks/vul</td>
+                  <td>创建 open_task<br><code>type</code> 1/2/3 · <code>scanTemplateId</code> 1001/1002/1003 · <code>autoVerify</code></td>
+                  <td class="api-path">POST /internal/open/v1/tasks</td>
+                  <td>dispatch survey（按 type 选扫描链）</td>
+                </tr>
+                <tr>
+                  <td class="api-path">GET /tasks/{taskId}/export</td>
+                  <td>TaskExport 下载</td>
+                  <td>inst + survey 聚合</td>
+                  <td>liveProbe / portScan / vulnerabilities</td>
+                </tr>
+                <tr>
+                  <td class="api-path">GET /tasks/{taskId}</td>
+                  <td>合并进度</td>
+                  <td class="api-path">GET /internal/open/v1/tasks/{id}</td>
+                  <td>survey/query</td>
+                </tr>
+                <tr>
+                  <td>Webhook TASK_COMPLETED</td>
+                  <td>推迟至验证后（autoVerify=true）</td>
+                  <td class="api-path">POST .../notify (tsk_phase=2)</td>
+                  <td>—</td>
+                </tr>
+                <tr>
+                  <td>Webhook EXPORT_READY</td>
+                  <td>两阶段合并外发</td>
+                  <td>inst 查询</td>
+                  <td>results/report API</td>
+                </tr>
+                <tr>
+                  <td class="api-path">POST /instances/{id}/verify</td>
+                  <td>状态更新</td>
+                  <td>transition</td>
+                  <td>—（autoVerify=true 通常不调）</td>
+                </tr>
+                <tr>
+                  <td class="api-path">POST /instances/{id}/remediate</td>
+                  <td>INSTANCE_REMEDIATE</td>
+                  <td class="api-path">POST /internal/open/v1/instances/{id}/remediate</td>
+                  <td>—</td>
+                </tr>
+                <tr class="highlight-row">
+                  <td class="api-path">POST /instances/{id}/verify-fix</td>
+                  <td>INSTANCE_VERIFY_FIX<br>受理 verifyFixJobId</td>
+                  <td class="api-path">POST /internal/open/v1/instances/{id}/verify-fix</td>
+                  <td>单 survey 全量复扫<br><code>VerifyFixOrchestrator</code></td>
+                </tr>
+                <tr>
+                  <td class="api-path">POST /instances/verify-fix:batch</td>
+                  <td>批量核验 · 部分成功</td>
+                  <td>同上 batch</td>
+                  <td>每项独立 job</td>
+                </tr>
+                <tr>
+                  <td>Webhook INSTANCE_VERIFY_FIX_COMPLETED</td>
+                  <td>核验终态 6/7/10</td>
+                  <td>notify → open-api</td>
+                  <td>—</td>
+                </tr>
+                <tr>
+                  <td>Webhook EXPORT_READY</td>
+                  <td>exportStage=VERIFY_FIX_SCAN</td>
+                  <td>TaskExport 组装</td>
+                  <td>results API</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 状态流转 -->
+      <section id="view-state-flow" class="view">
+        <div class="breadcrumb"><a onclick="showView('dashboard')">工作台</a> / 状态流转</div>
+        <div class="card">
+          <div class="card-title">漏洞实例状态流转（API §1.3.1）</div>
+          <div class="card-body">
+            <div class="flow-diagram">autoVerify = true（SOC 默认）
+─────────────────────────────────────────────────
+创建任务（排查）
+  → vulInfoStat = 1（初始发现）
+  → 【不回调】
+
+[平台内部验证阶段]
+  → 二次扫描，合并策略接入定制
+  → 按策略确定终态：
+     部侧交集：2 有效 / 3 误报
+     SOC 并集：1 初始发现 / 2 有效（交叉部分）
+  → 【统一回调 TASK_COMPLETED + EXPORT_READY】
+
+后续（Partner 驱动）
+  → remediate → 5 / 9
+  → verify-fix → 6 / 7 / 10
+
+autoVerify = false（普通 Partner）
+─────────────────────────────────────────────────
+创建任务（排查）
+  → vulInfoStat = 1
+  → TASK_COMPLETED + EXPORT_READY
+
+Partner 主动 verify → 2 / 3
+  → INSTANCE_VERIFY_COMPLETED
+
+修复核验 verify-fix（§5.5 · Partner 主动 · 单厂商全量复扫）
+─────────────────────────────────────────────────
+POST /instances/{vulInfoID}/verify-fix  (前置 stat=5)
+  → 同步受理 verifyFixJobId / verifyFixStatus=RUNNING（stat 保持 5）
+  → vul-pass: vulInfoID → assetIp + 最近 scanner_vendor
+  → task-center: SINGLE 全量 survey（不支持指定产品漏洞）
+  → 全量回收 · 仅匹配目标 vulInfoID:
+       未再检出 → 6 核验修复
+       仍检出   → 7 核验未修复
+       失败     → 10 核验失败
+  → INSTANCE_VERIFY_FIX_COMPLETED + EXPORT_READY(VERIFY_FIX_SCAN)</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">vulInfoStat 状态码（附录 A）</div>
+          <div class="card-body flush">
+            <table>
+              <thead><tr><th>值</th><th>说明</th><th>阶段</th><th>本方案出现场景</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>初始发现</td><td>识别</td><td>排查后；SOC 并集仅一侧发现</td></tr>
+                <tr><td>2</td><td>已验证有效</td><td>识别</td><td>部侧交集两次均发现；SOC 交叉部分</td></tr>
+                <tr><td>3</td><td>已验证误报</td><td>识别</td><td>部侧交集仅一次发现</td></tr>
+                <tr><td>5</td><td>已修复</td><td>修复</td><td>remediate 后</td></tr>
+                <tr><td>6/7/10</td><td>核验相关</td><td>核验</td><td>verify-fix 后</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <footer class="page-footer">
+        OPEN 编排任务原型 v2 · 2026-06-17 · 双阶段交叉扫描 + §5.5 修复核验 · 可直接对照落地开发
+      </footer>
+    </main>
+  </div>
+</div>
+
+<!-- 实例详情抽屉 -->
+<div class="drawer-mask" id="drawer-mask" onclick="closeInstanceDrawer()"></div>
+<div class="drawer" id="instance-drawer">
+  <div class="drawer-head">
+    <span>漏洞实例详情 · <code id="drawer-vul-id">VI-005</code></span>
+    <button class="btn-link" onclick="closeInstanceDrawer()" style="font-size:18px">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <div class="tabs" id="drawer-tabs">
+      <div class="tab active" data-dtab="base">基本信息</div>
+      <div class="tab" data-dtab="ops">实例操作</div>
+      <div class="tab" data-dtab="history">状态历史</div>
+      <div class="tab" data-dtab="scan">关联扫描</div>
+    </div>
+    <div id="dtab-base" class="tab-panel active" style="padding:16px 0">
+      <div class="kv-row"><span class="k">vulInfoID</span><span class="v"><code id="drawer-id-val">VI-005</code></span></div>
+      <div class="kv-row"><span class="k">vulInfoStat</span><span class="v" id="drawer-stat"><span class="tag tag-orange">5 已修复</span></span></div>
+      <div class="kv-row"><span class="k">CVE</span><span class="v">CVE-2022-22965</span></div>
+      <div class="kv-row"><span class="k">资产 IP</span><span class="v">10.10.1.3</span></div>
+      <div class="kv-row"><span class="k">端口/协议</span><span class="v">443 / TCP</span></div>
+      <div class="kv-row"><span class="k">最近扫描器</span><span class="v">绿盟（vul_scan_task_sub）</span></div>
+      <div class="kv-row"><span class="k">data_origin</span><span class="v"><code>OPEN</code></span></div>
+      <div class="kv-row"><span class="k">关联 taskId</span><span class="v"><code>TASK-7f3a2b1c</code></span></div>
+    </div>
+    <div id="dtab-ops" class="tab-panel" style="padding:16px 0">
+      <div class="alert alert-warn">操作不可逆，请确认状态前置条件。写操作写入 <code>vul_inst_log_rela_oper</code>。</div>
+      <div class="op-card">
+        <h5>验证 verify <span class="tag tag-gray">前置 0,1</span></h5>
+        <p>POST /instances/{vulInfoID}/verify · INSTANCE_VERIFY · autoVerify=true 时通常由平台完成</p>
+        <button class="btn" disabled>发起验证</button>
+      </div>
+      <div class="op-card">
+        <h5>处置 remediate <span class="tag tag-gray">前置 2,7</span></h5>
+        <p>POST /instances/{vulInfoID}/remediate · 已修复(5) 或 备案(9)</p>
+        <button class="btn" disabled>发起处置</button>
+      </div>
+      <div class="op-card" style="border-color:#d3adf7;background:#f9f0ff">
+        <h5>修复核验 verify-fix <span class="tag tag-purple">前置 5</span></h5>
+        <p>POST /instances/{vulInfoID}/verify-fix · 异步全量复扫 · 终态 6/7/10</p>
+        <button class="btn btn-primary" onclick="openOpModal('verify-fix', document.getElementById('drawer-vul-id').textContent)">发起修复核验</button>
+      </div>
+      <div class="dev-meta">
+        <strong>组件：</strong><code>InstanceDetail.vue</code> + <code>VerifyFixForm.vue</code> ·
+        <strong>API 模块：</strong><code>api/vuln-instance.js</code>
+      </div>
+    </div>
+    <div id="dtab-history" class="tab-panel" style="padding:16px 0">
+      <div class="timeline">
+        <div class="timeline-item done">初始发现 stat=1 · 排查阶段<div class="time">2026-06-17 09:42</div></div>
+        <div class="timeline-item done">已验证有效 stat=2 · SOC 并集<div class="time">2026-06-17 10:15</div></div>
+        <div class="timeline-item done">已修复 stat=5 · remediate<div class="time">2026-06-17 11:00 · Partner</div></div>
+        <div class="timeline-item pending">修复核验 → 待发起</div>
+      </div>
+    </div>
+    <div id="dtab-scan" class="tab-panel" style="padding:16px 0">
+      <table>
+        <thead><tr><th>subId</th><th>scan_phase</th><th>scanner</th><th>surveyId</th><th>完成时间</th></tr></thead>
+        <tbody>
+          <tr><td>2001</td><td>1 排查</td><td>Nessus</td><td>SV-SURVEY-001</td><td>09:42</td></tr>
+          <tr><td>2003</td><td>2 验证</td><td>绿盟</td><td>SV-VERIFY-LM-003</td><td>10:12</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:12px;color:var(--text-secondary);margin-top:8px">修复核验将复用<strong>最近</strong>扫描器：绿盟</p>
+    </div>
+  </div>
+</div>
+
+<!-- 操作确认弹窗 -->
+<div class="modal-mask" id="op-modal-mask">
+  <div class="modal">
+    <div class="modal-head" id="op-modal-title">修复核验</div>
+    <div class="modal-body">
+      <div class="kv-row"><span class="k">vulInfoID</span><span class="v"><code id="op-vul-id">VI-005</code></span></div>
+      <div class="kv-row"><span class="k">当前状态</span><span class="v"><span class="tag tag-orange">5 已修复</span></span></div>
+      <div class="form-field" style="margin-top:12px">
+        <label>备注 remark</label>
+        <input id="op-remark" value="安排复扫 POC" />
+      </div>
+      <div class="form-field" style="margin-top:12px">
+        <label>Idempotency-Key（建议）</label>
+        <input value="verify-fix:VI-005:req-20260617-001" readonly style="background:#fafafa" />
+      </div>
+      <div class="alert alert-info" style="margin-top:14px;margin-bottom:0" id="op-modal-hint">
+        受理后平台将：解析资产 IP → 使用最近扫描器 → task-center <strong>全量复扫</strong>（不支持指定产品漏洞）。
+        受理期间 vulInfoStat 保持 5。
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeOpModal()">取消</button>
+      <button class="btn btn-primary" onclick="submitVerifyFix()">确认发起</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('active'); });
+    document.querySelectorAll('.menu-item').forEach(function (m) { m.classList.remove('active'); });
+    var el = document.getElementById('view-' + id);
+    if (el) el.classList.add('active');
+    var menu = document.querySelector('.menu-item[data-view="' + id + '"]');
+    if (menu) menu.classList.add('active');
+  }
+  window.showView = showView;
+
+  window.openVerifyFixWorkspace = function (jobId) {
+    var el = document.getElementById('vf-job-id');
+    var bc = document.getElementById('vf-breadcrumb-id');
+    if (el) el.textContent = jobId;
+    if (bc) bc.textContent = jobId;
+    showView('verify-fix-workspace');
+  };
+
+  window.openInstanceDrawer = function (vulId) {
+    document.getElementById('drawer-vul-id').textContent = vulId;
+    document.getElementById('drawer-id-val').textContent = vulId;
+    document.getElementById('instance-drawer').classList.add('open');
+    document.getElementById('drawer-mask').classList.add('open');
+  };
+
+  window.closeInstanceDrawer = function () {
+    document.getElementById('instance-drawer').classList.remove('open');
+    document.getElementById('drawer-mask').classList.remove('open');
+  };
+
+  var opTitles = {
+    'verify-fix': '修复核验 verify-fix',
+    'remediate': '处置 remediate',
+    'verify': '验证 verify',
+    'verify-fix-batch': '批量修复核验',
+    'remediate-batch': '批量处置',
+    'verify-batch': '批量验证'
+  };
+
+  window.openOpModal = function (type, vulId) {
+    document.getElementById('op-modal-title').textContent = opTitles[type] || '实例操作';
+    if (vulId) document.getElementById('op-vul-id').textContent = vulId;
+    document.getElementById('op-modal-mask').classList.add('open');
+  };
+
+  window.closeOpModal = function () {
+    document.getElementById('op-modal-mask').classList.remove('open');
+  };
+
+  window.submitVerifyFix = function () {
+    closeOpModal();
+    closeInstanceDrawer();
+    openVerifyFixWorkspace('VFJ-20260617-001');
+  };
+
+  document.querySelectorAll('.menu-item[data-view]').forEach(function (item) {
+    item.addEventListener('click', function () { showView(item.dataset.view); });
+  });
+
+  document.querySelectorAll('#workspace-tabs .tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('#workspace-tabs .tab').forEach(function (t) { t.classList.remove('active'); });
+      document.querySelectorAll('[id^="tab-"]').forEach(function (p) { p.classList.remove('active'); });
+      tab.classList.add('active');
+      var panel = document.getElementById('tab-' + tab.dataset.tab);
+      if (panel) panel.classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('#drawer-tabs .tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('#drawer-tabs .tab').forEach(function (t) { t.classList.remove('active'); });
+      document.querySelectorAll('[id^="dtab-"]').forEach(function (p) { p.classList.remove('active'); });
+      tab.classList.add('active');
+      var panel = document.getElementById('dtab-' + tab.dataset.dtab);
+      if (panel) panel.classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('#survey-sub-tabs .sub-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('#survey-sub-tabs .sub-tab').forEach(function (t) { t.classList.remove('active'); });
+      document.querySelectorAll('[id^="subtab-survey-"]').forEach(function (p) { p.classList.remove('active'); });
+      tab.classList.add('active');
+      var panel = document.getElementById('subtab-' + tab.dataset.subtab);
+      if (panel) panel.classList.add('active');
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>开放平台集成管理 · 全功能原型</title>
+  <title>开放平台集成管理 · 全功能原型 v4（运营案件）</title>
   <style>
     :root {
       --primary: #1890ff; --success: #52c41a; --warning: #faad14; --error: #ff4d4f;
@@ -113,6 +113,44 @@
     .doc-frame-wrap { height: calc(100vh - 220px); min-height: 520px; border: 1px solid #f0f0f0; background: #fff; }
     .doc-frame-wrap iframe { width: 100%; height: 100%; border: 0; display: block; }
     .doc-tab-panel { display: none; } .doc-tab-panel.active { display: block; }
+    .dev-done { background: #f6ffed; color: #389e0d; border: 1px solid #b7eb8f; }
+    .dev-todo { background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; }
+    .dev-skip { background: #fafafa; color: rgba(0,0,0,.45); border: 1px solid #d9d9d9; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .legend span { font-size: 12px; padding: 2px 8px; border-radius: 2px; }
+    .mock-banner { background: #fffbe6; border: 1px solid #ffe58f; padding: 10px 15px; border-radius: 2px; margin-bottom: 16px; font-size: 13px; }
+    .drawer-wide { width: 640px; }
+    .drawer-tabs { display: flex; border-bottom: 1px solid #f0f0f0; margin: -4px 0 16px; }
+    .drawer-tab { padding: 8px 14px; cursor: pointer; font-size: 13px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .drawer-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .drawer-panel { display: none; } .drawer-panel.active { display: block; }
+    pre.code-block { background: #fafafa; border: 1px solid #f0f0f0; padding: 12px; border-radius: 2px; font-size: 12px; overflow: auto; max-height: 280px; white-space: pre-wrap; word-break: break-all; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.75); color: #fff; padding: 10px 20px; border-radius: 4px; font-size: 13px; z-index: 2000; opacity: 0; transition: opacity .25s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .detail-page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+    .detail-page-grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 960px) { .detail-page-grid { grid-template-columns: 1fr; } }
+    .detail-sidebar .card-body { padding: 12px 16px; }
+    .timeline { border-left: 2px solid #f0f0f0; margin-left: 8px; padding-left: 16px; }
+    .timeline-item { position: relative; padding-bottom: 16px; font-size: 13px; }
+    .timeline-item::before { content: ''; position: absolute; left: -21px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--primary); }
+    .timeline-item.fail::before { background: var(--error); box-shadow: 0 0 0 1px var(--error); }
+    .timeline-item .t { color: var(--text-secondary); font-size: 12px; }
+    .payload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 960px) { .payload-grid { grid-template-columns: 1fr; } }
+    .payload-box label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; font-weight: 500; }
+    .drawer-full { width: min(920px, 92vw); }
+    .modal-note { font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-left: 8px; }
+    .case-type { font-size: 11px; padding: 0 6px; border-radius: 2px; font-weight: 500; }
+    .ct-task { background: #e6f7ff; color: #0958d9; border: 1px solid #91d5ff; }
+    .ct-verify { background: #f9f0ff; color: #531dab; border: 1px solid #d3adf7; }
+    .ct-remediate { background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; }
+    .ct-vfix { background: #f6ffed; color: #389e0d; border: 1px solid #b7eb8f; }
+    .case-workspace-tabs { margin-bottom: 0; }
+    .case-link-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .case-link-card { border: 1px solid #f0f0f0; border-radius: 2px; padding: 10px 12px; font-size: 12px; cursor: pointer; }
+    .case-link-card:hover { border-color: var(--primary); background: #e6f7ff; }
+    .case-link-card strong { display: block; font-size: 13px; margin-bottom: 4px; }
   </style>
 </head>
 <body>
@@ -131,9 +169,16 @@
         <div class="menu-item" data-view="partner-detail">合作方详情</div>
       </div>
       <div class="menu-group">
+        <div class="menu-group-title">P1 · 运营案件 <span class="phase p1">新</span></div>
+        <div class="menu-item" data-view="case-list">运营案件列表</div>
+        <div class="menu-item" data-view="case-workspace">案件工作台</div>
+        <div class="menu-item" data-view="case-design">方案说明（open_operation_case）</div>
+      </div>
+      <div class="menu-group">
         <div class="menu-group-title">P1 · 治理观测</div>
         <div class="menu-item" data-view="invocation-list">API 调用记录</div>
         <div class="menu-item" data-view="webhook-log">Webhook 投递日志</div>
+        <div class="menu-item" data-view="integration-guide">联调与 Mock 说明 <span class="phase p1">新</span></div>
       </div>
       <div class="menu-group">
         <div class="menu-group-title">P2 · 运营分析</div>
@@ -153,7 +198,7 @@
 
   <div class="main-area">
     <header class="topbar">
-      <small>HTML 全功能原型 · asset-openplatform-manage · 对应《页面设计》§3–§4 + 落地方案 P0–P3</small>
+      <small>HTML 原型 v4 · 运营案件 open_operation_case · 统一工作台壳层</small>
       <div>
         <button class="btn" id="toggleAlert" type="button">Admin Key 告警</button>
         <button class="btn btn-primary" id="openCredential" type="button">凭证弹窗</button>
@@ -172,34 +217,59 @@
         <div class="card">
           <div class="card-title">集成管理后台 · 全功能站点地图</div>
           <div class="card-body">
-            <p style="margin-bottom:16px;color:var(--text-secondary);">子应用 <code>asset-openplatform-manage</code> 内部路由自维护；顶栏菜单仅需 clover 库配置入口 <code>/openPlatform</code>。</p>
+            <p style="margin-bottom:12px;color:var(--text-secondary);">子应用 <code>asset-openplatform-manage</code> · 对照代码仓库现状与<strong>联调周（OP-OPENAPI-P1 + mock）</strong>待补项。</p>
+            <div class="legend">
+              <span class="phase dev-done">已实现</span> 前端 Vue 已落地，可联调 Admin API
+              <span class="phase dev-todo">待开发</span> 联调周建议补（本原型已画）
+              <span class="phase dev-skip">仅原型</span> P2/P3 或后端未就绪
+            </div>
+            <div class="mock-banner">
+              <strong>联调周提示</strong>：Partner 走 <code>spring.profiles.active=mock</code> 时，运营侧通过<strong>调用记录 / Webhook 日志</strong>观测实例写操作与事件；无需新菜单模块，见「联调与 Mock 说明」。
+            </div>
             <div class="sitemap-grid">
               <div class="sitemap-card" onclick="showView('partner-list')">
-                <h3><span class="phase p0">P0</span> 合作方管理</h3>
+                <h3><span class="phase p0">P0</span> <span class="phase dev-done">已实现</span> 合作方管理</h3>
                 <ul>
                   <li>合作方列表 — GET /internal/admin/partners</li>
                   <li>新建 / 编辑 — POST / PUT</li>
                   <li>详情 Tab：基本信息、能力、凭证、回调</li>
                 </ul>
               </div>
+              <div class="sitemap-card" onclick="showView('case-list')">
+                <h3><span class="phase p1">P1</span> <span class="phase dev-todo">方案三</span> 运营案件</h3>
+                <ul>
+                  <li>统一句柄 <code>case_id</code> — 表 <code>open_operation_case</code></li>
+                  <li>列表 — GET /internal/admin/operation-cases</li>
+                  <li>工作台 — GET .../operation-cases/{caseId}/workspace</li>
+                  <li>覆盖：扫描编排 / 验证 / 处置 / 修复核验</li>
+                </ul>
+              </div>
               <div class="sitemap-card" onclick="showView('invocation-list')">
-                <h3><span class="phase p1">P1</span> API 调用记录</h3>
+                <h3><span class="phase p1">P1</span> <span class="phase dev-done">已实现</span> API 调用记录</h3>
                 <ul>
                   <li>调用列表 — GET /internal/admin/invocations</li>
-                  <li>调用详情 Drawer — requestId / 错误 / taskId</li>
-                  <li>Partner 详情 · 调用统计 Tab</li>
+                  <li><strong><span class="phase dev-todo">待开发</span></strong> 调用详情 Drawer（实例写操作 / 报文）</li>
+                  <li>Partner 详情 · 调用统计 Tab — 已实现</li>
                 </ul>
               </div>
               <div class="sitemap-card" onclick="showView('webhook-log')">
-                <h3><span class="phase p1">P1</span> Webhook 投递</h3>
+                <h3><span class="phase p1">P1</span> <span class="phase dev-done">已实现</span> Webhook 投递</h3>
                 <ul>
-                  <li>投递日志列表 — 按 Partner / 事件类型</li>
-                  <li>重试状态、HTTP 状态码</li>
-                  <li>Partner 详情 · Webhook Tab 扩展</li>
+                  <li>投递日志列表 — GET /internal/admin/webhook-deliveries</li>
+                  <li><strong><span class="phase dev-todo">待开发</span></strong> 失败重试按钮 POST .../retry</li>
+                  <li>Partner 详情 · Webhook Tab — 已实现</li>
+                </ul>
+              </div>
+              <div class="sitemap-card" onclick="showView('integration-guide')">
+                <h3><span class="phase p1">P1</span> <span class="phase dev-todo">待开发</span> 联调观测增强</h3>
+                <ul>
+                  <li>凭证 Modal · 接入说明折叠面板 DeliveryGuidePanel</li>
+                  <li>调用记录 · 按 domain 筛选（instances / exports）</li>
+                  <li>引擎 Mock 模式说明（只读，配置在 open-api-service）</li>
                 </ul>
               </div>
               <div class="sitemap-card" onclick="showView('dashboard')">
-                <h3><span class="phase p2">P2</span> 运营看板</h3>
+                <h3><span class="phase p2">P2</span> <span class="phase dev-skip">仅原型</span> 运营看板</h3>
                 <ul>
                   <li>全局调用量 / 成功率 / Top 错误码</li>
                   <li>按 Partner / API 维度图表</li>
@@ -207,14 +277,14 @@
                 </ul>
               </div>
               <div class="sitemap-card" onclick="showView('api-catalog')">
-                <h3><span class="phase p2">P2</span> API 目录</h3>
+                <h3><span class="phase p2">P2</span> <span class="phase dev-done">已实现</span> API 目录</h3>
                 <ul>
                   <li>api_operation 只读列表</li>
                   <li>能力码 / 路径 / 方法对照 OpenAPI</li>
                 </ul>
               </div>
               <div class="sitemap-card" onclick="showView('quota')">
-                <h3><span class="phase p2">P2</span> 配额与限流</h3>
+                <h3><span class="phase p2">P2</span> <span class="phase dev-done">已实现</span> 配额与限流</h3>
                 <ul>
                   <li>Partner 级 QPS / 日配额报表</li>
                   <li>429 触发统计</li>
@@ -347,49 +417,141 @@
 
       <!-- ========== P1 调用记录 ========== -->
       <section id="view-invocation-list" class="view">
-        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / API 调用记录 <span class="phase p1">P1</span></div>
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / API 调用记录 <span class="phase p1">P1</span> <span class="phase dev-done">列表已实现</span> <span class="phase dev-todo">详情待开发</span></div>
         <div class="card"><div class="card-body">
           <div class="search-row">
             <div class="form-item"><label>partnerId</label><input placeholder="SOC-CLIENT-A" /></div>
             <div class="form-item"><label>时间范围</label><input type="date" /></div>
-            <div class="form-item"><label>operation</label><select><option>全部</option><option>POST /tasks</option><option>GET /tasks/{id}</option></select></div>
-            <div class="form-item"><label>code</label><select><option>全部</option><option>0</option><option>40101</option><option>40301</option></select></div>
+            <div class="form-item"><label>业务域</label><select><option>全部</option><option>tasks</option><option>instances</option><option>exports</option><option>auth</option></select></div>
+            <div class="form-item"><label>operation</label><select><option>全部</option><option>createTaskByJson</option><option>searchInstances</option><option>verifyInstance</option><option>remediateInstance</option></select></div>
+            <div class="form-item"><label>code</label><select><option>全部</option><option>0</option><option>40002</option><option>40003</option><option>40301</option></select></div>
             <button class="btn btn-primary" type="button">查询</button>
           </div>
         </div></div>
         <div class="card"><div class="card-body">
-          <div class="toolbar"><span class="api-path">GET /internal/admin/invocations</span></div>
+          <div class="toolbar"><span class="api-path">GET /internal/admin/invocations</span> <span class="helper">联调周重点：instances 写操作 resourceId=vulInfoID</span></div>
           <table>
-            <thead><tr><th>requestId</th><th>partnerId</th><th>接口</th><th>code</th><th>耗时</th><th>时间</th><th>操作</th></tr></thead>
+            <thead><tr><th>requestId</th><th>partnerId</th><th>domain</th><th>接口</th><th>resourceId</th><th>code</th><th>耗时</th><th>时间</th><th>操作</th></tr></thead>
             <tbody>
-              <tr><td><code>req-96af4debd568</code></td><td>SOC-CLIENT-A</td><td>POST /api/open/v1/tasks</td>
-                <td><span class="tag tag-green">0</span></td><td>128ms</td><td>14:02:11</td>
-                <td><span class="action-btn" onclick="openDrawer()">详情</span></td></tr>
-              <tr><td><code>req-fa2b4ad2735d</code></td><td>TEST-PARTNER</td><td>POST /oauth/token</td>
-                <td><span class="tag tag-red">40101</span></td><td>12ms</td><td>13:58:03</td>
-                <td><span class="action-btn" onclick="openDrawer()">详情</span></td></tr>
+              <tr><td><code>req-96af4debd568</code></td><td>SOC-CLIENT-A</td><td><span class="domain-badge">INSTANCE</span></td><td>POST .../instances/{id}/verify</td>
+                <td><code>VI-MOCK-0001</code></td><td><span class="tag tag-green">0</span></td><td>45ms</td><td>14:12:11</td>
+                <td><span class="action-btn" onclick="openInvocationDetail('instance')">详情</span>
+                  <span class="action-btn" onclick="openDrawer('instance')" style="color:var(--text-secondary)">预览</span></td></tr>
+              <tr><td><code>req-7c2e1a9b0034</code></td><td>SOC-CLIENT-A</td><td><span class="domain-badge">TASK</span></td><td>POST /tasks/vul</td>
+                <td><code>TASK-7f3a2b1c</code></td><td><span class="tag tag-green">0</span></td><td>128ms</td><td>14:02:11</td>
+                <td><span class="action-btn" onclick="openInvocationDetail('task')">详情</span>
+                  <span class="action-btn" onclick="openDrawer('task')" style="color:var(--text-secondary)">预览</span></td></tr>
+              <tr><td><code>req-fa2b4ad2735d</code></td><td>TEST-PARTNER</td><td><span class="domain-badge">AUTH</span></td><td>POST /oauth/token</td>
+                <td>—</td><td><span class="tag tag-red">40101</span></td><td>12ms</td><td>13:58:03</td>
+                <td><span class="action-btn" onclick="openInvocationDetail('auth')">详情</span>
+                  <span class="action-btn" onclick="openDrawer('auth')" style="color:var(--text-secondary)">预览</span></td></tr>
             </tbody>
           </table>
         </div></div>
       </section>
 
+      <!-- ========== P1 调用详情（全页 · 推荐方案） ========== -->
+      <section id="view-invocation-detail" class="view">
+        <div class="breadcrumb"><a onclick="showView('invocation-list')">API 调用记录</a> / 调用详情 <span class="phase dev-todo">原型 v4</span></div>
+        <div class="detail-page-header">
+          <div>
+            <h2 style="font-size:18px;font-weight:500;" id="inv-page-title">verifyInstance</h2>
+            <div class="detail-meta"><code id="inv-page-requestId">req-96af4debd56840c2</code> · SOC-CLIENT-A · <span id="inv-page-time">2026-05-21 14:12:11</span></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn" type="button" onclick="openDrawer(currentInvocationKind)">快速预览 Drawer</button>
+            <button class="btn" type="button" onclick="copyText(document.getElementById('inv-resp-body').textContent,'响应 JSON')">复制响应</button>
+            <button class="btn" type="button" onclick="showView('invocation-list')">返回列表</button>
+          </div>
+        </div>
+        <div class="detail-page-grid">
+          <div class="detail-sidebar">
+            <div class="card"><div class="card-title">概要</div><div class="card-body">
+              <div class="kv-row"><span class="k">operationId</span><span class="v" id="inv-s-op">—</span></div>
+              <div class="kv-row"><span class="k">HTTP</span><span class="v" id="inv-s-http">—</span></div>
+              <div class="kv-row"><span class="k">code</span><span class="v" id="inv-s-code">—</span></div>
+              <div class="kv-row"><span class="k">message</span><span class="v" id="inv-s-msg">—</span></div>
+              <div class="kv-row"><span class="k">耗时</span><span class="v" id="inv-s-latency">—</span></div>
+              <div class="kv-row"><span class="k">resourceType</span><span class="v" id="inv-s-res-type">—</span></div>
+              <div class="kv-row"><span class="k">resourceId</span><span class="v" id="inv-s-res-id">—</span></div>
+              <div class="kv-row"><span class="k">engineMode</span><span class="v"><span class="tag tag-orange">mock</span></span></div>
+            </div></div>
+            <div class="card"><div class="card-title">关联</div><div class="card-body">
+              <div class="kv-row"><span class="k">Webhook</span><span class="v"><a class="btn-link" onclick="showView('webhook-log');openWebhookDetail('wh-20260521-0002')">wh-20260521-0002</a></span></div>
+              <div class="kv-row"><span class="k">Partner</span><span class="v"><a class="btn-link" onclick="showView('partner-detail')">SOC-CLIENT-A</a></span></div>
+            </div></div>
+            <div class="card"><div class="card-title">调用链 Timeline</div><div class="card-body">
+              <div class="timeline" id="inv-timeline"></div>
+            </div></div>
+          </div>
+          <div>
+            <div class="card"><div class="card-title">请求头 / 响应头</div><div class="card-body payload-grid">
+              <div class="payload-box"><label>Request Headers</label><pre class="code-block" id="inv-req-headers"></pre></div>
+              <div class="payload-box"><label>Response Headers</label><pre class="code-block" id="inv-resp-headers"></pre></div>
+            </div></div>
+            <div class="card"><div class="card-title">请求体 / 响应体（完整 JSON）</div><div class="card-body payload-grid">
+              <div class="payload-box"><label>Request Body <button class="btn-link" type="button" onclick="copyText(document.getElementById('inv-req-body').textContent,'请求体')">复制</button></label><pre class="code-block" id="inv-req-body"></pre></div>
+              <div class="payload-box"><label>Response Body <button class="btn-link" type="button" onclick="copyText(document.getElementById('inv-resp-body').textContent,'响应体')">复制</button></label><pre class="code-block" id="inv-resp-body"></pre></div>
+            </div></div>
+            <div class="card" id="inv-error-card" style="display:none;"><div class="card-title">错误诊断</div><div class="card-body"><pre class="code-block" id="inv-error-body"></pre></div></div>
+          </div>
+        </div>
+        <p class="helper page-note" style="border:none;margin-top:0;">正式实现建议：<strong>列表默认跳转本全页</strong>（<code>/openPlatform/invocation/:requestId</code>）；Drawer 仅作快速预览。数据来自 <code>GET /internal/admin/invocations/{invocationId}</code>。</p>
+      </section>
+
       <!-- ========== P1 Webhook 日志（独立页） ========== -->
       <section id="view-webhook-log" class="view">
-        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / Webhook 投递日志 <span class="phase p1">P1</span></div>
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / Webhook 投递日志 <span class="phase p1">P1</span> <span class="phase dev-done">列表已实现</span> <span class="phase dev-todo">详情/重试·原型可点</span></div>
         <div class="card"><div class="card-body">
           <div class="search-row">
             <div class="form-item"><label>partnerId</label><input /></div>
-            <div class="form-item"><label>eventType</label><select><option>全部</option><option>TASK_COMPLETED</option><option>EXPORT_READY</option></select></div>
-            <div class="form-item"><label>投递状态</label><select><option>全部</option><option>成功</option><option>失败重试中</option></select></div>
+            <div class="form-item"><label>eventType</label><select><option>全部</option><option>TASK_COMPLETED</option><option>INSTANCE_STATUS_CHANGED</option><option>EXPORT_READY</option></select></div>
+            <div class="form-item"><label>投递状态</label><select><option>全部</option><option>成功</option><option>失败</option><option>重试中</option></select></div>
             <button class="btn btn-primary" type="button">查询</button>
           </div>
           <table style="margin-top:16px;">
-            <thead><tr><th>eventId</th><th>partnerId</th><th>eventType</th><th>callbackUrl</th><th>HTTP</th><th>重试次数</th><th>occurredAt</th></tr></thead>
+            <thead><tr><th>deliveryId</th><th>partnerId</th><th>eventType</th><th>callbackUrl</th><th>HTTP</th><th>重试</th><th>occurredAt</th><th>操作</th></tr></thead>
             <tbody>
-              <tr><td>evt-20260518-0002</td><td>SOC-CLIENT-A</td><td>EXPORT_READY</td><td>https://soc.../hooks</td><td>200</td><td>0</td><td>14:05</td></tr>
-              <tr><td>evt-20260518-0001</td><td>SOC-CLIENT-A</td><td>TASK_COMPLETED</td><td>https://soc.../hooks</td><td>502</td><td>3</td><td>14:00</td></tr>
+              <tr id="wh-row-0002"><td>wh-20260521-0002</td><td>SOC-CLIENT-A</td><td>INSTANCE_STATUS_CHANGED</td><td>https://soc.example.com/hooks/vuln</td><td><span class="tag tag-green">200</span></td><td id="wh-retry-0002">0</td><td>14:12</td>
+                <td><span class="action-btn" onclick="openWebhookDetail('wh-20260521-0002')">详情</span></td></tr>
+              <tr id="wh-row-0001"><td>wh-20260521-0001</td><td>SOC-CLIENT-A</td><td>TASK_COMPLETED</td><td>https://soc.example.com/hooks/vuln</td><td id="wh-http-0001"><span class="tag tag-orange">502</span></td><td id="wh-retry-0001">3</td><td>14:05</td>
+                <td><span class="action-btn" onclick="openWebhookDetail('wh-20260521-0001')">详情</span>
+                  <button class="btn btn-primary" style="height:24px;padding:0 8px;font-size:12px;" type="button" onclick="retryWebhook('wh-20260521-0001')">重试</button></td></tr>
             </tbody>
           </table>
+          <p class="helper" style="margin-top:12px;"><span class="api-path">POST /internal/admin/webhook-deliveries/{id}/retry</span> — 联调周建议补（Agent X / 前端小增强）</p>
+        </div></div>
+      </section>
+
+      <!-- ========== P1 联调与 Mock 说明 ========== -->
+      <section id="view-integration-guide" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / 联调与 Mock 说明 <span class="phase p1">P1</span></div>
+        <div class="mock-banner">
+          <strong>给运营 / 联调工程师</strong>：Partner 侧使用 mock 引擎时，本后台<strong>菜单不变</strong>，通过调用记录与 Webhook 日志观测即可。引擎切换在 open-api-service 配置，不在本页面操作。
+        </div>
+        <div class="card"><div class="card-title">联调环境检查清单</div><div class="card-body">
+          <table>
+            <thead><tr><th>项</th><th>配置位置</th><th>验收</th></tr></thead>
+            <tbody>
+              <tr><td>Mock 引擎</td><td><code>spring.profiles.active=mock</code></td><td>open-api 日志 Engine adapter mode: MOCK</td></tr>
+              <tr><td>Partner 凭证</td><td>本后台 · 合作方详情 · 生成凭证</td><td>curl Token 成功</td></tr>
+              <tr><td>Fixture 数据</td><td><code>mock/engine/bundles/default</code> → 生产包导入后替换</td><td>searchInstances 有数据</td></tr>
+              <tr><td>观测</td><td>API 调用记录 + Webhook 日志</td><td>实例 verify 后有 invocation + INSTANCE_STATUS_CHANGED</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+        <div class="card"><div class="card-title">本后台「待开发」小项（不阻塞 Partner mock 联调）</div><div class="card-body">
+          <table>
+            <thead><tr><th>优先级</th><th>组件</th><th>说明</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td>P1 高</td><td><code>InvocationDetail</code> 全页</td><td>请求/响应完整 JSON、Timeline、关联 Webhook；Drawer 仅快速预览</td><td><span class="phase dev-todo">原型 v4 已演示</span></td></tr>
+              <tr><td>P1 中</td><td>Webhook 重试按钮</td><td>失败投递一键 POST retry</td><td><span class="phase dev-todo">待开发</span></td></tr>
+              <tr><td>P0 收尾</td><td><code>DeliveryGuidePanel</code></td><td>凭证 Modal 内可折叠接入说明 + curl 示例</td><td><span class="phase dev-todo">待开发</span></td></tr>
+              <tr><td>P2</td><td>运营看板 Dashboard</td><td>全局统计页</td><td><span class="phase dev-skip">仅原型</span></td></tr>
+              <tr><td>P3</td><td>版本 / 告警 / SLA</td><td>三页</td><td><span class="phase dev-skip">仅原型</span></td></tr>
+            </tbody>
+          </table>
+          <p class="helper" style="margin-top:12px;">详见 <code>docs/internal/引擎对接与Mock模式方案.md</code> · <code>开放平台对外REST执行面-分期落地方案.md</code> §5.2</p>
         </div></div>
       </section>
 
@@ -415,7 +577,7 @@
         <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / API 目录 <span class="phase p2">P2</span></div>
         <div class="card"><div class="card-body">
           <div class="alert alert-info"><span>ℹ</span> 只读 · 数据来自 <code>api_operation</code>（Liquibase 种子与 OpenAPI 对齐）· 运营在 Partner 勾选<strong>能力码</strong>，本页展示能力对应的<strong>接口清单</strong></div>
-          <div class="catalog-meta">共 <strong id="catalogCount">17</strong> 个 operation · domain 业务域 · openapi_tag 与 OpenAPI tags 一致</div>
+          <div class="catalog-meta">共 <strong id="catalogCount">18</strong> 个 operation · domain 业务域 · openapi_tag 与 OpenAPI tags 一致</div>
           <div class="filter-chips" id="catalogTagFilters">
             <span class="filter-chip active" data-filter-tag="all">全部</span>
             <span class="filter-chip" data-filter-tag="auth">鉴权 auth</span>
@@ -458,9 +620,13 @@
                 <td><code>/oauth/token</code></td><td><span class="tag tag-default">NONE</span></td>
                 <td>获取 Partner 访问令牌</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
               <tr data-tag="tasks" data-domain="TASK" data-cap="TASK_WRITE" data-status="PUBLISHED">
-                <td><span class="domain-badge">TASK</span></td><td>tasks</td><td>createTask</td><td>POST</td>
-                <td><code>/api/open/v1/tasks</code></td><td><span class="tag tag-blue">TASK_WRITE</span></td>
-                <td>创建扫描任务</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+                <td><span class="domain-badge">TASK</span></td><td>tasks</td><td>createTaskByJson</td><td>POST</td>
+                <td><code>/api/open/v1/tasks/vul</code></td><td><span class="tag tag-blue">TASK_WRITE</span></td>
+                <td>JSON 创建扫描任务</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
+              <tr data-tag="tasks" data-domain="TASK" data-cap="TASK_WRITE" data-status="PUBLISHED">
+                <td><span class="domain-badge">TASK</span></td><td>tasks</td><td>createTaskByFile</td><td>POST</td>
+                <td><code>/api/open/v1/tasks/file</code></td><td><span class="tag tag-blue">TASK_WRITE</span></td>
+                <td>XML 文件创建任务</td><td><span class="tag tag-green">PUBLISHED</span></td></tr>
               <tr data-tag="tasks" data-domain="TASK" data-cap="TASK_READ" data-status="PUBLISHED">
                 <td><span class="domain-badge">TASK</span></td><td>tasks</td><td>listTasks</td><td>GET</td>
                 <td><code>/api/open/v1/tasks</code></td><td><span class="tag tag-blue">TASK_READ</span></td>
@@ -620,46 +786,548 @@
         </div></div>
       </section>
 
-      <footer class="page-note">全功能原型 v2 · 含 P0–P3 共 14 个视图 · 正式实现见 asset-openplatform-manage</footer>
+      <!-- ========== P1 运营案件列表 ========== -->
+      <section id="view-case-list" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / 运营案件 <span class="phase p1">方案三</span> <span class="phase dev-todo">待开发</span></div>
+        <div class="alert alert-info">
+          <span>ℹ</span>
+          <div><strong>open_operation_case</strong>：每次 Partner 写操作生成 <code>case_id</code>，替代「仅有 api_invocation 无业务句柄」。调用记录、Webhook、跃迁日志均挂案件。</div>
+        </div>
+        <div class="card"><div class="card-body">
+          <div class="search-row">
+            <div class="form-item"><label>partnerId</label><input placeholder="SOC-CLIENT-A" value="SOC-CLIENT-A" /></div>
+            <div class="form-item"><label>caseType</label>
+              <select id="caseTypeFilter">
+                <option value="">全部</option>
+                <option value="TASK_SCAN">TASK_SCAN 扫描编排</option>
+                <option value="INSTANCE_VERIFY">INSTANCE_VERIFY 验证</option>
+                <option value="INSTANCE_REMEDIATE">INSTANCE_REMEDIATE 处置</option>
+                <option value="VERIFY_FIX">VERIFY_FIX 修复核验</option>
+              </select>
+            </div>
+            <div class="form-item"><label>status</label>
+              <select><option>全部</option><option>ACCEPTED</option><option>RUNNING</option><option>FINISHED</option><option>FAILED</option></select>
+            </div>
+            <div class="form-item"><label>主资源 ID</label><input placeholder="taskId / vulInfoId / jobId" /></div>
+            <button class="btn btn-primary" type="button">查询</button>
+          </div>
+        </div></div>
+        <div class="card"><div class="card-body">
+          <div class="toolbar"><span class="api-path">GET /internal/admin/operation-cases</span></div>
+          <table>
+            <thead><tr><th>caseId</th><th>类型</th><th>标题</th><th>主资源</th><th>status</th><th>Partner</th><th>受理时间</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>CASE-a1b2c3d4e5f6</code></td>
+                <td><span class="case-type ct-task">TASK_SCAN</span></td>
+                <td>SOC 双阶段交叉扫描 · TASK-20260618-001</td>
+                <td><code>TASK-20260618-001</code></td>
+                <td><span class="tag tag-green">FINISHED</span></td>
+                <td>SOC-CLIENT-A</td><td>2026-06-18 09:12</td>
+                <td><span class="action-btn" onclick="openCaseWorkspace('CASE-a1b2c3d4e5f6')">工作台</span></td>
+              </tr>
+              <tr>
+                <td><code>CASE-b2c3d4e5f6a7</code></td>
+                <td><span class="case-type ct-verify">INSTANCE_VERIFY</span></td>
+                <td>验证实例 VI-MOCK-0001 → 已验证有效</td>
+                <td><code>VI-MOCK-0001</code></td>
+                <td><span class="tag tag-green">FINISHED</span></td>
+                <td>SOC-CLIENT-A</td><td>2026-06-18 14:12</td>
+                <td><span class="action-btn" onclick="openCaseWorkspace('CASE-b2c3d4e5f6a7')">工作台</span></td>
+              </tr>
+              <tr>
+                <td><code>CASE-c3d4e5f6a7b8</code></td>
+                <td><span class="case-type ct-remediate">INSTANCE_REMEDIATE</span></td>
+                <td>处置 VI-MOCK-0002 → 已修复(5)</td>
+                <td><code>VI-MOCK-0002</code></td>
+                <td><span class="tag tag-green">FINISHED</span></td>
+                <td>SOC-CLIENT-A</td><td>2026-06-18 15:30</td>
+                <td><span class="action-btn" onclick="openCaseWorkspace('CASE-c3d4e5f6a7b8')">工作台</span></td>
+              </tr>
+              <tr>
+                <td><code>CASE-d4e5f6a7b8c9</code></td>
+                <td><span class="case-type ct-vfix">VERIFY_FIX</span></td>
+                <td>修复核验 · 3 实例 · VFJ-20260618-01</td>
+                <td><code>VFJ-20260618-01</code></td>
+                <td><span class="tag tag-blue">RUNNING</span></td>
+                <td>SOC-CLIENT-A</td><td>2026-06-18 16:05</td>
+                <td><span class="action-btn" onclick="openCaseWorkspace('CASE-d4e5f6a7b8c9')">工作台</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="pagination"><span>共 4 条（原型样例）</span></div>
+        </div></div>
+      </section>
+
+      <!-- ========== P1 案件工作台（统一壳） ========== -->
+      <section id="view-case-workspace" class="view">
+        <div class="breadcrumb">
+          <a onclick="showView('case-list')">运营案件</a> / <span id="cw-breadcrumb-id">CASE-…</span>
+          <span class="phase p1">统一工作台</span>
+        </div>
+        <div class="detail-page-header">
+          <div>
+            <div class="detail-title" id="cw-title">—</div>
+            <div class="detail-meta" id="cw-meta">—</div>
+          </div>
+          <div>
+            <button class="btn" type="button" onclick="showView('case-list')">返回列表</button>
+            <button class="btn btn-primary" type="button" id="cw-retry-btn" style="display:none">重试下发</button>
+          </div>
+        </div>
+        <div class="stat-row" id="cw-stat-row"></div>
+        <div class="detail-page-grid">
+          <div class="detail-sidebar">
+            <div class="card">
+              <div class="card-title">案件信息</div>
+              <div class="card-body" id="cw-sidebar-kv"></div>
+            </div>
+            <div class="card">
+              <div class="card-title">关联跳转</div>
+              <div class="card-body">
+                <div class="case-link-grid" id="cw-link-grid"></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="tabs case-workspace-tabs" id="caseWsTabs">
+                <div class="tab active" data-cw-tab="payload">业务载荷</div>
+                <div class="tab" data-cw-tab="timeline">全链路时间线</div>
+                <div class="tab" data-cw-tab="invocations">API 调用</div>
+                <div class="tab" data-cw-tab="webhooks">Webhook</div>
+                <div class="tab" data-cw-tab="statelogs">状态跃迁</div>
+              </div>
+              <div id="cw-tab-payload" class="tab-panel active" style="padding:20px;">
+                <div id="cw-payload-body"></div>
+              </div>
+              <div id="cw-tab-timeline" class="tab-panel" style="padding:20px;">
+                <div class="timeline" id="cw-timeline"></div>
+              </div>
+              <div id="cw-tab-invocations" class="tab-panel" style="padding:20px;">
+                <span class="api-path">GET .../operation-cases/{caseId}/workspace → invocations[]</span>
+                <table style="margin-top:12px;"><thead><tr><th>requestId</th><th>operation</th><th>code</th><th>时间</th></tr></thead>
+                <tbody id="cw-inv-tbody"></tbody></table>
+              </div>
+              <div id="cw-tab-webhooks" class="tab-panel" style="padding:20px;">
+                <table><thead><tr><th>eventType</th><th>HTTP</th><th>时间</th></tr></thead>
+                <tbody id="cw-wh-tbody"></tbody></table>
+              </div>
+              <div id="cw-tab-statelogs" class="tab-panel" style="padding:20px;">
+                <table><thead><tr><th>vulInfoId</th><th>prev→stat</th><th>reason</th><th>时间</th></tr></thead>
+                <tbody id="cw-log-tbody"></tbody></table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="card-title">API <span class="api-path">GET /internal/admin/operation-cases/{caseId}/workspace</span></div>
+          <div class="card-body"><pre class="code-block" id="cw-api-sample">选择左侧列表「工作台」查看样例 JSON</pre></div>
+        </div>
+      </section>
+
+      <!-- ========== P1 方案说明 ========== -->
+      <section id="view-case-design" class="view">
+        <div class="breadcrumb"><a onclick="showView('overview')">开放平台</a> / 运营案件方案说明</div>
+        <div class="card">
+          <div class="card-title">方案三：open_operation_case 统一运营案件</div>
+          <div class="card-body" style="line-height:1.8;font-size:13px;">
+            <p>完整设计文档：<code>svmp/docs/internal/开放平台运营案件-open_operation_case-方案.md</code></p>
+            <h4 style="margin:16px 0 8px;">核心思路</h4>
+            <ul style="margin-left:20px;color:var(--text-secondary);">
+              <li><strong>治理平面</strong> <code>api_invocation</code> 记录每次 HTTP；<strong>业务平面</strong> <code>open_operation_case</code> 记录可运营「案件」</li>
+              <li>一个 Partner 写操作 → 一个 <code>case_id</code>；异步延续（VTC/Kafka）更新同一案件</li>
+              <li>统一工作台壳层 + 按 <code>case_type</code> 渲染业务面板（TASK_SCAN 复用 OPEN 编排数据）</li>
+            </ul>
+            <h4 style="margin:16px 0 8px;">case_type</h4>
+            <table>
+              <thead><tr><th>case_type</th><th>主资源</th><th>对应现有实体</th></tr></thead>
+              <tbody>
+                <tr><td><span class="case-type ct-task">TASK_SCAN</span></td><td>taskId</td><td>open_task + open_task_sub</td></tr>
+                <tr><td><span class="case-type ct-verify">INSTANCE_VERIFY</span></td><td>vulInfoId</td><td>open_vuln_instance + log</td></tr>
+                <tr><td><span class="case-type ct-remediate">INSTANCE_REMEDIATE</span></td><td>vulInfoId</td><td>open_vuln_instance + log</td></tr>
+                <tr><td><span class="case-type ct-vfix">VERIFY_FIX</span></td><td>verifyFixJobId</td><td>open_verify_fix_job + items</td></tr>
+              </tbody>
+            </table>
+            <h4 style="margin:16px 0 8px;">实施分期（估）</h4>
+            <ol style="margin-left:20px;color:var(--text-secondary);">
+              <li>W1：表 + 列表/详情壳 + invocation.case_id</li>
+              <li>W2：验证/处置/修复核验接入 + workspace payload</li>
+              <li>W3：TASK_SCAN 与 open_task 投影 + 前端统一路由</li>
+              <li>W4：历史回填 + 批量案件 + 运营重试</li>
+            </ol>
+            <button class="btn btn-primary" type="button" onclick="showView('case-list')" style="margin-top:16px;">查看列表原型</button>
+            <button class="btn" type="button" onclick="openCaseWorkspace('CASE-d4e5f6a7b8c9')" style="margin-top:16px;">查看修复核验工作台样例</button>
+          </div>
+        </div>
+      </section>
+
+      <footer class="page-note">全功能原型 v4 · 运营案件 open_operation_case · 可复制/重试/全页详情已可交互 · 打开：浏览器直接打开或 npx serve svmp</footer>
     </main>
   </div>
 </div>
 
-<!-- 调用详情 Drawer -->
+<!-- 调用详情 · 快速预览 Drawer -->
 <div id="invocationDrawer" class="drawer-overlay" onclick="if(event.target===this)closeDrawer()">
-  <div class="drawer">
-    <div class="drawer-header"><span>调用详情</span><button class="btn-link" onclick="closeDrawer()">×</button></div>
+  <div class="drawer drawer-full">
+    <div class="drawer-header"><span>调用详情 · 快速预览</span> <span class="helper">完整信息请用列表「详情」进入全页</span> <button class="btn-link" onclick="closeDrawer()">×</button></div>
     <div class="drawer-body">
-      <div class="kv-row"><span class="k">requestId</span><span class="v"><code>req-96af4debd56840c2</code></span></div>
-      <div class="kv-row"><span class="k">partnerId</span><span class="v">SOC-CLIENT-A</span></div>
-      <div class="kv-row"><span class="k">operation</span><span class="v">POST /api/open/v1/tasks</span></div>
-      <div class="kv-row"><span class="k">code</span><span class="v"><span class="tag tag-green">0</span></span></div>
-      <div class="kv-row"><span class="k">耗时</span><span class="v">128 ms</span></div>
-      <div class="kv-row"><span class="k">resourceId</span><span class="v"><code>TASK-7f3a2b1c</code> (taskId)</span></div>
-      <div class="kv-row"><span class="k">X-Partner-Id</span><span class="v">SOC-CLIENT-A（网关注入）</span></div>
-      <div class="kv-row"><span class="k">时间</span><span class="v">2026-05-18 14:02:11</span></div>
+      <div class="drawer-tabs" id="drawerTabs">
+        <div class="drawer-tab active" data-drawer-panel="summary">概要</div>
+        <div class="drawer-tab" data-drawer-panel="payload">请求/响应</div>
+        <div class="drawer-tab" data-drawer-panel="resource">关联资源</div>
+      </div>
+      <div id="drawer-panel-summary" class="drawer-panel active">
+        <div class="kv-row"><span class="k">requestId</span><span class="v"><code id="d-requestId">req-96af4debd56840c2</code></span></div>
+        <div class="kv-row"><span class="k">partnerId</span><span class="v">SOC-CLIENT-A</span></div>
+        <div class="kv-row"><span class="k">operationId</span><span class="v" id="d-operation">verifyInstance</span></div>
+        <div class="kv-row"><span class="k">HTTP</span><span class="v" id="d-http">POST /api/open/v1/instances/{vulInfoID}/verify</span></div>
+        <div class="kv-row"><span class="k">code</span><span class="v"><span class="tag tag-green">0</span></span></div>
+        <div class="kv-row"><span class="k">耗时</span><span class="v">45 ms</span></div>
+        <div class="kv-row"><span class="k">engineMode</span><span class="v"><span class="tag tag-orange">mock</span>（联调环境）</span></div>
+        <div class="kv-row"><span class="k">时间</span><span class="v">2026-05-21 14:12:11</span></div>
+      </div>
+      <div id="drawer-panel-payload" class="drawer-panel">
+        <p class="helper">GET /internal/admin/invocations/{invocationId} 返回摘要（待后端字段就绪）</p>
+        <pre class="code-block" id="d-payload">{
+  "verifyResult": "VALID",
+  "srcMethod": 1,
+  "operator": "zhangsan"
+}</pre>
+      </div>
+      <div id="drawer-panel-resource" class="drawer-panel">
+        <div class="kv-row"><span class="k">resourceType</span><span class="v" id="d-res-type">VULN_INSTANCE</span></div>
+        <div class="kv-row"><span class="k">resourceId</span><span class="v"><code id="d-res-id">VI-MOCK-0001</code></span></div>
+        <div class="kv-row"><span class="k">stat 变更</span><span class="v" id="d-stat">1 → 2（有效）</span></div>
+        <div class="kv-row"><span class="k">关联 taskId</span><span class="v"><code>TASK-7f3a2b1c</code></span></div>
+      </div>
     </div>
-    <div class="drawer-footer"><button class="btn" onclick="closeDrawer()">关闭</button></div>
+    <div class="drawer-footer">
+      <button class="btn btn-primary" type="button" onclick="closeDrawer();openInvocationDetail(currentInvocationKind)">打开全页详情</button>
+      <button class="btn" onclick="closeDrawer()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- Webhook 投递详情 Drawer -->
+<div id="webhookDrawer" class="drawer-overlay" onclick="if(event.target===this)closeWebhookDrawer()">
+  <div class="drawer drawer-full">
+    <div class="drawer-header"><span>Webhook 投递详情</span> <span id="wh-drawer-id"></span> <button class="btn-link" onclick="closeWebhookDrawer()">×</button></div>
+    <div class="drawer-body">
+      <div class="drawer-tabs" id="whDrawerTabs">
+        <div class="drawer-tab active" data-wh-panel="summary">概要</div>
+        <div class="drawer-tab" data-wh-panel="payload">投递报文</div>
+        <div class="drawer-tab" data-wh-panel="retries">重试历史</div>
+      </div>
+      <div id="wh-panel-summary" class="drawer-panel active"></div>
+      <div id="wh-panel-payload" class="drawer-panel"></div>
+      <div id="wh-panel-retries" class="drawer-panel"></div>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn btn-primary" id="wh-drawer-retry-btn" type="button" onclick="retryWebhook(currentWebhookId)">手动重试</button>
+      <button class="btn" type="button" onclick="copyWhEventJson()">复制事件 JSON</button>
+      <button class="btn" onclick="closeWebhookDrawer()">关闭</button>
+    </div>
   </div>
 </div>
 
 <!-- 凭证 Modal -->
 <div id="credentialModal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
   <div class="modal">
-    <div class="modal-header"><span>凭证已生成（仅显示一次）</span><button class="btn-link" onclick="closeModal()">×</button></div>
+    <div class="modal-header">
+      <span>凭证已生成<span class="modal-note">（clientSecret 仅本次展示 — 平台安全策略，非页面缺陷）</span></span>
+      <button class="btn-link" onclick="closeModal()">×</button>
+    </div>
     <div class="modal-body">
-      <div class="alert alert-error" style="margin-top:0;"><span>⚠</span> clientSecret 关闭后无法再次查看</div>
       <div class="secret-box">
-        <div class="secret-row"><span style="width:100px;color:var(--text-secondary)">clientId</span><code>cli_aabe1d70034b</code><button class="btn" type="button">复制</button></div>
-        <div class="secret-row"><span style="width:100px;color:var(--text-secondary)">clientSecret</span><code>ChKfotF9BhwNjqVJXfr4uAn5gPG5dpkd</code><button class="btn" type="button">复制</button></div>
+        <div class="secret-row"><span style="width:100px;color:var(--text-secondary)">clientId</span><code id="cred-client-id">cli_aabe1d70034b</code><button class="btn copy-btn" type="button" data-copy-target="cred-client-id">复制</button></div>
+        <div class="secret-row"><span style="width:100px;color:var(--text-secondary)">clientSecret</span><code id="cred-client-secret">ChKfotF9BhwNjqVJXfr4uAn5gPG5dpkd</code><button class="btn copy-btn" type="button" data-copy-target="cred-client-secret">复制</button></div>
+      </div>
+      <div style="margin:12px 0;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary copy-btn" type="button" id="copyCredBundle">复制完整接入包（JSON）</button>
+        <button class="btn copy-btn" type="button" id="copyCredCurl">复制 Token curl</button>
       </div>
       <p class="helper">Token: POST {公网}/oauth/token · API: {公网}/api/open/v1 · grantType: client_credentials</p>
+      <details open style="margin-top:16px;border:1px solid #f0f0f0;border-radius:2px;padding:12px;">
+        <summary style="cursor:pointer;font-weight:500;">▼ 第三方接入说明（DeliveryGuidePanel · 待开发）</summary>
+        <div style="margin-top:12px;font-size:13px;line-height:1.8;">
+          <div><strong>1. 获取 Token</strong></div>
+          <pre class="code-block">curl -X POST "{公网}/oauth/token" \
+  -d "grant_type=client_credentials&amp;client_id=cli_xxx&amp;client_secret=***"</pre>
+          <div style="margin-top:8px;"><strong>2. 创建任务（JSON）</strong></div>
+          <pre class="code-block">curl -X POST "{公网}/api/open/v1/tasks/vul" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{"extTaskId":"demo-001","taskName":"联调任务",...}'</pre>
+          <div style="margin-top:8px;"><strong>3. 联调环境</strong>：后端 mock 模式时实例数据来自 fixture，运营在「调用记录」观测。</div>
+          <button class="btn copy-btn" type="button" id="copyDeliveryGuide" style="margin-top:8px;">复制完整接入说明</button>
+        </div>
+      </details>
     </div>
     <div class="modal-footer"><button class="btn btn-primary" onclick="closeModal()">我已保存，关闭</button></div>
   </div>
 </div>
 
+<div id="toast" class="toast"></div>
+
 <script>
+  var currentInvocationKind = 'instance';
+  var currentWebhookId = null;
+
+  var PUBLIC_BASE = 'https://open.example.com';
+
+  function showToast(msg) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function () { el.classList.remove('show'); }, 2200);
+  }
+
+  function copyText(text, label) {
+    label = label || '内容';
+    if (!text) { showToast('无内容可复制'); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        showToast(label + ' 已复制到剪贴板');
+      }).catch(function () { fallbackCopy(text, label); });
+    } else {
+      fallbackCopy(text, label);
+    }
+  }
+
+  function fallbackCopy(text, label) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      showToast(label + ' 已复制');
+    } catch (e) {
+      showToast('复制失败，请手动选择文本');
+    }
+    document.body.removeChild(ta);
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-copy-target]');
+    if (btn) {
+      var id = btn.getAttribute('data-copy-target');
+      var node = document.getElementById(id);
+      if (node) copyText(node.textContent, btn.textContent.trim() || '字段');
+    }
+  });
+
+  document.getElementById('copyCredBundle').addEventListener('click', function () {
+    var bundle = {
+      clientId: document.getElementById('cred-client-id').textContent,
+      clientSecret: document.getElementById('cred-client-secret').textContent,
+      tokenUrl: PUBLIC_BASE + '/oauth/token',
+      apiBase: PUBLIC_BASE + '/api/open/v1',
+      grantType: 'client_credentials'
+    };
+    copyText(JSON.stringify(bundle, null, 2), '接入包 JSON');
+  });
+
+  document.getElementById('copyCredCurl').addEventListener('click', function () {
+    var cid = document.getElementById('cred-client-id').textContent;
+    var sec = document.getElementById('cred-client-secret').textContent;
+    copyText('curl -X POST "' + PUBLIC_BASE + '/oauth/token" -d "grant_type=client_credentials&client_id=' + cid + '&client_secret=' + sec + '"', 'Token curl');
+  });
+
+  document.getElementById('copyDeliveryGuide').addEventListener('click', function () {
+    copyText(document.querySelector('#credentialModal details').innerText, '接入说明');
+  });
+
+  var invocationMocks = {
+    instance: {
+      title: 'verifyInstance', requestId: 'req-96af4debd56840c2', time: '2026-05-21 14:12:11',
+      op: 'verifyInstance', http: 'POST /api/open/v1/instances/VI-MOCK-0001/verify',
+      code: '0', codeTag: 'tag-green', msg: 'success', latency: '45 ms',
+      resType: 'VULN_INSTANCE', resId: 'VI-MOCK-0001', stat: '1 → 2（有效）',
+      reqHeaders: 'Authorization: Bearer eyJ...\nX-Partner-Id: SOC-CLIENT-A\nContent-Type: application/json\nX-Request-Id: req-96af4debd56840c2',
+      respHeaders: 'Content-Type: application/json\nX-Request-Id: req-96af4debd56840c2',
+      reqBody: '{\n  "verifyResult": "VALID",\n  "srcMethod": 1,\n  "operator": "zhangsan",\n  "operatorPhone": "13800000000"\n}',
+      respBody: '{\n  "code": 0,\n  "message": "success",\n  "requestId": "req-96af4debd56840c2",\n  "data": {\n    "vulInfoID": "VI-MOCK-0001",\n    "vulInfoStat": 2,\n    "transferTime": "1716281531"\n  }\n}',
+      timeline: [
+        { t: '14:12:11.012', text: 'partner-gateway 鉴权通过，注入 X-Partner-Id' },
+        { t: '14:12:11.028', text: 'open-api InvocationPipeline · 状态机校验 stat∈{0,1}' },
+        { t: '14:12:11.041', text: 'mock 引擎更新 open_vuln_instance（adapter-mode=mock）' },
+        { t: '14:12:11.057', text: '写入 api_invocation · 触发 INSTANCE_STATUS_CHANGED Webhook' }
+      ]
+    },
+    task: {
+      title: 'createTaskByJson', requestId: 'req-7c2e1a9b0034', time: '2026-05-21 14:02:11',
+      op: 'createTaskByJson', http: 'POST /api/open/v1/tasks/vul',
+      code: '0', codeTag: 'tag-green', msg: 'success', latency: '128 ms',
+      resType: 'TASK', resId: 'TASK-7f3a2b1c', stat: '—',
+      reqHeaders: 'Authorization: Bearer eyJ...\nX-Partner-Id: SOC-CLIENT-A\nContent-Type: application/json',
+      respHeaders: 'Content-Type: application/json\nX-Request-Id: req-7c2e1a9b0034',
+      reqBody: '{\n  "extTaskId": "demo-001",\n  "taskName": "联调扫描任务",\n  "type": 1,\n  "targets": { "hosts": "10.0.0.1" },\n  "scanTemplateId": "TPL-001"\n}',
+      respBody: '{\n  "code": 0,\n  "data": {\n    "taskId": "TASK-7f3a2b1c",\n    "extTaskId": "demo-001",\n    "status": "ACCEPTED"\n  }\n}',
+      timeline: [
+        { t: '14:02:11.100', text: 'gateway capability TASK_WRITE 校验' },
+        { t: '14:02:11.180', text: 'mock 引擎 createTask MOCK-ENG-42' },
+        { t: '14:02:11.228', text: 'open_task 入库 · extTaskId 幂等键写入' }
+      ]
+    },
+    auth: {
+      title: 'issuePartnerToken', requestId: 'req-fa2b4ad2735d', time: '2026-05-21 13:58:03',
+      op: 'issuePartnerToken', http: 'POST /oauth/token',
+      code: '40101', codeTag: 'tag-red', msg: 'client_secret 无效', latency: '12 ms',
+      resType: '—', resId: '—', stat: '—',
+      reqHeaders: 'Content-Type: application/x-www-form-urlencoded',
+      respHeaders: 'Content-Type: application/json',
+      reqBody: 'grant_type=client_credentials&client_id=cli_wrong&client_secret=***',
+      respBody: '{\n  "code": 40101,\n  "message": "client_secret 无效"\n}',
+      error: '鉴权失败：client_id 存在但 secret 不匹配。请在本后台重新生成凭证。',
+      timeline: [
+        { t: '13:58:03.010', text: 'partner-gateway 转发 /oauth/token' },
+        { t: '13:58:03.022', text: 'open-api 校验 credential 失败 → 40101' }
+      ]
+    }
+  };
+
+  var webhookMocks = {
+    'wh-20260521-0002': {
+      id: 'wh-20260521-0002', partnerId: 'SOC-CLIENT-A', eventType: 'INSTANCE_STATUS_CHANGED',
+      http: 200, retry: 0, status: 'SUCCESS',
+      callbackUrl: 'https://soc.example.com/hooks/vuln',
+      occurredAt: '2026-05-21 14:12:08',
+      eventJson: '{\n  "eventType": "INSTANCE_STATUS_CHANGED",\n  "vulInfoID": "VI-MOCK-0001",\n  "vulInfoStat": 2,\n  "taskId": "TASK-7f3a2b1c"\n}',
+      responseBody: '{"received":true}',
+      retries: [{ at: '14:12:08', http: 200, note: '首次投递成功' }]
+    },
+    'wh-20260521-0001': {
+      id: 'wh-20260521-0001', partnerId: 'SOC-CLIENT-A', eventType: 'TASK_COMPLETED',
+      http: 502, retry: 3, status: 'FAILED',
+      callbackUrl: 'https://soc.example.com/hooks/vuln',
+      occurredAt: '2026-05-21 14:05:00',
+      eventJson: '{\n  "eventType": "TASK_COMPLETED",\n  "taskId": "TASK-7f3a2b1c",\n  "status": "FINISHED"\n}',
+      responseBody: '<html>502 Bad Gateway</html>',
+      retries: [
+        { at: '14:05:00', http: 502, note: 'Partner 网关不可用' },
+        { at: '14:06:00', http: 502, note: '自动重试 #1' },
+        { at: '14:08:00', http: 502, note: '自动重试 #2' },
+        { at: '14:12:00', http: 502, note: '自动重试 #3' }
+      ]
+    }
+  };
+
+  function fillInvocationUI(kind, prefix) {
+    var d = invocationMocks[kind] || invocationMocks.instance;
+    var set = function (id, val) { var el = document.getElementById(prefix + id); if (el) el.textContent = val; };
+    set('operation', d.op);
+    set('http', d.http);
+    set('res-type', d.resType);
+    set('res-id', d.resId);
+    set('stat', d.stat);
+    set('payload', d.reqBody);
+    if (prefix === 'd-') {
+      var rid = document.getElementById('d-requestId');
+      if (rid) rid.textContent = d.requestId;
+    }
+    if (prefix === 'inv-s-') {
+      document.getElementById('inv-page-title').textContent = d.title;
+      document.getElementById('inv-page-requestId').textContent = d.requestId;
+      document.getElementById('inv-page-time').textContent = d.time;
+      set('op', d.op);
+      set('http', d.http);
+      document.getElementById('inv-s-code').innerHTML = '<span class="tag ' + d.codeTag + '">' + d.code + '</span>';
+      set('msg', d.msg);
+      set('latency', d.latency);
+      set('res-type', d.resType);
+      set('res-id', d.resId);
+      document.getElementById('inv-req-headers').textContent = d.reqHeaders;
+      document.getElementById('inv-resp-headers').textContent = d.respHeaders;
+      document.getElementById('inv-req-body').textContent = d.reqBody;
+      document.getElementById('inv-resp-body').textContent = d.respBody;
+      var errCard = document.getElementById('inv-error-card');
+      if (d.error) { errCard.style.display = ''; document.getElementById('inv-error-body').textContent = d.error; }
+      else { errCard.style.display = 'none'; }
+      document.getElementById('inv-timeline').innerHTML = d.timeline.map(function (x) {
+        return '<div class="timeline-item' + (d.code !== '0' ? ' fail' : '') + '"><div class="t">' + x.t + '</div><div>' + x.text + '</div></div>';
+      }).join('');
+    }
+  }
+
+  function openInvocationDetail(kind) {
+    currentInvocationKind = kind || 'instance';
+    fillInvocationUI(currentInvocationKind, 'inv-s-');
+    fillInvocationUI(currentInvocationKind, 'd-');
+    showView('invocation-detail');
+  }
+
+  function openDrawer(kind) {
+    currentInvocationKind = kind || 'instance';
+    fillInvocationUI(currentInvocationKind, 'd-');
+    document.querySelectorAll('#drawerTabs .drawer-tab').forEach(function (t, i) { t.classList.toggle('active', i === 0); });
+    document.querySelectorAll('#invocationDrawer [id^="drawer-panel-"]').forEach(function (p, i) { p.classList.toggle('active', i === 0); });
+    document.getElementById('invocationDrawer').classList.add('show');
+  }
+
+  function closeDrawer() { document.getElementById('invocationDrawer').classList.remove('show'); }
+
+  function openWebhookDetail(id) {
+    currentWebhookId = id;
+    var w = webhookMocks[id];
+    if (!w) return;
+    document.getElementById('wh-drawer-id').textContent = id;
+    document.getElementById('wh-panel-summary').innerHTML =
+      '<div class="kv-row"><span class="k">deliveryId</span><span class="v"><code>' + w.id + '</code></span></div>' +
+      '<div class="kv-row"><span class="k">partnerId</span><span class="v">' + w.partnerId + '</span></div>' +
+      '<div class="kv-row"><span class="k">eventType</span><span class="v">' + w.eventType + '</span></div>' +
+      '<div class="kv-row"><span class="k">callbackUrl</span><span class="v">' + w.callbackUrl + '</span></div>' +
+      '<div class="kv-row"><span class="k">HTTP</span><span class="v"><span class="tag ' + (w.http === 200 ? 'tag-green' : 'tag-orange') + '">' + w.http + '</span></span></div>' +
+      '<div class="kv-row"><span class="k">重试次数</span><span class="v">' + w.retry + '</span></div>' +
+      '<div class="kv-row"><span class="k">状态</span><span class="v">' + w.status + '</span></div>';
+    document.getElementById('wh-panel-payload').innerHTML =
+      '<div class="payload-box"><label>事件 JSON（POST Body）</label><pre class="code-block" id="wh-event-json">' + w.eventJson + '</pre></div>' +
+      '<div class="payload-box"><label>Partner 响应</label><pre class="code-block">' + w.responseBody + '</pre></div>';
+    document.getElementById('wh-panel-retries').innerHTML = '<table><thead><tr><th>时间</th><th>HTTP</th><th>说明</th></tr></thead><tbody>' +
+      w.retries.map(function (r) { return '<tr><td>' + r.at + '</td><td>' + r.http + '</td><td>' + r.note + '</td></tr>'; }).join('') + '</tbody></table>';
+    document.getElementById('wh-drawer-retry-btn').style.display = w.http === 200 ? 'none' : '';
+    document.querySelectorAll('#whDrawerTabs .drawer-tab').forEach(function (t, i) { t.classList.toggle('active', i === 0); });
+    document.querySelectorAll('[id^="wh-panel-"]').forEach(function (p, i) { p.classList.toggle('active', i === 0); });
+    document.getElementById('webhookDrawer').classList.add('show');
+  }
+
+  function closeWebhookDrawer() { document.getElementById('webhookDrawer').classList.remove('show'); }
+
+  function copyWhEventJson() {
+    var el = document.getElementById('wh-event-json');
+    if (el) copyText(el.textContent, '事件 JSON');
+    else showToast('请先在「投递报文」Tab 查看');
+  }
+
+  function retryWebhook(id) {
+    id = id || currentWebhookId;
+    var w = webhookMocks[id];
+    if (!w) return;
+    if (!confirm('确认对 ' + id + ' 发起手动重试？\nPOST /internal/admin/webhook-deliveries/' + id + '/retry')) return;
+    w.retry += 1;
+    w.retries.push({ at: new Date().toTimeString().slice(0, 8), http: 200, note: '手动重试成功（原型模拟）' });
+    w.http = 200;
+    w.status = 'SUCCESS';
+    var httpEl = document.getElementById('wh-http-0001');
+    var retryEl = document.getElementById('wh-retry-0001');
+    if (httpEl) httpEl.innerHTML = '<span class="tag tag-green">200</span>';
+    if (retryEl) retryEl.textContent = w.retry;
+    showToast('重试成功 · HTTP 200（原型模拟）');
+    if (document.getElementById('webhookDrawer').classList.contains('show')) openWebhookDetail(id);
+  }
+
+  document.getElementById('whDrawerTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.drawer-tab[data-wh-panel]');
+    if (!tab) return;
+    document.querySelectorAll('#whDrawerTabs .drawer-tab').forEach(function (t) { t.classList.remove('active'); });
+    document.querySelectorAll('[id^="wh-panel-"]').forEach(function (p) { p.classList.remove('active'); });
+    tab.classList.add('active');
+    document.getElementById('wh-panel-' + tab.dataset.whPanel).classList.add('active');
+  });
   function showView(name) {
     document.querySelectorAll('.view').forEach(function (el) {
       el.classList.toggle('active', el.id === 'view-' + name);
@@ -680,10 +1348,17 @@
     tab.classList.add('active');
     document.getElementById('ptab-' + tab.dataset.tab).classList.add('active');
   });
-  function openDrawer() { document.getElementById('invocationDrawer').classList.add('show'); }
-  function closeDrawer() { document.getElementById('invocationDrawer').classList.remove('show'); }
   function openModal() { document.getElementById('credentialModal').classList.add('show'); }
   function closeModal() { document.getElementById('credentialModal').classList.remove('show'); }
+
+  document.getElementById('drawerTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.drawer-tab[data-drawer-panel]');
+    if (!tab) return;
+    document.querySelectorAll('#drawerTabs .drawer-tab').forEach(function (t) { t.classList.remove('active'); });
+    document.querySelectorAll('[id^="drawer-panel-"]').forEach(function (p) { p.classList.remove('active'); });
+    tab.classList.add('active');
+    document.getElementById('drawer-panel-' + tab.dataset.drawerPanel).classList.add('active');
+  });
   ['openCredential', 'openCredential2', 'openCredential3'].forEach(function (id) {
     var el = document.getElementById(id);
     if (el) el.addEventListener('click', openModal);
@@ -754,6 +1429,127 @@
   });
   document.getElementById('docOpenYaml').addEventListener('click', function () {
     window.open(docUrls.yaml, '_blank');
+  });
+
+  /* ========== 运营案件 open_operation_case 原型 ========== */
+  var caseMocks = {
+    'CASE-a1b2c3d4e5f6': {
+      caseId: 'CASE-a1b2c3d4e5f6', caseType: 'TASK_SCAN', status: 'FINISHED', partnerId: 'SOC-CLIENT-A',
+      title: 'SOC 双阶段交叉扫描', primaryResourceId: 'TASK-20260618-001',
+      stats: [{ label: '子任务', value: '4' }, { label: '实例', value: '12' }, { label: '存活 IP', value: '8' }, { label: '进度', value: '100%' }],
+      retry: false,
+      payloadHtml: '<p class="helper" style="margin-bottom:12px;">payload 复用 <code>OpenTaskWorkspaceDto</code>：排查/验证子任务、实例统计、survey 结果入口。</p>' +
+        '<table><thead><tr><th>阶段</th><th>subId</th><th>scanner</th><th>status</th><th>surveyId</th></tr></thead><tbody>' +
+        '<tr><td>排查</td><td>SUB-001</td><td>绿盟</td><td><span class="tag tag-green">FINISHED</span></td><td>SV-10001</td></tr>' +
+        '<tr><td>验证</td><td>SUB-003</td><td>Nessus</td><td><span class="tag tag-green">FINISHED</span></td><td>SV-10003</td></tr>' +
+        '<tr><td>验证</td><td>SUB-004</td><td>绿盟</td><td><span class="tag tag-green">FINISHED</span></td><td>SV-10004</td></tr></tbody></table>',
+      timeline: [{ t: '09:12:01', text: 'ACCEPTED · createTaskByJson' }, { t: '09:12:05', text: '排查子任务下发 VTC' }, { t: '10:40:00', text: '验证阶段自动触发 UNION' }, { t: '12:00:00', text: 'FINISHED · TASK_COMPLETED Webhook' }],
+      invocations: [{ rid: 'req-task-001', op: 'createTaskByJson', code: '0', at: '09:12' }],
+      webhooks: [{ et: 'TASK_COMPLETED', http: 200, at: '12:00' }, { et: 'EXPORT_READY', http: 200, at: '12:01' }],
+      logs: [{ vid: 'VI-001', chg: 'null→1', reason: 'SURVEY_INGEST', at: '10:05' }, { vid: 'VI-001', chg: '1→2', reason: 'VERIFY_PHASE', at: '11:50' }],
+      links: [{ t: 'open_task', id: 'TASK-20260618-001' }, { t: 'api_invocation', id: 'req-task-001' }]
+    },
+    'CASE-b2c3d4e5f6a7': {
+      caseId: 'CASE-b2c3d4e5f6a7', caseType: 'INSTANCE_VERIFY', status: 'FINISHED', partnerId: 'SOC-CLIENT-A',
+      title: '验证 VI-MOCK-0001', primaryResourceId: 'VI-MOCK-0001',
+      stats: [{ label: '前置状态', value: '1' }, { label: '结果状态', value: '2' }, { label: 'verifyResult', value: 'VALID' }, { label: '耗时', value: '45ms' }],
+      retry: false,
+      payloadHtml: '<div class="kv-row"><span class="k">vulInfoId</span><span class="v"><code>VI-MOCK-0001</code></span></div>' +
+        '<div class="kv-row"><span class="k">verifyResult</span><span class="v">VALID → vulInfoStat=2</span></div>' +
+        '<div class="kv-row"><span class="k">srcMethod</span><span class="v">1026</span></div>' +
+        '<pre class="code-block" style="margin-top:12px;">{"verifyResult":"VALID","operator":"ops@soc","srcMethod":1026}</pre>',
+      timeline: [{ t: '14:12:11', text: 'ACCEPTED · verifyInstance' }, { t: '14:12:11', text: 'STATE_CHANGED 1→2 · PARTNER_VERIFY' }, { t: '14:12:11', text: 'FINISHED（同步）' }],
+      invocations: [{ rid: 'req-96af4debd568', op: 'verifyInstance', code: '0', at: '14:12' }],
+      webhooks: [{ et: 'INSTANCE_UPDATED', http: 200, at: '14:12' }],
+      logs: [{ vid: 'VI-MOCK-0001', chg: '1→2', reason: 'PARTNER_VERIFY', at: '14:12' }],
+      links: [{ t: 'open_vuln_instance', id: 'VI-MOCK-0001' }, { t: '来源 task', id: 'TASK-20260618-001' }]
+    },
+    'CASE-c3d4e5f6a7b8': {
+      caseId: 'CASE-c3d4e5f6a7b8', caseType: 'INSTANCE_REMEDIATE', status: 'FINISHED', partnerId: 'SOC-CLIENT-A',
+      title: '处置 VI-MOCK-0002', primaryResourceId: 'VI-MOCK-0002',
+      stats: [{ label: '前置', value: '2' }, { label: '结果', value: '5' }, { label: 'srcMethod', value: '1050' }, { label: '耗时', value: '62ms' }],
+      retry: false,
+      payloadHtml: '<div class="kv-row"><span class="k">vulInfoStat</span><span class="v">5 已修复</span></div>' +
+        '<div class="kv-row"><span class="k">remedDesc</span><span class="v">已打补丁 KB5001234</span></div>' +
+        '<div class="kv-row"><span class="k">remedTime</span><span class="v">2026-06-18T15:30:00Z</span></div>',
+      timeline: [{ t: '15:30:00', text: 'ACCEPTED · remediateInstance' }, { t: '15:30:00', text: 'STATE_CHANGED 2→5' }, { t: '15:30:00', text: 'FINISHED' }],
+      invocations: [{ rid: 'req-remed-001', op: 'remediateInstance', code: '0', at: '15:30' }],
+      webhooks: [{ et: 'INSTANCE_UPDATED', http: 200, at: '15:30' }],
+      logs: [{ vid: 'VI-MOCK-0002', chg: '2→5', reason: 'PARTNER_REMEDIATE', at: '15:30' }],
+      links: [{ t: 'open_vuln_instance', id: 'VI-MOCK-0002' }]
+    },
+    'CASE-d4e5f6a7b8c9': {
+      caseId: 'CASE-d4e5f6a7b8c9', caseType: 'VERIFY_FIX', status: 'RUNNING', partnerId: 'SOC-CLIENT-A',
+      title: '修复核验 VFJ-20260618-01', primaryResourceId: 'VFJ-20260618-01',
+      stats: [{ label: '目标实例', value: '3' }, { label: '已完成', value: '1' }, { label: 'VTC 进度', value: '67%' }, { label: 'surveyId', value: 'SV-VF-88' }],
+      retry: true,
+      payloadHtml: '<p class="helper" style="margin-bottom:12px;">对齐 OPEN 编排：VTC 复扫子任务 + 逐项比对跃迁 6/7/10。</p>' +
+        '<div class="kv-row"><span class="k">verifyFixJobId</span><span class="v"><code>VFJ-20260618-01</code></span></div>' +
+        '<div class="kv-row"><span class="k">center_sub_id</span><span class="v">OVSUB-vf-001</span></div>' +
+        '<div class="kv-row"><span class="k">surveyId</span><span class="v">SV-VF-88</span></div>' +
+        '<table style="margin-top:12px;"><thead><tr><th>vulInfoId</th><th>前</th><th>结果</th><th>复扫匹配</th><th>item</th></tr></thead><tbody>' +
+        '<tr><td>VI-MOCK-0003</td><td>5</td><td><span class="tag tag-green">6</span></td><td>未检出</td><td>DONE</td></tr>' +
+        '<tr><td>VI-MOCK-0004</td><td>5</td><td>—</td><td>—</td><td>PENDING</td></tr>' +
+        '<tr><td>VI-MOCK-0005</td><td>5</td><td>—</td><td>—</td><td>PENDING</td></tr></tbody></table>' +
+        '<div style="margin-top:12px;"><button class="btn" type="button">导入复扫 XML</button> <button class="btn" type="button">比对完成</button></div>',
+      timeline: [{ t: '16:05:00', text: 'ACCEPTED · verifyFixInstance ×3 batch' }, { t: '16:05:02', text: 'open_verify_fix_job 创建' }, { t: '16:06:00', text: 'VTC 复扫下发 DISPATCHED' }, { t: '16:20:00', text: 'RUNNING · 进度 67%' }],
+      invocations: [{ rid: 'req-vf-batch', op: 'verifyFixInstanceBatch', code: '0', at: '16:05' }],
+      webhooks: [],
+      logs: [{ vid: 'VI-MOCK-0003', chg: '5→6', reason: 'VERIFY_FIX_COMPLETE', at: '16:18' }],
+      links: [{ t: 'open_verify_fix_job', id: 'VFJ-20260618-01' }, { t: 'VTC sub', id: 'OVSUB-vf-001' }]
+    }
+  };
+
+  var caseTypeLabel = { TASK_SCAN: '扫描编排', INSTANCE_VERIFY: '实例验证', INSTANCE_REMEDIATE: '实例处置', VERIFY_FIX: '修复核验' };
+
+  function openCaseWorkspace(caseId) {
+    var c = caseMocks[caseId];
+    if (!c) { showToast('未知案件 ' + caseId); return; }
+    document.getElementById('cw-breadcrumb-id').textContent = caseId;
+    document.getElementById('cw-title').textContent = c.title;
+    document.getElementById('cw-meta').textContent = caseTypeLabel[c.caseType] + ' · ' + c.status + ' · ' + c.partnerId;
+    document.getElementById('cw-stat-row').innerHTML = c.stats.map(function (s) {
+      return '<div class="stat-card"><div class="label">' + s.label + '</div><div class="value">' + s.value + '</div></div>';
+    }).join('');
+    document.getElementById('cw-sidebar-kv').innerHTML =
+      '<div class="kv-row"><span class="k">caseId</span><span class="v"><code>' + c.caseId + '</code></span></div>' +
+      '<div class="kv-row"><span class="k">caseType</span><span class="v">' + c.caseType + '</span></div>' +
+      '<div class="kv-row"><span class="k">status</span><span class="v">' + c.status + '</span></div>' +
+      '<div class="kv-row"><span class="k">主资源</span><span class="v"><code>' + c.primaryResourceId + '</code></span></div>';
+    document.getElementById('cw-link-grid').innerHTML = c.links.map(function (l) {
+      return '<div class="case-link-card"><strong>' + l.t + '</strong><code>' + l.id + '</code></div>';
+    }).join('');
+    document.getElementById('cw-payload-body').innerHTML = c.payloadHtml;
+    document.getElementById('cw-timeline').innerHTML = c.timeline.map(function (x) {
+      return '<div class="timeline-item"><div class="t">' + x.t + '</div><div>' + x.text + '</div></div>';
+    }).join('');
+    document.getElementById('cw-inv-tbody').innerHTML = c.invocations.map(function (r) {
+      return '<tr><td><code>' + r.rid + '</code></td><td>' + r.op + '</td><td><span class="tag tag-green">' + r.code + '</span></td><td>' + r.at + '</td></tr>';
+    }).join('');
+    document.getElementById('cw-wh-tbody').innerHTML = (c.webhooks.length ? c.webhooks : [{ et: '—', http: '—', at: '—' }]).map(function (w) {
+      return '<tr><td>' + w.et + '</td><td>' + w.http + '</td><td>' + w.at + '</td></tr>';
+    }).join('');
+    document.getElementById('cw-log-tbody').innerHTML = c.logs.map(function (l) {
+      return '<tr><td><code>' + l.vid + '</code></td><td>' + l.chg + '</td><td>' + l.reason + '</td><td>' + l.at + '</td></tr>';
+    }).join('');
+    document.getElementById('cw-api-sample').textContent = JSON.stringify({
+      case: { caseId: c.caseId, caseType: c.caseType, status: c.status, primaryResourceId: c.primaryResourceId },
+      timeline: c.timeline, invocations: c.invocations, stateLogs: c.logs, payload: '(按 caseType 多态)'
+    }, null, 2);
+    document.getElementById('cw-retry-btn').style.display = c.retry ? '' : 'none';
+    document.querySelectorAll('#caseWsTabs .tab').forEach(function (t, i) { t.classList.toggle('active', i === 0); });
+    document.querySelectorAll('[id^="cw-tab-"]').forEach(function (p, i) { p.classList.toggle('active', i === 0); });
+    showView('case-workspace');
+  }
+
+  document.getElementById('caseWsTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab[data-cw-tab]');
+    if (!tab) return;
+    var name = tab.dataset.cwTab;
+    document.querySelectorAll('#caseWsTabs .tab').forEach(function (t) { t.classList.remove('active'); });
+    document.querySelectorAll('[id^="cw-tab-"]').forEach(function (p) { p.classList.remove('active'); });
+    tab.classList.add('active');
+    document.getElementById('cw-tab-' + name).classList.add('active');
   });
 </script>
 </body>

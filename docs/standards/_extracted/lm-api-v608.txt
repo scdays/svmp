@@ -1,0 +1,1626 @@
+
+
+绿盟远程安全评估系统
+API接口文档
+
+
+
+
+
+
+
+
+
+
+文档版本： V6.0.8  (2023-04-03)
+(c) 2026 绿盟科技
+■ 版权声明本文中出现的任何文字叙述、文档格式、插图、照片、方法、过程等内容，除另有特别注明，版权均属绿盟科技（简称）所有，受到有关产权及版权法保护。任何个人、机构未经的书面授权许可，不得以任何方式复制或引用本文的任何片断。
+
+
+■ Release NotesV6.0.11. 新增2.1.7章节，创建镜像扫描任务接口
+2. 新增2.5章节，离线报表生成、下载接口；
+3. 禁用TLS1.0、1.1，支持TLS1.2V6.0.21. config.xml中，增加存活探测速度标签sping_delay
+2. config.xml中，port_strategy字段支持全端口扫描配置V6.0.31. config.xml中，增加存活判断类型
+2. 新增2.1.8章节，创建代码审计任务
+3. 新增2.2.5章节，代码审计模板列表获取
+4. 新增2.6章节，Agent相关接口
+5. 新增A.13，代码审计任务结果格式
+6. 新增A.14，全量信息收集任务配置文件
+7. 新增A.15，Agent扫描任务配置文件V6.0.41. 更新2.3.1获取系统状态接口，增加证书及网络信息
+2. 更新2.1.16 获取任务结果接口，web扫描任务结果增加站点风险值
+3. config.xml和create_task_by_vul.xml中，增加OpenSSH版本检测
+4. create_task_by_pwd.xml中，增加Onvif 弱口令检测
+5. 新增2.1.17章节，下发认证数据V6.0.51. config.xml和create_task_by_vul.xml中，增加NTP远程版本检测V6.0.61. 新增2.1.9主机资产扫描接口/api/task/hostassets/create
+2. 新增2.1.10 web资产扫描接口/api/task/webassets/create
+3. 新增2.2.6资产模板列表获取接口/api/template/asset/list
+4. 新增2.2.1报表模板获取接口/api/report/template/list
+5. 更新2.5.2生成报表接口api/generate_report/，增加报表模板id参数   summary_template_id和host_template_idV6.0.71. 更新获取任务结果接口（/api/report/task/{task_id}）当是web扫描任务时，结果增加scanned_page_num、vuln_page_num、scanned_url_num、found_url_num、scanned_num、time_delta、have_confirm和not_confirm等字段，字段说明详见附录A11,适用V6.0R04F02及以上版本V6.0.81. create_task_by_web.xml中，增加模拟浏览器渲染页面和最大页面并发数参数
+目录
+目录	i
+1 通用约定	1
+1.1 数据格式	1
+1.1.1 标准请求格式	1
+1.1.2 标准返回格式	2
+1.2 认证	2
+1.2.1 UsernamePassword认证	2
+1.2.2 Basic认证	2
+1.2.3 认证过程	3
+2 接口列表	4
+2.1 任务	4
+2.1.1 创建任务	4
+2.1.2 创建漏洞扫描任务	6
+2.1.3 创建配置核查任务	7
+2.1.4 创建口令猜测任务	8
+2.1.5 创建Web应用扫描任务	9
+2.1.6 创建离线扫描任务	9
+2.1.7 创建镜像扫描任务	10
+2.1.8 创建代码审计任务	10
+2.1.9 创建主机资产探测任务	11
+2.1.10 创建web资产探测任务	12
+2.1.11 任务状态	12
+2.1.12 任务暂停	14
+2.1.13 任务继续扫描（仅针对暂停状态任务）	16
+2.1.14 任务停止	16
+2.1.15 删除任务	17
+2.1.16 任务列表	18
+2.1.17 正在运行任务列表	21
+2.1.18 获取任务结果	22
+2.1.19 认证数据下发	23
+2.1.20 扫描登录认证	25
+2.2 模板	27
+2.2.1 系统漏洞模板列表获取	27
+2.2.2 web漏洞模板列表获取	29
+2.2.3 配置模板列表获取	30
+2.2.4 配置模板参数获取	32
+2.2.5 代码审计模板列表获取	33
+2.2.6 资产模板列表获取	35
+2.2.7 配置模板下发	37
+2.2.8 密码字典获取	38
+2.2.9 密码字典下发	40
+2.3 系统	42
+2.3.1 获取系统状态	42
+2.4 日志	47
+2.4.1 获取审计日志	47
+2.5 报表	49
+2.5.1 报表模板	49
+2.5.2 生成报表	50
+2.5.3 获取报表生成进度	52
+2.5.4 下载报表zip文件	54
+2.6 Agent接口	54
+2.6.1 获取agent方案配置	54
+2.6.2 配置agent方案	56
+2.6.3 获取agent授权	57
+2.6.4 获取agent下载链接	58
+2.6.5 Agent下载	60
+2.6.6 新建任务支持全量信息收集任务	60
+2.6.7 新建任务支持全量Agent扫描任务	60
+A 附录	61
+A.1 config.xml示例	61
+A.2 创建任务python代码示例	61
+A.3 单独漏洞扫描任务配置文件内容格式	62
+A.4 单独配置扫描任务配置文件内容格式	62
+A.5 单独口令猜测任务配置文件内容格式	62
+A.6 Web扫描任务配置文件内容格式	62
+A.7 系统扫描任务结果格式	62
+A.8 单独漏洞扫描任务结果格式	63
+A.9 单独配置任务结果格式	63
+A.10 单独口令猜测任务结果格式	63
+A.11 Web扫描任务结果格式	63
+A.12 镜像扫描任务结果格式	63
+A.13 代码审计任务结果格式	64
+A.14 全量信息收集任务配置文件	64
+A.15 Agent扫描任务配置文件	64
+
+
+1  通用约定
+1.1  数据格式
+1.1.1  标准请求格式
+URL：
+https://{device_ip}/api/{api_name}?{query_string}
+参数说明：
+参数说明{device_ip}设备ip或对应host名称{api_name}接口路径，其中{task_id}代表任务号{query_string}由全局参数部分和具体API调用参数部分组成；对于POST请求，{query_string}应该放在POST参数中传递全局参数：
+字段名类型备注是否必须usernameString登录用户名：使用http参数认证时需要NpasswordString登录密码：使用http参数认证时需要NformatString返回值类型：json,xml（默认为json）N编码：
+请求参数，返回内容统一采用utf8编码
+
+
+1.1.2  标准返回格式
+json{
+"ret_code": 0,
+"ret_msg": "success",
+"data": object
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<object></object>
+</data>
+</aurora>HTTP返回码说明
+HTTP STATUS CODE说明200系统标准响应401未认证，或者认证失败403未授权使用404无此接口405方法不被允许1.2  认证
+1.2.1  UsernamePassword认证
+通过url参数形式传输用户密码
+1.2.2  Basic认证
+Request header
+Authorization: Basic base64_encode(username+password)
+1.2.3  认证过程
+首先判断url里是否有用户名和密码两个参数，如果都有开始UsernamePassword认证，失败返回http401，url没有这两个参数，向客户端发起basic认证请求，客户端再次请求需要带上basic认证相关参数，再进行认证，失败返回http401。
+
+2  接口列表
+2.1  任务
+2.1.1  创建任务
+URL：/api/task/create
+RSAS版本：V6.0R02F00
+请求方式：POST
+请求参数：
+字段名类型备注是否必须typeuint1,2,3,4,8 默认为1
+1:漏洞扫描任务（v）
+2:配置核查任务（b）
+3:系统评估任务 + 配置核查任务（v+b）
+4:口令猜测任务（pwd）
+8:web应用扫描任务
+说明：指定任务类型的目的是为了验证xml的合法性Yconfig_xmlfile任务配置xml: 对应任务类型的xml参考附录Y说明：
+通过xml文件创建任务可以指定详细的任务配置，下边还有4个对应单类型任务接口，用于创建简单配置的任务。xml中的targets的ip配置格式请参考单独漏扫的格式。
+注意：
+任务配置xml中的targets的IP数限制最大1个B（65535）。在web扫描的targets配置中url的限制为5个。
+接口调用示例如下所示：
+任务配置XML：参见附录 A.1 config.xml示例
+* 调用方式1：Python代码：参见附录A.2 创建任务python代码示例
+* 调用方式2：Form表单：
+
+Form表单效果如下：
+
+正常返回结果：注意此结果的返回形式可以在请求参数中配置format。
+json{
+"data": {
+"task_id": task_id
+},
+"ret_msg": "success",
+"ret_code": 0
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<task_id>task_id</task_id>
+</data>
+</aurora>异常返回结果：
+json{
+"data": {
+错误信息说明
+},
+"ret_msg": 错误信息,
+"ret_code": 错误代码
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>错误代码</ret_code>
+<ret_msg>错误信息</ret_msg>
+<data>
+错误信息说明
+</data>
+</aurora>参数说明：
+ret_coderet_msg-1配置文件异常-2系统异常（创建任务失败、读写配置文件出错）
+2.1.2  创建漏洞扫描任务
+URL：/api/task/vul/create
+RSAS版本：V6.0R02F00
+请求方式：POST
+请求参数：
+字段名类型备注是否必须nameString任务名称YtargetsString扫描目标：
+系统任务为IP或者IP段范围，以";"隔开,最多默认5个IP或者IP段;
+示例:192.168.0.1
+192.168.1.1-254
+192.168.1.1/24
+192.168.1.*
+192.168.1-10.*
+!10.16.10.1
+!10.16.10.2-222
+2001:0DB8:0000:0000:0000:0000:1428:07ab
+2001:0DB8:0:0:0:0:1428:07ab
+2001:DB8::1428:7abYtemplate_iduint漏洞模板：
+默认值为0，即自动匹配扫描N接口调用示例：
+'https://' + host + '/api/task/vul/create?username=' + username + '&password=' + password + '&format=' + result_format
+调用方式：Form表单
+
+Form表单效果：
+
+返回结果：
+正常返回结果和异常返回结果同接口 创建任务 /api/task/create
+2.1.3  创建配置核查任务
+URL：/api/task/baseline/create
+RSAS版本：V6.0R02F00
+请求方式：POST
+请求参数
+字段名类型备注是否必须nameString任务名称YtargetsString扫描目标：
+系统任务为IP或IP段，以";"隔开,默认最多5个IP或者IP段 请参考漏扫Ip格式Ylogin_typeString登录方式：
+SSH,TELNET,SMB,RDP,HTTP,HTTPS,WinRM 只能设置一种登录方式Ylogin_portString登录端口：Ylogin_nameString登录用户名Ylogin_passwordString登录密码Ytemplate_uuidString配置模板uuidYtemplate_paramString配置模板参数：json格式
+{"quote1:type"::"value1", "quote2:type":"value2"}
+无参数的模板写为{}
+说明：type可选值为：text或password ，
+text为一般性标志，password为密码 标志Y说明：
+此接口只能设置一种认证方式和一个配置扫描模板，要为不同的扫描目标设置不同的认证方式和配置模板请使用配置文件创建任务接口/task/create。
+返回结果：
+正常返回结果和异常返回结果同接口 创建任务 /api/task/create
+2.1.4  创建口令猜测任务
+URL：/api/task/pwd/create
+RSAS版本：V6.0R02F00
+请求方式：POST
+请求参数：
+字段名类型备注是否必须nameString任务名称YtargetsString扫描目标：
+IP或者IP段，以";"隔开；ip或IP段不超过五个.示例请参考漏扫ip格式Ytemplate_idString密码字典id：
+Pass_mode为standard时为一个id
+Pass_mode为combination时为逗号分割的两个id
+id为int类型Yservice_typeString服务类型【SNMP||SMB|RDP 等等....】Ypass_modeStringstandard combination(单一密码忽略此参数)N备注：
+对于service_type=SNMP，不需要pass_mode，且只需要一个template_id。
+返回结果：
+正常返回结果和异常返回结果同接口 创建任务 /api/task/create
+2.1.5  创建Web应用扫描任务
+URL：/api/task/web/create
+RSAS版本：V6.0R02F00
+请求方式：POST
+请求参数：
+字段名类型备注是否必须nameString任务名称YtargetsString扫描目标：
+URL列表，URL间以";"隔开，最多5个URL；Ytemplate_idStringweb漏洞模板id：
+默认值为0，即自动匹配扫描N返回结果：
+正常返回结果和异常返回结果同接口 创建任务 /api/task/create
+2.1.6  创建离线扫描任务
+URL：/api/task/offline/create
+RSAS版本：V6.0R02F00
+请求方式：POST
+请求参数：
+字段名类型备注是否必须taskFieldFile离线扫描结果文件Y返回结果：
+正常返回结果和异常返回结果同接口 创建任务 /api/task/create
+
+2.1.7  创建镜像扫描任务
+URL：/api/task/docker/create
+RSAS版本：V6.0R03F01
+请求方式：POST
+请求参数：
+字段名类型备注是否必须nameString任务名称YtargetsString扫描目标：镜像列表，多个之间以";"分隔，最多三个Yregistry_addressString镜像仓库地址，扫描私有仓库时请填写；若镜像地址中包含端口，需要填写端口Nregistry_usernameString镜像仓库认证用户名，扫描私有仓库时请填写Nregistry_passwordString镜像仓库认证密码，扫描私有仓库时请填写N返回结果：
+正常返回结果和异常返回结果同接口 创建任务 /api/task/create
+2.1.8  创建代码审计任务
+URL：/api/task/codeaudit/create
+RSAS版本：V6.0R04F00
+请求方式：POST
+请求参数：
+字段名类型备注是否必须nameString任务名称Ycode_sourceint代码来源：1或者2
+其中1指svn，2指gitYrepo_pathString代码仓库路径Yrepo_usernameString代码仓库需要的用户名Nrepo_passwordString连接代码仓库需要的密码Ntemplate_idint缺陷模板id，默认为0.Nexclude_dirsstring1. 支持采用*进行模糊匹配
+2. 多个文件用;隔开
+3. 示例：/demo/demo1/demo1.py;/demo/demo2/demo2*Nexclude_filesstring1. 支持采用*进行模糊匹配
+2. 多个文件夹用;隔开
+3. 示例：/demo/demo1;/demo/demo2/test*N返回结果：
+正常返回结果和异常返回结果同接口 创建任务 /api/task/create
+
+2.1.9  创建主机资产探测任务
+URL：/api/task/hostassets/create
+RSAS版本：V6.0R04F02
+请求方式：POST
+请求参数：
+字段名类型备注是否必须nameString任务名称YtargetsString扫描目标，多个之间以";"分隔Ytask_typeInt128Yis_relatedBool参数为：true或者false
+true：关联web资产；false：不关联web资产Ytemplate_idString模板id。默认为2，即CPE全模板N返回结果：
+正常返回结果和异常返回结果同接口 创建任务 /api/task/create
+
+2.1.10  创建web资产探测任务
+URL：/api/task/webassets/create
+RSAS版本： V6.0R04F02
+请求方式：POST
+请求参数：
+字段名类型备注是否必须nameString任务名称YtargetsString扫描目标，多个之间以";"分隔Ytask_typeInt256Yis_relatedBool参数为：true或者false
+true：关联主机资产；false：不关联主机资产Y返回结果：
+正常返回结果和异常返回结果同接口 创建任务 /api/task/create
+
+2.1.11  任务状态
+URL：/api/task/status/{task_id}
+RSAS版本：V6.0R02F00
+请求方式：GET|POST
+请求参数：无
+正常返回结果：
+json{
+"data": {
+"status": 4,   //任务状态
+"user_account": "admin",    //系统账号
+"process": 100,    //任务进度
+"id": 70,   //任务id
+"time_start_scan": "2020-06-18 13:28:49",   //任务开始时间
+"time_end_scan": "2020-06-18 13:30:27",     //任务结束时间
+"name": "rest测试"   //任务名称
+},
+"ret_msg": "success",
+"ret_code": 0
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<task_id>70</task_id>
+<name>rest测试</name>
+<status>4</status>
+<user_account>admin</user_account>
+<process>100</process>
+<time_start_scan>2020-06-18 13:28:49</time_start_scan>
+<time_end_scan>2020-06-18 13:30:27</time_end_scan>
+</data>
+</aurora>参数说明：
+字段名二级字段三级字段字段说明ret_code0 ， 正常
+-1，输入参数异常
+-2，系统异常（获取失败）ret_msg正常
+输入参数异常
+系统异常（获取失败）data
+taskid任务idname任务名称user_account系统用户名称status任务状态：
+0:等待扫描
+2:正在扫描
+5:扫描暂停
+4:扫描完成
+8:异常停止process任务扫描进度：1-100time_start_scan开始时间time_end_scan结束时间异常返回结果：
+json{
+"data": {
+错误信息说明
+},
+"ret_msg": 错误信息,
+"ret_code": 错误代码
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>错误代码</ret_code>
+<ret_msg>错误信息</ret_msg>
+<data>
+错误信息说明
+</data>
+</aurora>参数说明：
+ret_coderet_msg-1输入参数异常-2系统异常（获取失败）附加说明：建议调用频率限制为每秒不超过10次
+2.1.12  任务暂停
+URL：/api/task/pause/{task_id}
+RSAS版本：V6.0R02F00
+请求方式：POST
+请求参数：无
+正常返回结果：
+json{
+"data": {
+提示信息
+},
+"ret_msg": "success",
+"ret_code": 0
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>操作成功</data>
+</aurora>异常返回结果：
+json{
+"data": {
+错误信息说明
+},
+"ret_msg": 错误信息,
+"ret_code": 错误代码
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>错误代码</ret_code>
+<ret_msg>错误信息</ret_msg>
+<data>
+错误信息说明
+</data>
+</aurora>参数说明：
+ret_coderet_msgdata-1任务id参数错误'param_error':  '参数错误'-2找不到任务'inner_error':  '系统异常'任务已结束或异常，无法停止任务暂停失败0success"inner_success":  '操作成功'
+2.1.13  任务继续扫描（仅针对暂停状态任务）
+URL：/api/task/resume/{task_id}
+RSAS版本：V6.0R02F00
+请求方式：POST
+请求参数：无
+正常返回结果：同接口 任务暂停 /api/task/pause/{task_id}
+异常返回结果：同接口 任务暂停 /api/task/pause/{task_id}
+ret_coderet_msgdata-1任务id参数错误'param_error':  '参数错误'-2找不到任务'inner_error':  '系统异常'任务已结束或异常，无法启动任务启动失败0success"inner_success":  '操作成功'
+2.1.14  任务停止
+URL：/api/task/stop/{task_id}
+RSAS版本：V6.0R02F00
+请求方式：POST
+请求参数：无
+正常返回结果：同接口 任务暂停 /api/task/pause/{task_id}
+异常返回结果：同接口 任务暂停 /api/task/pause/{task_id}
+ret_coderet_msgdata-1任务id参数错误'param_error':  '参数错误'-2找不到任务'inner_error':  '系统异常'任务已结束或异常，无法停止任务启动失败0success"inner_success":  '操作成功'
+
+2.1.15  删除任务
+URL：/api/task/delete/{task_id}
+RSAS版本：V6.0R02F00
+请求方式：POST
+请求参数：无
+正常返回结果：同接口 任务暂停 /api/task/pause/{task_id}
+异常返回结果：同接口 任务暂停 /api/task/pause/{task_id}
+ret_coderet_msgdata-1任务id参数错误'param_error':  '参数错误'-2找不到任务'inner_error':  '系统异常'删除任务失败0success"inner_success":  '操作成功'
+2.1.16  任务列表
+URL：/api/task/list
+RSAS版本：V6.0R02F00
+请求方式：GET|POST
+请求参数：
+字段名类型备注是否必须typeuint具体任务类型请参考创建任务中的任务类型Nend_time_startString任务结束时间起始点(例：2014-08-31 12:00:00)Nend_time_endString任务结束时间结束点(例：2014-09-31 12:00:00)NisfinishedString0：表示全部 1：已经完成Npageuint当前页数Npage_sizeuint每页包含的数量N
+正常返回结果：
+1.post数据时，设置type类型，如：type设置为1，返回结果为：
+json{
+"data": {
+"task_type": "1",
+"page_size": "",
+"page_total": 0,
+"tasklist": [
+{
+"status": 4,
+"user_account": "admin",
+"process": 100,
+"id": 1,
+"time_start_scan": "2020-06-20 11:01:07",
+"time_end_scan": "2020-06-20 11:01:26",
+"name": "测试test"
+}
+],
+"task_total": 1,
+"page": ""
+},
+"ret_msg": "success",
+"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<task_total>1</task_total>
+<tasklist>
+<task>
+<id>1</id>
+<name>测试test</name>
+<type>1</type>
+<status>4</status>
+<process>100</process>
+<starttime>2020-06-20 11:01:07</starttime>
+<endtime>2020-06-20 11:01:26</endtime>
+</task>
+</tasklist>
+</data>
+</aurora>
+2. 不设置type类型，返回结果为：
+json{
+"data": {
+"task_type": "",
+"page_size": "",
+"page_total": 0,
+"tasklist": [
+{
+"status": 4,
+"user_account": "admin",
+"process": 100,
+"id": 1,
+"time_start_scan": "2020-06-20 11:01:07",
+"time_end_scan": "2020-06-20 11:01:26",
+"name": "测试test"
+}
+],
+"task_total": 1,
+"page": ""
+},
+"ret_msg": "success",
+"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<task_total>1</task_total>
+<tasklist>
+<task>
+<id>1</id>
+<name>测试test</name>
+<status>4</status>
+<process>100</process>
+<starttime>2020-06-20 11:01:07</starttime>
+<endtime>2020-06-20 11:01:26</endtime>
+</task>
+</tasklist>
+</data>
+</aurora>
+异常返回结果：同接口 任务暂停 /api/task/pause/{task_id}
+2.1.17  正在运行任务列表
+注：正在运行任务包含周期任务，即使周期任务非扫描状态。
+URL：/api/task/active_list
+RSAS版本：V6.0R02F00
+请求方式：GET|POST
+请求参数：无
+返回结果：
+json{
+"data": {
+"tasklist": [
+{
+"status": 2,    //任务状态
+"user_account": "admin",    //系统账号
+"process": 0,   //扫描进度
+"time_over": 1592624558,    //已扫描时间
+"id": 82,   //任务id
+"have_scan": "0",   //已扫描主机数
+"time_start_scan": "2020-06-20 11:37:17",//开始时间
+"time_end_scan": "",    //结束时间
+"name": "测试test"    //任务名称
+}
+]
+},
+"ret_msg": "success",
+"ret_code": 0
+}
+　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<tasklist>
+<task>
+<id>82</id>
+<name>测试test</name>
+<status>2</status>
+<process>59</process>
+<starttime>2020-06-20 11:37:17</starttime>
+<endtime></endtime>
+</task>
+</tasklist>
+</data>
+</aurora>
+异常返回结果：同接口 任务暂停 /api/task/pause/{task_id}
+
+2.1.18  获取任务结果
+URL：/api/report/task/{task_id}
+RSAS版本：V6.0R02F00
+请求方式：GET|POST
+请求参数：
+字段名类型备注是否必须targetsString目标主机或者目标站点：
+一个或多个目标，逗号分割
+此目标主机为task_id中所下发任务的ip或者url。代码审计任务不支持该字段。Npageuint当前页数Npage_sizeuint每页包含的主机数量N返回结果：
+详见附录。
+附加说明：该接口为同步接口，消耗资源较大，建议调用频率限制为每秒不超过5次
+2.1.19  认证数据下发
+URL：/api/authinfo/create
+RSAS版本：V6.0R04F01
+请求方式：POST
+请求参数：
+字段名类型备注是否必须authinfoString数据封装，实例如下
+[{ accountname:<accountname>,accountpwd:<accountpwd>, 
+port:<port>, protocol:<protocol>,ip:<ip>},
+　{accountname:<accountname>,accountpwd:<accountpwd>, 
+　　port:<port>, protocol:<protocol>ip:<ip>}，
+...
+]
+其中：
+<accountname>: 账户名，必填项
+<accountpwd>:密码，选填项
+<port>: 端口，必填项（范围为[1-65535]）
+<protocol>: 协议类型，必填项(只支持[SMB|SSH|Telnet|RDP|HTTP|HTTPS|WinRM])
+<ip>: IP，必填项
+eg: 
+[{"accountname":"guowd", "accountpwd":"guowd", 
+"port":"22","protocol":"SSH","ip":"1.1.1.1"},
+{"accountname":"gwd","accountpwd":"gwd",
+"port":"22","protocol":"SSH","ip":"1.1.1.4"}]Y正常返回结果：
+json{
+　"data": {"success": "操作成功"},
+　"ret_msg": "操作成功",
+　"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+　<ret_code>0</ret_code>
+　<ret_msg>操作成功</ret_msg>
+　<data>
+　　<success>操作成功</success>
+　</data>
+</aurora>异常返回结果：
+json{
+　"data": {错误信息说明},
+　"ret_msg": "错误信息",
+　"ret_code": 错误代码
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+　<ret_code>错误代码</ret_code>
+　<ret_msg>错误信息</ret_msg>
+　<data>
+　　错误信息说明
+　</data>
+</aurora>参数说明：
+ret_codedata0操作成功-1参数格式非法-2接口程序异常备注：
+　1 支持IPv4和IPv6
+　2 最大可以下发30条认证数据
+　3 IP不允许重复
+2.1.20  扫描登录认证
+URL：/api/auth/login_verify
+RSAS版本：V6.0R04F00SP10
+请求方式：POST
+请求参数：
+字段名类型备注是否必须ipString登录认证的目标IPYprotocolString认证登录的协议Yportunit目标IP的端口Yuser_namestring登录用户名YuserpwdString登录密码Yjump_ifuseBoolean是否启用跳板机NjumparrayArray跳板机列表NformatString返回数据格式Nweb_login_urlString用于http、https登录，登录urlNweb_login_cookieString用于http、https登录，登录cookieN备注：
+A. 只有telnet和ssh支持配置跳板机，只有http\https支持配置登录url和cookie
+B. format参数可以取值'xml'或'json'
+C. jump_ifuse参数可以传true或false,标记是否启用跳板机。jumparray为列表格式，内部字段如下
+字段名类型备注是否必须ip_rangeString跳板主机IPYprotocolString登录协议Yuser_nameString用户名Yuser_pwdString登录密码YportInt跳板机端口Y请求参数示例：
+json{
+     "ip": "192.168.1.1",
+     "protocol": "ssh",
+     "port": 22,
+     "user_name": "xxxxxx",
+     "userpwd": "xxxx",
+     "jump_ifuse": true,
+     "jumparray":[{"ip_range": "192.168.1.2", "protocol": "SSH", "port": "22", "user_name": "root", "user_pwd": "xxxxxxx"}],
+     "format": "json",
+     "web_login_url": "/login",
+     "web_login_cookie": "action=login&username=admin",
+
+}
+返回结果：
+json{
+　　　"data": {
+　　　　　　　"errorMsg": "登录成功:  10.65.199.200 登陆成功！<br>"
+　　　},
+　　　"ret_msg": "success",
+　　　"ret_code": 0
+}.xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+ <errorMsg>10.65.199.200 登录成功!&lt;br&gt;</errorMsg>
+</data>
+</aurora>参数说明：
+ret_codedata0成功创建连接之后的结果-1创建连接不成功
+2.2   模板
+2.2.1  系统漏洞模板列表获取
+URL：/api/template/sysvuln/list
+RSAS版本：V6.0R02F00
+请求方式：GET|POST
+请求参数：无
+正常返回结果：
+json{
+"data": [
+{
+"description": "本模板只进行端口扫描，不会进行插件扫描",
+"id": 10,
+"name": "端口扫描"
+},
+],
+"ret_msg": "success",
+"ret_code": 0
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<template>
+<id>10</id>
+<name>端口扫描</name>
+<description>本模板只进行端口扫描，不会进行插件扫描</description>
+</template>
+</data>
+</aurora>
+异常返回结果：
+json{
+"data": {
+错误信息说明
+},
+"ret_msg": 错误信息,
+"ret_code": 错误代码
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>错误代码</ret_code>
+<ret_msg>错误信息</ret_msg>
+<data>
+错误信息说明
+</data>
+</aurora>
+参数说明：
+ret_codedata0正常结果-1获取失败2.2.2  web漏洞模板列表获取
+URL：/api/template/webvuln/list
+RSAS版本：V6.0R02F00
+请求方式：GET|POST
+请求参数：无
+正常返回结果：
+json{
+"data": [
+{
+"description": "本模板只检测Web应用程序中的高危漏洞",
+"name": "高危漏洞扫描",
+"id": 103
+}
+],
+"ret_msg": "success",
+"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<template>
+<id>103</id>
+<name>高危漏洞扫描</name>
+<description>本模板只检测Web应用程序中的高危漏洞</description>
+</template>
+</data>
+</aurora>异常返回结果：
+同 系统漏洞模板列表获取 /api/template/sysvuln/list
+结果原因：
+ret_codedata0正常结果-1获取失败
+
+2.2.3  配置模板列表获取
+URL：/api/template/baseline/list
+RSAS版本：V6.0R02F00
+请求方式：GET|POST
+请求参数：
+字段名类型备注是否必须industryString模板行业
+名称对应关系
+ct2.0 中国电信528&555
+cm 中国移动
+cmes 中国移动信息管理部
+ct 中国电信
+level_protection 等级保护
+nsfocus 绿盟科技
+miit 工信部
+cnpc 中国石油
+cu 中国联通
+st 税务
+sinopec中国石化
+pbc 人民银行
+ecc 电力云计算
+pbc_protection人民银行-等级保护
+state_grid 国家电网
+level_protection_2 等级保护2.0
+power_grid 电网行业
+csg_protection 南方电网-等级保护
+ctno.31 中国电信31号文Y
+正常返回结果：
+json{
+"data": [
+{
+"industry": "nsfocus",    //模板行业
+"uuid": "66c221be-6ab2-ef53-1589-fe16877914e2", //uuid
+"class_field": "OS",   //模板类型,如操作系统，数据库等
+"name": "Windows 配置规范"   //配置模板名称
+}
+],
+"ret_msg": "success",
+"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<template>
+<uuid>66c221be-6ab2-ef53-1589-fe16877914e2</uuid>
+<name>Windows 配置规范</name>
+<class_field>OS</class_field>
+<industry>nsfocus</industry>
+</template>
+</data>
+</aurora>
+异常返回结果：
+同 系统漏洞模板列表获取 /api/template/sysvuln/list
+参数说明：
+ret_codedata0正常结果-1获取失败
+2.2.4  配置模板参数获取
+URL：/api/template/baseline/params
+RSAS版本：V6.0R02F00
+请求方式：GET|POST
+请求参数：
+字段名类型备注是否必须uuidstring模板uuidY正常返回结果：
+json{
+"data": [
+{
+"quote": "DB2_user",
+"display": "db2用户用户名",
+"type_field": "text"
+},
+{
+"quote": "DB2_password",
+"display": "db2用户密码",
+"type_field": "password"
+}
+],
+"ret_msg": "success",
+"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<param>
+<quote>DB2_user</quote>
+<type_field>text</type_field>
+<display>db2用户用户名</display>
+</param>
+<param>
+<quote>DB2_password</quote>
+<type_field>password</type_field>
+<display>db2用户密码</display>
+</param>
+</data>
+</aurora>异常返回结果：
+同 系统漏洞模板列表获取 /api/template/sysvuln/list
+参数说明：
+ret_codedata0正常结果-1参数为空或者参数非法-2模板不存在
+说明：
+系统等保模板获取不到模板参数（规避方法：将系统等保模板uuid替换为绿盟行业对应模板的uuid进行查找）
+2.2.5  代码审计模板列表获取
+URL：/api/template/codeaudit/list
+RSAS版本：V6.0R04F00
+请求方式：GET
+请求参数：
+字段名类型备注是否必须type00- 获取全部模板列表
+1- 获取缺陷模板列表
+2- 获取代码规范模板列表N
+正常返回结果：
+json{
+"data": [
+{
+"mid_vuln": 37,
+"tpl_id": 0,
+"user_id": -1,
+"tpl_desc": "本模板扫描所有缺陷",
+"all_vuln": 83,
+"tpl_name": "全部缺陷扫描",
+"high_vuln": 17,
+"low_vuln": 29
+},
+{
+"mid_vuln": 0,
+"tpl_id": 55,
+"user_id": -1,
+"tpl_desc": "本模板扫描C/C++相关编码规范",
+"all_vuln": 21,
+"tpl_name": "C/C++ 编码规范扫描",
+"high_vuln": 0,
+"low_vuln": 21
+}
+],
+"ret_msg": "success",
+"ret_code": 0
+}
+　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<template>
+<tpl_id>52</tpl_id>
+<tpl_name>Java 编码规范扫描</tpl_name>
+<tpl_desc>本模板扫描Java相关编码规范</tpl_desc>
+<user_id>-1</user_id>
+<high_vuln>0</high_vuln>
+<mid_vuln>0</mid_vuln>
+<low_vuln>24</low_vuln>
+<all_vuln>24</all_vuln>
+</template>
+<template>
+<tpl_id>53</tpl_id>
+<tpl_name>PHP 编码规范扫描</tpl_name>
+<tpl_desc>本模板扫描PHP相关编码规范</tpl_desc>
+<user_id>-1</user_id>
+<high_vuln>0</high_vuln>
+<mid_vuln>0</mid_vuln>
+<low_vuln>38</low_vuln>
+<all_vuln>38</all_vuln>
+</template>
+</data>
+</aurora>
+异常返回结果：
+同接口 系统漏洞模板列表获取 /api/template/sysvuln/list
+参数说明：
+ret_codedata0正常结果-1获取失败
+
+2.2.6  资产模板列表获取
+URL：/api/template/asset/list
+RSAS版本：V6.0R04F02
+请求方式：GET|POST
+请求参数：无
+正常返回结果：
+json{
+"data": [
+{
+"description": "探测常规操作系统，国产化操作系统等网络资产",
+"id": 3,
+"name": "操作系统"
+},
+],
+"ret_msg": "success",
+"ret_code": 0
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<template>
+<id>3</id>
+<name>操作系统</name>
+<description>探测常规操作系统，国产化操作系统等网络资产
+</description>
+</template>
+</data>
+</aurora>
+异常返回结果：
+json{
+"data": {
+错误信息说明
+},
+"ret_msg": 错误信息,
+"ret_code": 错误代码
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>错误代码</ret_code>
+<ret_msg>错误信息</ret_msg>
+<data>
+错误信息说明
+</data>
+</aurora>
+参数说明：
+ret_codedata0正常结果-1获取失败
+2.2.7  配置模板下发
+URL：/api/template/baseline/create
+RSAS版本：V6.0R02F00
+请求方式：POST
+请求参数：
+字段名类型备注是否必须templatefile界面导出的模板文件Y说明：只允许相同系统版本的导出结果下发。
+正常返回结果：
+json{
+"data": {
+"success_count": 1,
+"template_uuid_list": [
+"ffabcdef-2020-0620-1327-aaa140545661"
+]
+},
+"ret_msg": "success",
+"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<template_uuid_list>
+<template_uuid>ffabcdef-2020-0620-1327-aaa140545661
+</template_uuid>
+</template_uuid_list>
+<success_count>1</success_count>
+</data>
+</aurora>异常返回结果：
+同 系统漏洞模板列表获取 /api/template/sysvuln/list
+参数说明：
+ret_codedata-1文件格式错误-2模板导入失败，或者部分失败
+2.2.8  密码字典获取
+URL：/api/userpwd/list
+RSAS版本：V6.0R02F00
+请求方式：GET|POST
+请求参数：无
+正常返回结果：
+json{
+"data": [
+{
+"description": "SSH默认用户名列表",
+"type": "user",
+"id": 188,
+"title": "SSH默认用户"
+},
+{
+"description": "DB2默认密码列表",
+"type": "pwd",
+"id": 192,
+"title": "DB2默认密码"
+}
+],
+"ret_msg": "success",
+"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<template>
+<id>188</id>
+<type>user</type>
+<title>SSH默认用户</title>
+<description>SSH默认用户名列表</description>
+</template>
+<template>
+<id>192</id>
+<type>pwd</type>
+<title>DB2默认密码</title>
+<description>DB2默认密码列表</description>
+</template>
+</data>
+</aurora>异常返回结果：
+同 系统漏洞模板列表获取 /api/template/sysvuln/list
+参数说明：
+ret_codedata0正常结果-1接口程序异常
+2.2.9  密码字典下发
+URL：/api/userpwd/create
+RSAS版本：V6.0R02F00
+请求方式： POST
+请求参数：
+字段名类型备注是否必须userpwdString密码字典内容：
+json数据封装，实例如下
+[
+{type:<type>,title:<title>,data:<data>},
+{type:<type>,title:<title>,data:<data>}
+...
+]
+
+其中：
+<type>: 自定义密码字典类型[user|pwd|userPwd]，必填项
+title>: 自定义密码字典名称，必填项
+<data>: 自定义密码字典数据内容(以行为单位)，base64编码，必填项
+eg: [{"type":"user","title":"test","data":"YWFhYQ=="}]Y正常返回结果：
+json{
+"data": {
+"userpwd_id_list": [206],
+"success_count": 1
+},
+"ret_msg": "success",
+"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<userpwd_id_list>
+<userpwd_id>207</userpwd_id>
+</userpwd_id_list>
+<success_count>1</success_count>
+</data>
+</aurora>异常返回结果：
+同 系统漏洞模板列表获取 /api/template/sysvuln/list
+参数说明：
+ret_codedata-1参数格式非法-2接口程序异常
+
+
+2.3  系统
+2.3.1  获取系统状态
+URL：/api/system/status
+RSAS版本：V6.0R02F00
+请求方式： GET|POST
+请求参数：无
+响应参数：
+字段名含义cert_startime证书开始日期cert_endtime证书结束日期device_name设备名称company_name厂商device_type设备类型名称product_ip扫描口IPmanage_ip管理口IPport_info端口状态cpuCPU使用率（单位：%）disk磁盘使用率（单位：%）memory内存使用率（单位：%）product_type设备型号version系统版本vul_version系统漏洞版本web_versionWeb漏洞版本serial_no证书编号serial_value证书序列号hash设备hashtask_running正在扫描的任务数
+正常返回结果：
+json{
+"data": {
+"cert_startime": "2021-04-28 00:00",
+"hash": "BA98-B30F-FD65-24F5",
+"timestamp": 1624003276,
+"serial_no": "307972",
+"task_running": 0,
+"device_type": "漏洞扫描",
+"port_info": [
+{
+"status": "up",
+"id": "eth0"
+},
+{
+"status": "up",
+"id": "eth1"
+},
+{
+"status": "down",
+"id": "eth2"
+},
+{
+"status": "down",
+"id": "eth3"
+},
+{
+"status": "down",
+"id": "eth4"
+},
+{
+"status": "down",
+"id": "eth5"
+},
+{
+"status": "down",
+"id": "eth6"
+}
+],
+"disk": 23,
+"vul_version": "V6.0R02F01.2103",
+"product_type": "NX3-E",
+"device_name": "绿盟漏扫",
+"product_ip": [
+{
+"ipv6_ip": "",
+"ipv6_gw": "",
+"ipv4_ip": "10.65.6.156",
+"ipv4_mask": "255.255.254.0",
+"ipv6_prefix": "",
+"ipv4_gw": "10.65.7.254",
+"id": "eth1"
+}
+],
+"version": "V6.0R04F00SP05",
+"company_name": "绿盟",
+"serial_value": "BA98-B30F-FD65-24F5",
+"memory": 36,
+"manage_ip": {
+"ipv4_ip": "192.168.1.1",
+"ipv4_gw": "0.0.0.0",
+"id": "eth0",
+"ipv4_mask": "255.255.255.0"
+},
+"cert_endtime": "2021-09-28 00:00",
+"web_version": "V6.0R02F00.1905",
+"cpu": 1.07
+},
+"ret_msg": "success",
+"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<cert_startime>2021-04-28 00:00</cert_startime>
+<hash>BA98-B30F-FD65-24F5</hash>
+<timestamp>1624003357</timestamp>
+<serial_no>307972</serial_no>
+<task_running>0</task_running>
+<device_type>漏洞扫描</device_type>
+<port_info>
+<item>
+<status>up</status>
+<id>eth0</id>
+</item>
+<item>
+<status>up</status>
+<id>eth1</id>
+</item>
+<item>
+<status>down</status>
+<id>eth2</id>
+</item>
+<item>
+<status>down</status>
+<id>eth3</id>
+</item>
+<item>
+<status>down</status>
+<id>eth4</id>
+</item>
+<item>
+<status>down</status>
+<id>eth5</id>
+</item>
+<item>
+<status>down</status>
+<id>eth6</id>
+</item>
+</port_info>
+<disk>23.0</disk>
+<vul_version>V6.0R02F01.2103</vul_version>
+<product_type>NX3-E</product_type>
+<device_name>绿盟漏扫</device_name>
+<product_ip>
+<item>
+<ipv6_ip></ipv6_ip>
+<ipv6_gw></ipv6_gw>
+<ipv4_ip>10.65.6.156</ipv4_ip>
+<ipv4_mask>255.255.254.0</ipv4_mask>
+<ipv6_prefix></ipv6_prefix>
+<ipv4_gw>10.65.7.254</ipv4_gw>
+<id>eth1</id>
+</item>
+</product_ip>
+<version>V6.0R04F00SP05</version>
+<company_name>绿盟</company_name>
+<serial_value>BA98-B30F-FD65-24F5</serial_value>
+<memory>36.0</memory>
+<manage_ip>
+<ipv4_ip>192.168.1.1</ipv4_ip>
+<ipv4_gw>0.0.0.0</ipv4_gw>
+<id>eth0</id>
+<ipv4_mask>255.255.255.0</ipv4_mask>
+</manage_ip>
+<cert_endtime>2021-09-28 00:00</cert_endtime>
+<web_version>V6.0R02F00.1905</web_version>
+<cpu>11.96</cpu>
+</data>
+</aurora>2.4  日志
+2.4.1  获取审计日志
+URL：/api/log/getlogInfo
+RSAS版本：V6.0R02F00
+请求方式： GET|POST
+请求参数：
+字段名类型备注是否必须accountString操作账号（多个以","隔开）NtypeString操作类型：
+1 登录日志
+2 操作日志
+3 异常日志
+4 升级日志NstarttimeString起始时间（2013-08-24 04:24:59）NendtimeString结束时间（2013-08-24 04:24:56）NipString登录IpN
+注：为N的参数，如果没有传的情况下，默认为全部。
+正常返回结果：
+json{
+"data": {
+"logs": [
+{
+"account": "admin",
+"type": 1,
+"ctime": "2020-06-20 13:53:42",
+"desc": "用户登录系统(admin)成功"
+}
+]
+},
+"ret_msg": "success",
+"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<log>
+<type>1</type>
+<ctime>2020-06-20 13:53:42</ctime>
+<account>admin</account>
+<description>用户登录系统(admin)成功</description>
+</log>
+</data>
+</aurora>
+异常返回结果：
+json{
+"data": {
+错误信息说明
+},
+"ret_msg": 错误信息,
+"ret_code": 错误代码
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>错误代码</ret_code>
+<ret_msg>错误信息</ret_msg>
+<data>
+错误信息说明
+</data>
+</aurora>参数说明：
+ret_coderet_msg0获取log列表成功（success）-1获取log列表失败
+2.5  报表
+2.5.1  报表模板
+URL：/api/report/template/list
+RSAS版本：V6.0R04F02
+请求方式：GET|POST
+请求参数：无
+正常返回结果：
+json{
+"data": [
+{
+"id": 1
+"name": "系统默认模板",
+"title": "绿盟科技"远程安全评估系统"安全评估报告",
+"report_type": 1,
+"report_type_description": "系统扫描主机报表模板",
+}
+],
+"ret_msg": "success",
+"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<template>
+<id>1</id>
+<name>系统默认模板</name>
+<title>绿盟科技"远程安全评估系统"安全评估报告模板</title>
+<report_type>1</report_type>
+<report_type_description>系统扫描主机报表模板</report_type_description>
+</template>
+</data>
+</aurora>异常返回结果：
+结果原因：
+ret_codedata0正常结果-1获取失败
+
+2.5.2  生成报表
+URL：/api/generate_report/
+RSAS版本：V6.0R03F01SP01
+请求方式： POST
+请求参数：
+字段名类型备注是否必须task_idString任务号Ysummary_template_idString综述报表模板id，默认为系统默认模板（报表模板id见2.5.1）Nhost_template_idString主机报表模板id，默认为系统默认模板（报表模板id见2.5.1）Nreport_typeString报表类型，多种报表格式之间使用逗号分隔，例如：pdf,html,doc
+普通扫描任务（评估任务，配扫，弱口令）支持的报表类型：doc，xls，pdf，html，xmlY类型格式说明docWord格式xlsExcel格式pdfPdf格式htmlHtml格式xmlXml格式镜像扫描任务支持的报表类型，doc，xls，htmlWeb扫描任务支持的报表类型：doc，xls，pdf，html
+说明：下发成功后，可以使用"获取报表生成进度"接口获取进度。
+正常返回结果：
+json{
+"data": {
+"report_id": 16     //报表id
+},
+"ret_msg": "success",
+"ret_code": 0
+}　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<report_id>16</report_id>
+</data>
+</aurora>
+
+异常返回结果：
+json{
+"data": {
+错误信息说明
+},
+"ret_msg": 错误信息,
+"ret_code": 错误代码
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>错误代码</ret_code>
+<ret_msg>错误信息</ret_msg>
+<data>
+错误信息说明
+</data>
+</aurora>参数说明：
+ret_coderet_msg0成功-1任务不存在
+2.5.3  获取报表生成进度
+URL：/api/get_report_progress/report_id/{report_id}
+RSAS版本：V6.0R03F01SP01
+请求方式： GET
+请求参数：
+字段名类型备注是否必须report_idstring报表idY
+正常返回结果：
+json{
+"data": {
+"status": 1,    //报表状态
+"progress": 100    //进度
+},
+"ret_msg": "success",
+"ret_code": 0
+}
+　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<status>1</status>
+<progress>100</progress>
+</data>
+</aurora>
+参数说明：
+字段名类型备注statusint1表示完成，0表示生成中progressint进度1~100异常返回结果：
+同接口 生成报表/api/generate_report/
+参数说明：
+ret_codedata0成功-1没有相关报表信息
+
+2.5.4  下载报表zip文件
+URL：/api/download_report/report_id/{report_id}/report_type/{report_type}
+RSAS版本：V6.0R03F01SP01
+请求方式：GET
+请求示例：/api/download_report/report_id/30/report_type/html
+请求参数：
+字段名类型备注是否必须report_idint报表idYreport_typestring报表格式，一次只能下载一种格式。可选取值有：html，pdf，xls，doc，pdf，xmlY正常返回结果：
+成功：返回报表zip文件。响应头：content_type：'application/zip'
+异常返回结果：
+同接口 生成报表/api/generate_report/
+参数说明：
+ret_codedata-1没有相关报表信息2.6  Agent接口
+2.6.1  获取agent方案配置
+
+URL：/api/agent/agent_method_config
+RSAS版本：V6.0R04F00
+请求方式：GET
+请求参数：无
+正常返回结果：
+json{
+"data": {
+"agent_method": "1"
+},
+"ret_msg": "success",
+"ret_code": 0
+}
+　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<agent_method>1</agent_method>
+</data>
+</aurora>
+
+参数说明：
+字段名备注agent_method0表示 solution平台解决方案1表示 standalone单产品方案异常返回结果：
+json{
+"data": {
+错误信息说明
+},
+"ret_msg": 错误信息,
+"ret_code": 错误代码
+}
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>错误代码</ret_code>
+<ret_msg>错误信息</ret_msg>
+<data>
+错误信息说明
+</data>
+</aurora>参数说明：
+ret_codedata0成功-1获取失败2.6.2  配置agent方案
+URL：/api/agent/agent_method_config
+RSAS版本：V6.0R04F00
+请求方式：POST
+请求参数：
+请求参数{"agent_method":1}请求头"Content-Type":"application/json"正常返回结果：同接口 获取agent方案配置 /api/agent/agent_method_config
+参数说明：
+字段名备注agent_method0表示 solution平台解决方案1表示 standalone单产品方案异常返回结果：同接口 获取agent方案配置 /api/agent/agent_method_config
+参数说明：
+ret_codedata0成功-1配置失败-2配置异常，如证书模块未购买2.6.3  获取agent授权
+URL：/api/agent/get_agent_auth
+RSAS版本：V6.0R04F00
+请求方式：GET
+请求参数：无
+正常返回结果：
+json{
+"data": {
+"agent_registered_num": 10,
+"agent_auth_num": 10
+},
+"ret_msg": "success",
+"ret_code": 0
+}
+　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<agent_auth_num>10</agent_auth_num>
+<agent_registered_num>10</agent_registered_num>
+</data>
+</aurora>
+参数说明：
+字段名备注agent_auth_num授权数agent_registered_num注册数异常返回结果：同接口 获取agent方案配置 /api/agent/agent_method_config
+参数说明：
+ret_codedata0成功-1获取失败2.6.4  获取agent下载链接
+URL：/api/agent/get_agentpackage_url
+RSAS版本：V6.0R04F00
+请求方式：GET
+请求参数：无
+正常返回结果：
+json{
+"data": [
+{
+"support_version": "Vista or later/All Windows release",
+"name": "NSFOCUS-Agent-Windows-1.0.0.msi",
+"download_url": "https://192.168.2.1/api/agent/download/windows",
+"platform": "Windows",
+"version": "1.0.0",
+"md5": "3744353f443ade9e1adcf668fce1478f"
+},
+{
+"support_version": "CentOS/Redhat/Ubuntu/Debian or other Linux 2.7 or later",
+"name": "NSFOCUS-Agent-Linux_x86-1.0.0.run",
+"download_url": "https://192.168.2.1/api/agent/download/linux",
+"platform": "Linux-x86",
+"version": "1.0.0",
+"md5": "485023a28081d0206826faa5c742192f"
+}
+],
+"ret_msg": "success",
+"ret_code": 0
+}
+　　
+xml<?xml version="1.0" encoding="utf-8"?>
+<aurora>
+<ret_code>0</ret_code>
+<ret_msg>success</ret_msg>
+<data>
+<item>
+<name>NSFOCUS-Agent-Windows-1.0.0.msi</name>
+<platform>Windows</platform>
+<version>1.0.0</version>
+<md5>3744353f443ade9e1adcf668fce1478f</md5>
+<support_version>Vista or later/All Windows release</support_version>
+<download_url>https://192.168.2.1/api/agent/download/windows</download_url>
+</item>
+<item>
+<name>NSFOCUS-Agent-Linux_x86-1.0.0.run</name>
+<platform>Linux-x86</platform>
+<version>1.0.0</version>
+<md5>485023a28081d0206826faa5c742192f</md5>
+<support_version>CentOS/Redhat/Ubuntu/Debian or other Linux 2.7 or later</support_version>
+<download_url>https://192.168.2.1/api/agent/download/linux</download_url>
+</item>
+</data>
+</aurora>
+异常返回结果：同接口 获取agent方案配置 /api/agent/agent_method_config
+参数说明：
+ret_codedata0成功-1获取失败，如未启用单产品方案没有下载链接
+2.6.5  Agent下载
+URL：/api/agent/download/{linux or windows}
+RSAS版本：V6.0R04F00
+请求方式：GET
+请求参数：linux或者windows
+正常返回结果：安装包文件
+异常返回结果：同接口 获取agent方案配置 /api/agent/agent_method_config
+参数说明：
+ret_codedata-1下载失败，如未启用单产品方案不能下载调用示例：
+https://IP/api/agent/download/linux?username={username}&password={password}
+https://IP/api/agent/download/windows?username={username}&password={password}
+
+2.6.6  新建任务支持全量信息收集任务
+同接口 创建任务 /api/task/create
+RSAS版本：V6.0R04F00
+Config.xml见附录 附录A.14 全量信息收集任务配置文件
+
+2.6.7  新建任务支持全量Agent扫描任务
+同接口 创建任务 /api/task/create
+RSAS版本：V6.0R04F00
+Config.xml见附录 附录A.15 Agent扫描任务配置文件
+
+A  附录
+A.1  config.xml示例
+说明：该xml的编码类型为 UTF-8； 支持下发多种任务类型：
+1）漏洞扫描，对应任务类型type=1；
+2）漏扫+口令猜测，对应任务类型type=1；
+3）漏扫+口令猜测+配扫，对应任务类型type=3；
+4）单独下发某种类型的任务（eg:口令猜测、配置扫描、web扫描任务等），建议使用附录中其他单独任务配置文件。
+
+A.2  创建任务python代码示例
+
+
+A.3  单独漏洞扫描任务配置文件内容格式
+
+A.4  单独配置扫描任务配置文件内容格式
+说明：单独配置扫描任务中的所有密码均为明文，任务生成后，会将密文写入到配置文件中。
+
+A.5  单独口令猜测任务配置文件内容格式
+
+A.6  Web扫描任务配置文件内容格式
+
+A.7  系统扫描任务结果格式
+
+A.8  单独漏洞扫描任务结果格式
+
+A.9  单独配置任务结果格式
+
+A.10  单独口令猜测任务结果格式
+
+A.11  Web扫描任务结果格式
+
+A.12  镜像扫描任务结果格式
+
+A.13  代码审计任务结果格式
+
+A.14  全量信息收集任务配置文件
+
+A.15  Agent扫描任务配置文件
+
+
+目录绿盟远程安全评估系统
+API接口文档
+
+绿盟远程安全评估系统API接口文档
+
+
+版权所有 (c) 绿盟科技iiiV6.0.8 (2023-04-03)	
+
+2 接口列表绿盟远程安全评估系统
+API接口文档
+
+版权所有 (c) 绿盟科技3V6.0.8 (2023-04-03)
+
+2 接口列表绿盟远程安全评估系统
+API接口文档
+
+版权所有 (c) 绿盟科技64V6.0.8 (2023-04-03)
+

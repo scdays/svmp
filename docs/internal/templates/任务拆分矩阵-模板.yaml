@@ -15,6 +15,7 @@ feature:
 
 # 全局必读（所有 Agent 继承）
 shared_reads:
+  - .cursor/skills/esmp-rd-standards/SKILL.md
   - svmp/docs/internal/开放平台集成管理-完整落地方案.md
 
 # 全局交付门禁（Integration Agent 负责核对）

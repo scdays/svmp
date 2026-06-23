@@ -1,0 +1,157 @@
+feature:
+  id: OP-MOCK-P1-DB
+  name: Mock 实例 MySQL 落库（方案一）
+  phase: P1
+  prd: svmp/docs/internal/open-api-mock-instance-db-PRD.md
+  landing_plan: svmp/docs/internal/引擎对接与Mock模式方案.md
+  page_design: null
+  openapi: svmp/openapi/v1/openapi.yaml
+
+shared_reads:
+  - .cursor/skills/esmp-rd-standards/SKILL.md
+  - svmp/docs/internal/open-api-mock-instance-db-PRD.md
+  - svmp/docs/internal/引擎对接与Mock模式方案.md
+  - project_backend/svmp/open-api-service/src/main/resources/mock/engine/README.md
+  - .cursor/skills/esmp-backend-dev/SKILL.md
+  - .cursor/rules/open-api-service-ddd.mdc
+
+acceptance:
+  - scanTemplateId=1001 type=1 任务 FINISHED 后 open_vuln_instance 约 500 条且 task_id 正确
+  - 经 open-api-service 的 POST /instances/search 与 fixture 字段一致
+  - PUT 处置操作后 GET vulInfoStat 保持库表值
+  - scanTemplateId=1002/1003 与 type=3 任务命中对应 bundle 条数
+  - 重启后 GET 任务进度仍为 FINISHED 而非 mock engine task not found
+  - 同一 taskId 重复 ingest 幂等无 UK 冲突
+  - auto-ingest-instances-on-finish=false 时不落库、仍可读 fixture
+  - powershell verify-open-api-ddd.ps1 -Compile 通过
+
+agents:
+  - id: M1
+    name: Backend-Mock-Instance-DDL
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/open-api-service
+    allow_paths:
+      - open-api-service/src/main/resources/db/**
+      - open-api-service/**/infra/dao/**
+    deny_paths:
+      - project_frontend/**
+      - partner-gateway/**
+      - vul-pass/**
+    reads:
+      - svmp/docs/internal/open-api-mock-instance-db-PRD.md
+      - open-api-service/src/main/resources/db/mysql/open_vuln_instance.groovy
+    delivers:
+      - Liquibase changeset 扩展 open_vuln_instance（task_id/ext_task_id/ingest 字段）
+      - OpenVulnInstancePO + Mapper + XML（如需）
+      - open_task 可选 ingest 字段 changeset
+    verify:
+      - powershell -File svmp/docs/internal/scripts/verify-open-api-ddd.ps1 -Compile
+    depends_on: []
+    prompt: |
+      你是 Agent M1 · Mock 实例 DDL 与持久化层负责人。
+
+      【只改】open-api-service 下 db/mysql、groovy changeset、infra/dao/po/mapper。
+      【禁止】改前端、partner-gateway、vul-pass。
+
+      【目标】按 PRD §4.1 扩展 open_vuln_instance，实现 PO/Mapper。
+      【约束】UTF-8 无 BOM；changeset id 不重复；字段命名与 open_task 风格一致。
+
+      【交付】changeset 列表 + 新字段说明 + 编译通过
+
+  - id: M2
+    name: Backend-Mock-Instance-Ingest
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/open-api-service
+    allow_paths:
+      - open-api-service/**/domain/instance/**
+      - open-api-service/**/domain/task/**
+      - open-api-service/**/infra/repository/**
+      - open-api-service/**/infra/adapter/mock/**
+    deny_paths:
+      - project_frontend/**
+      - partner-gateway/**
+    reads:
+      - svmp/docs/internal/open-api-mock-instance-db-PRD.md
+      - open-api-service/src/main/java/com/vtc/openapi/infra/adapter/mock/MockFixtureResolver.java
+    delivers:
+      - InstanceIngestDomainService（幂等批量插入）
+      - mergeEngineProgress 首次 FINISHED 触发 ingest
+      - 实现 auto-ingest-instances-on-finish 配置
+      - 批量 insert + 幂等（同 task_id 不重复行）
+      - vul_info_id 生成策略（含 taskId 前缀避免 UK 冲突）
+    verify:
+      - 单元测试或集成测试：mock FINISHED 后有库表记录
+      - powershell -File svmp/docs/internal/scripts/verify-open-api-ddd.ps1 -Compile
+    depends_on:
+      - M1
+    prompt: |
+      你是 Agent M2 · Mock 实例 ingest 域服务负责人。
+
+      【依赖】M1 DDL/Mapper 已经就绪。
+      【目标】任务 FINISHED 时从 MockFixtureResolver 取 bundle 并写入 open_vuln_instance。
+      【约束】仅 adapter-mode=mock；禁止向日志输出敏感字段。
+
+      【交付】改动清单 + ingest 流程说明 + 测试/手工验证步骤
+
+  - id: M3
+    name: Backend-Mock-Instance-Gateway
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/open-api-service
+    allow_paths:
+      - open-api-service/**/instance/**
+      - open-api-service/**/infra/adapter/VulnInstanceGatewayMockImpl.java
+      - open-api-service/**/infra/adapter/SvmpEngineAdapterMockImpl.java
+      - open-api-service/**/infra/repository/**
+    deny_paths:
+      - project_frontend/**
+      - partner-gateway/**
+    reads:
+      - svmp/docs/internal/open-api-mock-instance-db-PRD.md
+      - svmp/docs/external/网络安全漏洞管理平台 · API 接口文档V1.0.4.md
+    delivers:
+      - VulnInstanceGatewayMockImpl 读/写改走 DB，移除 mockStateOverrides
+      - search 按 partner + taskId/extTaskId 分页
+      - updateInstance 更新 vul_info_stat + snapshot_json
+      - SvmpEngineAdapterMockImpl getTaskProgress 无内存状态时读 open_task
+    verify:
+      - powershell -File svmp/docs/internal/scripts/verify-open-api-ddd.ps1 -Compile
+    depends_on:
+      - M2
+    prompt: |
+      你是 Agent M3 · Mock 实例网关读写库负责人。
+
+      【依赖】M2 ingest 已可写库数据。
+      【目标】Mock 模式下实例 API 全部走 open_vuln_instance，重启数据不丢。
+      【禁止】改动 vul-pass Feign 适配（adapter-mode=vul-pass 路径保持原样）。
+
+      【交付】改动清单 + AC-02/AC-03 验证说明
+
+  - id: M4
+    name: Integration-Mock-Instance-DB
+    owner: 联调验收
+    repos: []
+    allow_paths:
+      - svmp/docs/internal/**
+      - open-api-service/src/main/resources/mock/**
+    deny_paths: []
+    reads:
+      - svmp/docs/internal/open-api-mock-instance-db-PRD.md
+      - open-api-service/src/main/resources/mock/engine/README.md
+    delivers:
+      - 联调手册-Mock-Instance-DB.md（对照 PRD AC 与验收表）
+      - acceptance 勾选结果
+    verify:
+      - acceptance 列表全部通过
+    depends_on:
+      - M1
+      - M2
+      - M3
+    prompt: |
+      你是 Agent M4 · OP-MOCK-P1-DB 联调验收负责人。
+
+      【依赖】M1/M2/M3 已完成。
+      【任务】编写联调手册：mock profile 启动 → 创建 1001/1002/1003 任务 → 等 FINISHED → search → verify → 重启 → 再查。
+      【输出】通过项 / 阻塞项 / 修改建议。

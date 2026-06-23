@@ -1,0 +1,164 @@
+openapi: 3.1.0
+info:
+  title: vul-pass Internal Open API
+  version: 0.1.0
+  description: |
+    open-api-service 与 vul-pass 集群内 Feign 契约（不对 Partner 暴露）。
+    Wave 0 冻结；Wave 1 实现。
+servers:
+  - url: http://vul-pass/internal/open/v1
+    description: 集群内服务发现
+
+paths:
+  /tasks:
+    post:
+      operationId: createOpenOrchestrationTask
+      summary: 创建 OPEN 编排任务（SOC 双扫）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOpenTaskRequest'
+      responses:
+        '200':
+          description: 已接受或拒绝
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateOpenTaskResponse'
+
+  /tasks/{passTaskId}:
+    get:
+      operationId: getOpenOrchestrationTask
+      summary: 查询编排任务进度
+      parameters:
+        - name: passTaskId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 任务进度
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenTaskProgressResponse'
+
+  /tasks/{passTaskId}/notify:
+    post:
+      operationId: notifyOpenTaskCompleted
+      summary: vul-pass 通知 open-api 任务结束
+      parameters:
+        - name: passTaskId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenTaskNotifyRequest'
+      responses:
+        '200':
+          description: 已接收
+
+components:
+  schemas:
+    ScanTargets:
+      type: object
+      required: [hosts]
+      properties:
+        hosts:
+          type: string
+          description: IP/域名/URL，逗号或分号分隔
+        auth:
+          type: array
+          items:
+            type: object
+            properties:
+              ip: { type: string }
+              protocol: { type: string }
+              port: { type: integer }
+              username: { type: string }
+              password: { type: string }
+
+    CreateOpenTaskRequest:
+      type: object
+      required: [partnerId, platformTaskId, extTaskId, taskName, vulnType, targets]
+      properties:
+        partnerId: { type: string }
+        platformTaskId: { type: string }
+        extTaskId: { type: string }
+        taskName: { type: string }
+        vulnType: { type: integer, enum: [1, 2, 3] }
+        targets: { $ref: '#/components/schemas/ScanTargets' }
+        scanTemplateId: { type: integer }
+        reportTemplateId: { type: integer }
+        scanPolicy:
+          type: string
+          enum: [SOC_DUAL, SINGLE, CUSTOM]
+          default: SOC_DUAL
+        srcMethod: { type: integer }
+        callbackUrl: { type: string }
+
+    SubTaskCreated:
+      type: object
+      properties:
+        subTaskId: { type: integer, format: int64 }
+        scannerVendor: { type: string, enum: [NESSUS, LM, AH, QM, TRX, AZ, JTL] }
+        externalSurveyId: { type: string }
+
+    CreateOpenTaskResponse:
+      type: object
+      properties:
+        passTaskId: { type: integer, format: int64 }
+        status: { type: string, enum: [ACCEPTED, REJECTED] }
+        subTasks:
+          type: array
+          items: { $ref: '#/components/schemas/SubTaskCreated' }
+        message: { type: string }
+
+    SubTaskProgress:
+      type: object
+      properties:
+        subTaskId: { type: integer, format: int64 }
+        scannerVendor: { type: string }
+        status: { type: string }
+        progress: { type: integer }
+
+    OpenTaskProgressResponse:
+      type: object
+      properties:
+        passTaskId: { type: integer, format: int64 }
+        status:
+          type: string
+          enum: [PENDING, RUNNING, FINISHED, FAILED, PARTIAL_FAILED]
+        progress: { type: integer }
+        subTasks:
+          type: array
+          items: { $ref: '#/components/schemas/SubTaskProgress' }
+        finishedAt: { type: string, format: date-time }
+
+    TaskSummary:
+      type: object
+      properties:
+        totalInstances: { type: integer }
+        verifiedValid: { type: integer }
+        falsePositive: { type: integer }
+
+    OpenTaskNotifyRequest:
+      type: object
+      required: [status, platformTaskId]
+      properties:
+        status:
+          type: string
+          enum: [FINISHED, FAILED, PARTIAL_FAILED]
+        platformTaskId: { type: string }
+        summary: { $ref: '#/components/schemas/TaskSummary' }
+        errorMessage: { type: string }

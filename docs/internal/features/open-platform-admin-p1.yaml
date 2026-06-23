@@ -8,6 +8,7 @@ feature:
   openapi: svmp/openapi/v1/openapi.yaml
 
 shared_reads:
+  - .cursor/skills/esmp-rd-standards/SKILL.md
   - svmp/docs/internal/开放平台集成管理-完整落地方案.md
   - svmp/docs/internal/开放平台集成管理后台-页面设计.md
   - .cursor/skills/esmp-frontend-dev/SKILL.md
@@ -16,8 +17,12 @@ shared_reads:
 acceptance:
   - 后端提供 GET /internal/admin/invocations，支持分页与筛选
   - 后端提供 GET /internal/admin/partners/{partnerId}/stats
-  - 前端新增 InvocationList 页面并支持筛选与分页
-  - PartnerDetail 新增统计 Tab 并接入 stats API
+  - 前端新增 InvocationList / InvocationDetail / Preview Drawer
+  - PartnerDetail 统计 Tab：Top 错误码含中文含义列
+  - Webhook 投递列表 + 详情 Drawer + 手动重试
+  - Webhook 重试历史按 eventId 分组；与调用治理按 resourceId 双向关联
+  - 治理面枚举友好展示（openPlatformDisplay + EnumTag/ResponseCodeTag，见页面设计 §5）
+  - Invocation/Webhook 详情 DO→DetailDTO 走 AdminGovernanceAppConvertor（禁止 ConvertHelper 子类转换）
   - 编译通过且联调数据与接口返回一致
 
 agents:

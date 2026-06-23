@@ -1,0 +1,14 @@
+恢复: 恢复任务，true/falsefailReason:如果任务恢复失败，返回失败信正常响应{    &quot;code&quot;: 200,    &quot;msg&quot;: &quot;操作成功&quot;,    &quot;subMsg&quot;: &quot;&quot;,    
+---
+恢复: 恢复接口功能描述任务恢复Method:urlpathPOST:/api/normal/task/suspend请求参数参数类型是否必传描述datamoduleIntegerYes模块id，具体信息参考附录1。taskIds[]Integer[]Yes一组要恢复的任务id请求样例module=0&am
+---
+恢复: 恢复Method:urlpathPOST:/api/normal/task/suspend请求参数参数类型是否必传描述datamoduleIntegerYes模块id，具体信息参考附录1。taskIds[]Integer[]Yes一组要恢复的任务id请求样例module=0&amp;taskIds[
+---
+suspend: suspend请求参数参数类型是否必传描述datamoduleIntegerYes模块id，具体信息参考附录1。taskIds[]Integer[]Yes一组要开始执行的任务id请求样例module=0&amp;taskIds[]=1&amp;taskIds[]=2响应参数参数名类型含义dataco
+---
+suspend: suspend请求参数参数类型是否必传描述datamoduleIntegerYes模块id，具体信息参考附录1。taskIds[]Integer[]Yes一组要恢复的任务id请求样例module=0&amp;taskIds[]=1&amp;taskIds[]=2响应参数参数名类型含义datacode
+---
+start: start请求参数参数类型是否必传描述datamoduleIntegerYes模块id，具体信息参考附录1。taskIds[]Integer[]Yes一组要开始执行的任务id请求样例module=0&amp;taskIds[]=1&amp;taskIds[]=2响应参数参数名类型含义datacode
+---
+start: startTimeStringNo任务结束的开始时间筛选endTimeStringNo任务结束的结束时间筛选请求样例https://{ip}:{port}/api/normal/task/list/V2?module=8&amp;offset=1&amp;limit=10&amp;state=5&a
+---
