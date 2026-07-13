@@ -1,4 +1,4 @@
-﻿# 网络安全漏洞管理平台 · API 接口文档
+# 网络安全漏洞管理平台 · API 接口文档
 <a id="网络安全漏洞管理平台-api-接口文档"></a>
 
 | 项        | 内容                                                         |
@@ -856,7 +856,7 @@ Authorization: Bearer <accessToken>
 
 **状态约束**：前置 `vulInfoStat ∈ {0,1}`；**3（误报）后禁止**修复/备案。
 
-**扫描外发**：若验证阶段触发复扫 / POC 扫描，完成后平台生成 `EXPORT_READY`（`exportStage=VERIFY_SCAN`）。外发结构按 §5.6.6 聚合；须含 `targets[]`、`liveProbeResults[]`、`vulnerabilities[]`。
+**扫描外发**：若验证阶段触发复扫 / POC 扫描，完成后平台生成 `EXPORT_READY`（`exportStage=VERIFY`）。外发结构按 §5.6.6 聚合；须含 `targets[]`、`liveProbeResults[]`、`vulnerabilities[]`。
 
 **请求示例（验证有效）**
 
@@ -1466,9 +1466,9 @@ TaskExport / taskExport
 
 | `exportStage`     | Artifact 生成时机                            | 说明 |
 | ----------------- | -------------------------------------------- | ---- |
-| `TASK_COMPLETED`  | 主任务扫描结束、原始报告回收完成             | 可按 `deliveryOptions` 同时产出 `SCANNER_RAW` 与 `PLATFORM_REPORT` |
-| `VERIFY_SCAN`     | 验证阶段复扫 / POC 扫描完成                  | 通常仅 `SCANNER_RAW`；平台报告按策略可选 |
-| `VERIFY_FIX_SCAN` | 修复核验复扫完成                             | 同上 |
+| `TASK_COMPLETED`          | 主任务扫描结束、原始报告回收完成             | 可按 `deliveryOptions` 同时产出 `SCANNER_RAW` 与 `PLATFORM_REPORT` |
+| `VERIFY_SCAN`          | 验证阶段复扫 / POC 扫描完成                  | 通常仅 `SCANNER_RAW`；平台报告按策略可选 |
+| `VERIFY_FIX_SCAN`      | 修复核验复扫完成                             | 同上 |
 
 产物就绪后平台推送 **`ARTIFACT_READY`**（§6），或通过 §5.7 接口拉取。
 
@@ -2225,7 +2225,7 @@ TaskExport / taskExport
 
 ---
 
-## 附录 A · 漏洞实例状态 `vulInfoStat`
+## 附录 A1 · 漏洞实例状态 `vulInfoStat`
 <a id="附录-a-漏洞实例状态-vulinfostat"></a>
 
 摘自《基础电信企业网络安全漏洞管理平台接口规范(2025年版)》**A.8 系统漏洞状态码表**。
@@ -2245,7 +2245,19 @@ TaskExport / taskExport
 
 ---
 
+## 附录 A2· 危害等级(产品漏洞脆弱性级别) `vulLevel`
+
+| **序号** | **状态代码** | **产品漏洞脆弱性说明** |
+| -------- | ------------ | ---------------------- |
+| **1**    | **5**        | **极高**               |
+| 2        | 4            | 高                     |
+| 3        | 3            | 中                     |
+| 4        | 2            | 低                     |
+| 5        | 1            | 提示                   |
+| 6        | 0            | 无漏洞                 |
+
 ## 附录 B · 相关资源
+
 <a id="附录-b-相关资源"></a>
 
 | 资源                          | 路径                                                         |
@@ -2775,9 +2787,9 @@ Partner 主动调用 REST **不会**触发平台向 Partner 回调；Webhook 为
 
 | 版本      | 日期       | 说明                                                         |
 | --------- | ---------- | ------------------------------------------------------------ |
-| **1.0.6** | 2026-06-17 | **§1.3.1** 新增漏洞状态跃迁规则表（写操作前置/后置状态）；**§5.4** 放宽 `remediate` 前置为 `{1,2,7}`（**3 误报禁止**）；新增请求参数 `vulInfoStat`（推荐）及 `lvRsn` 兜底推断规则；更新请求示例（显式/兼容两种模式） |
+| **1.0.6** | 2026-06-17 | **§1.3.1** 新增漏洞状态跃迁规则表（写操作前置/后置状态）；**§5.4** 放宽 `remediate` 前置为 `{1,2,7}`（**3 误报禁止**）；新增请求参数 `vulInfoStat`（推荐）及 `lvRsn` 兜底推断规则；更新请求示例（显式/兼容两种模式）；增加附录A2· 危害等级(产品漏洞脆弱性级别) `vulLevel` |
 | **1.0.5** | 2026-06-16 | **§5.7** 新增扫描报告产物外发（Artifact）四接口；**§6.2** 新增 `ARTIFACT_READY` Webhook；**§7.4** 产物外发说明；**§8** 新增 `ARTIFACT_READ`；**§5.1.2** / **附录 H.3** 新增 `deliveryOptions`；明确 §5.6 Export 与 §5.7 Artifact 分层；**§1.3.1** 状态流转补充 `autoVerify` 自动验证阶段说明；**§5.1.2** 创建任务新增 `autoVerify` 参数（默认 true）及双扫合并策略说明；**§5.1.2** 请求示例补充；**附录 G.2** `<server>` 新增 `autoVerify` 路径；**§5.6.2** `TASK_COMPLETED` 外发补充 autoVerify=true 时含两阶段合并结果；**§6** `TASK_COMPLETED` payload 新增 `summary.initialDiscovery` |
-| **1.0.4** | 2026-06-05 | **§6.2** `INSTANCE_VERIFY_FIX_COMPLETED` payload 重构为 `items[]` 数组结构，支持批量核验结果一次回调；修正附录 A · 漏洞实例状态 `vulInfoStat` 阶段信息； |
+| **1.0.4** | 2026-06-05 | **§6.2** `INSTANCE_VERIFY_FIX_COMPLETED` payload 重构为 `items[]` 数组结构，支持批量核验结果一次回调；附录 A更名为附录 A1，并修正附录 A1内容 · 漏洞实例状态 `vulInfoStat` 阶段信息； |
 | **1.0.3** | 2026-05-19 | **§1.0** 平台说明；**§1.3** 重写实例生命周期写接口对照表（3 类 6 路径；含任务创建共 8 路径）；**§2.1/§2.2** 补充 `clientId`/`clientSecret` 与认证服务 Base URL；**§3.1.1** 新增 OAuth / 简化 JSON Token 换取说明与示例；**§3.3** 明确 Webhook 验签与 REST 无关并指向 §6.0；**§4.2** 澄清创建任务幂等；**§5.0.1** 统一表格列名体例；**§6.0** Partner 接收端验签；**附录 J** 接入 FAQ；文档更名为 **《网络安全漏洞管理平台 · API 接口文档》**；正文删除「开放平台」相关叙述，删除 §1.0.2；**§1.3.2** 修复核验补充复扫及默认扫描器选择规则； |
 | **1.0.2** | 2026-05-23 | §5.1.2 `targets` 改为对象：`hosts`（扫描地址）+ `auth[]`（登陆凭据） |
 | **1.0.1** | 2026-05-19 | §5.1.1 / §5.1.2 创建任务路径拆分：`POST /tasks/file`（XML）、`POST /tasks/vul`（JSON）； |
