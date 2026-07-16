@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>任务详情工作台原型 · 贴合现有功能</title>
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --card: #fff;
+      --border: #e8e8e8;
+      --text: #262626;
+      --muted: #8c8c8c;
+      --primary: #1890ff;
+      --primary-bg: #e6f7ff;
+      --success: #52c41a;
+      --warning: #fa8c16;
+      --error: #f5222d;
+      --purple: #722ed1;
+      --volcano: #fa541c;
+      --cyan: #13c2c2;
+      --geekblue: #2f54eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .app { max-width: 1440px; margin: 0 auto; padding: 16px; }
+    .banner {
+      background: #fffbe6;
+      border: 1px solid #ffe58f;
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      color: #874d00;
+    }
+    .banner strong { color: #ad6800; }
+    .page-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .page-title h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    .hint { color: var(--muted); font-size: 12px; }
+
+    /* ant-ish bits */
+    .btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      height: 28px; padding: 0 12px; border-radius: 4px;
+      border: 1px solid var(--border); background: #fff; cursor: pointer;
+      font-size: 13px; color: var(--text);
+    }
+    .btn:hover { color: var(--primary); border-color: var(--primary); }
+    .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn.primary:hover { background: #40a9ff; }
+    .btn.link { border: none; background: transparent; color: var(--primary); padding: 0 6px; height: auto; }
+    .btn.link:hover { color: #40a9ff; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; color: var(--muted); border-color: var(--border); }
+    .tag {
+      display: inline-block; padding: 0 7px; height: 22px; line-height: 20px;
+      border-radius: 2px; font-size: 12px; border: 1px solid transparent; margin-right: 4px;
+      vertical-align: middle; white-space:nowrap;
+    }
+    .tag.blue { background: #e6f7ff; border-color: #91d5ff; color: #096dd9; }
+    .tag.green { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
+    .tag.red { background: #fff1f0; border-color: #ffa39e; color: #cf1322; }
+    .tag.orange { background: #fff7e6; border-color: #ffd591; color: #d46b08; }
+    .tag.purple { background: #f9f0ff; border-color: #d3adf7; color: #531dab; }
+    .tag.cyan { background: #e6fffb; border-color: #87e8de; color: #08979c; }
+    .tag.geekblue { background: #f0f5ff; border-color: #adc6ff; color: #1d39c4; }
+    .tag.volcano { background: #fff2e8; border-color: #ffbb96; color: #d4380d; }
+    .tag.method {
+      background: #fff; border: 1px solid #d9d9d9; color: #595959;
+    }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 4px;
+      margin-bottom: 12px;
+    }
+    .card-hd {
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .card-hd h2 { margin: 0; font-size: 14px; font-weight: 600; }
+    .card-bd { padding: 12px 14px; }
+
+    table.data { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.data th, table.data td {
+      border: 1px solid var(--border); padding: 8px 10px; text-align: left;
+      vertical-align: middle;
+    }
+    table.data th { background: #fafafa; font-weight: 600; white-space: nowrap; }
+    table.data tr.selected { background: var(--primary-bg); }
+    table.data tr.clickable { cursor: pointer; }
+    table.data tr.clickable:hover { background: #f5f5f5; }
+    table.data tr.selected:hover { background: var(--primary-bg); }
+    .ellipsis { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mono { font-family: Consolas, Menlo, monospace; font-size: 12px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+      gap: 12px;
+      min-height: 520px;
+    }
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    /* 子任务上下文全页展开（对齐现网 drawerPageMode 全页子页） */
+    .layout.ctx-fullscreen {
+      display: block;
+      min-height: calc(100vh - 120px);
+    }
+    .layout.ctx-fullscreen .col-subs { display: none; }
+    .layout.ctx-fullscreen .col-ctx {
+      margin: 0;
+      min-height: calc(100vh - 140px);
+      display: flex;
+      flex-direction: column;
+    }
+    .layout.ctx-fullscreen .col-ctx > .card-bd {
+      flex: 1;
+      overflow: auto;
+    }
+    .workbench.ctx-fullscreen .main-summary-card,
+    .workbench.ctx-fullscreen .footer-bar {
+      display: none !important;
+    }
+    body.ctx-fullscreen-mode #mainListCard,
+    body.ctx-fullscreen-mode .page-title,
+    body.ctx-fullscreen-mode .banner,
+    body.task-fullpage-mode #mainListCard,
+    body.task-fullpage-mode .page-title,
+    body.task-fullpage-mode .banner {
+      display: none !important;
+    }
+    /* 行内摘要：贴近表格展开行，不做独立大卡片 */
+    tr.expand-row > td {
+      background: #fafafa;
+      border-top: none !important;
+      padding: 0 !important;
+    }
+    .row-embed-summary {
+      margin: 0;
+      padding: 10px 16px 12px 48px;
+      background: #fafafa;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      border-bottom: 1px solid var(--border);
+    }
+    .row-embed-summary .embed-title {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .row-embed-summary .embed-title strong {
+      color: var(--text);
+      font-weight: 500;
+      font-size: 13px;
+    }
+    .row-embed-summary .summary-grid {
+      margin-top: 6px;
+      gap: 6px 20px;
+    }
+    .row-embed-summary .summary-item .label {
+      font-size: 11px;
+    }
+    .row-embed-summary .summary-item .value {
+      font-size: 12px;
+      font-weight: 400;
+    }
+    .row-embed-summary .steps {
+      margin-top: 8px;
+    }
+    .row-embed-summary .embed-actions {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #f0f0f0;
+    }
+    /* 任务全页（详情/结果/台账/子任务编排） */
+    body.task-fullpage-mode #workbench {
+      display: block !important;
+    }
+    body.task-fullpage-mode .task-fullpage-topbar {
+      display: flex;
+    }
+    .task-fullpage-topbar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    .task-fullpage-topbar .title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    #workbench.embedded {
+      animation: none;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 8px 16px;
+      margin-top: 8px;
+    }
+    .summary-item .label { color: var(--muted); font-size: 12px; }
+    .summary-item .value { font-weight: 500; margin-top: 2px; word-break: break-all; }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      min-height: 280px;
+    }
+    @media (max-width: 900px) {
+      .overview-grid { grid-template-columns: 1fr; }
+    }
+    .kv-list { margin: 0; padding: 0; list-style: none; }
+    .kv-list li {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 13px;
+    }
+    .kv-list .k { color: var(--muted); }
+    .kv-list .v { color: var(--text); word-break: break-all; }
+    .kv-list .v.api { color: #722ed1; font-family: Consolas, Menlo, monospace; font-size: 12px; }
+    .timeline { position: relative; padding-left: 18px; }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 5px; top: 4px; bottom: 4px;
+      width: 2px; background: #e8e8e8;
+    }
+    .tl-item { position: relative; padding: 0 0 16px 12px; }
+    .tl-item:last-child { padding-bottom: 0; }
+    .tl-item .dot {
+      position: absolute; left: -16px; top: 4px;
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--primary); border: 2px solid #fff;
+      box-shadow: 0 0 0 1px #91d5ff;
+    }
+    .tl-item.warn .dot {
+      background: var(--warning);
+      box-shadow: 0 0 0 1px #ffd591;
+    }
+    .tl-item .t { color: var(--muted); font-size: 12px; margin-bottom: 2px; }
+    .tl-item .c { color: var(--text); font-size: 13px; }
+    .page-tabs-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 8px;
+      background: #fff;
+    }
+    .page-tab {
+      padding: 12px 18px;
+      cursor: pointer;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      font-size: 14px;
+    }
+    .page-tab:hover { color: var(--primary); }
+    .page-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 500;
+    }
+    .page-tab-panel { display: none; padding: 16px; }
+    .page-tab-panel.active { display: block; }
+    .section-title { font-size: 14px; font-weight: 600; margin: 0 0 12px; }
+    body.task-fullpage-mode .footer-bar { display: none; }
+    /* 子任务全页：隐藏标签区与右侧面板，只展示全宽内容 */
+    body.sub-fullpage-mode #pageTabsBar,
+    body.sub-fullpage-mode #panel-overview,
+    body.sub-fullpage-mode #panel-subs,
+    body.sub-fullpage-mode #panel-dispatch,
+    body.sub-fullpage-mode #panel-resultSummary,
+    body.sub-fullpage-mode .page-tabs-card {
+      display: none !important;
+    }
+    body.sub-fullpage-mode #subFullpagePanel { display: block !important; }
+    #subFullpagePanel { display: none; padding: 0 0 16px; }
+    .sub-fullpage-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    .sub-fullpage-topbar .title { font-size: 14px; font-weight: 600; }
+    .sub-fullpage-body { padding: 0; }
+    .result-summary-view .tabs { margin: 0 0 12px; padding: 0 8px; }
+    .result-summary-view .panel { display: none; }
+    .result-summary-view .panel.active { display: block; }
+    .result-summary-topbar { margin-bottom: 0; }
+
+    .steps {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 10px;
+    }
+    .step {
+      display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px;
+    }
+    .step .dot {
+      width: 18px; height: 18px; border-radius: 50%; border: 1px solid #d9d9d9;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; background: #fafafa;
+    }
+    .step.done { color: var(--success); }
+    .step.done .dot { border-color: var(--success); background: #f6ffed; color: var(--success); }
+    .step.current { color: var(--primary); font-weight: 600; }
+    .step.current .dot { border-color: var(--primary); background: var(--primary-bg); color: var(--primary); }
+    .step-sep { color: #d9d9d9; margin: 0 2px; }
+
+    .sub-list { display: flex; flex-direction: column; gap: 8px; }
+    .sub-card {
+      border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px;
+      cursor: pointer; background: #fff; transition: border-color .15s, box-shadow .15s;
+    }
+    .sub-card:hover { border-color: #91d5ff; }
+    .sub-card.active {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(24,144,255,.15);
+      background: #fafcff;
+    }
+    .sub-card.skipped { opacity: .72; background: #fafafa; }
+    .sub-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .sub-title { font-weight: 600; font-size: 13px; }
+    .sub-meta {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;
+      margin-top: 8px; color: var(--muted); font-size: 12px;
+    }
+    .sub-meta b { color: var(--text); font-weight: 500; }
+    .sub-actions {
+      margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border);
+      display: flex; flex-wrap: wrap; gap: 2px;
+    }
+    .depend {
+      margin-top: 6px; font-size: 12px; color: #ad6800;
+      background: #fffbe6; border: 1px solid #ffe58f; border-radius: 2px; padding: 4px 8px;
+    }
+
+    .tabs { display: flex; border-bottom: 1px solid var(--border); margin: -12px -14px 12px; padding: 0 8px; }
+    .tab {
+      padding: 10px 14px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 500; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .inner-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+    .inner-tab {
+      padding: 8px 12px; cursor: pointer; color: var(--muted); font-size: 12px;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+    }
+    .inner-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .footer-bar {
+      position: sticky; bottom: 0; background: #fff; border-top: 1px solid var(--border);
+      padding: 10px 14px; display: flex; justify-content: flex-end; gap: 8px;
+      margin: 12px -16px -16px; box-shadow: 0 -2px 8px rgba(0,0,0,.04);
+    }
+
+    .toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,.75); color: #fff; padding: 8px 16px; border-radius: 4px;
+      z-index: 99; display: none; font-size: 13px;
+    }
+    .empty { color: var(--muted); text-align: center; padding: 24px; }
+    .pair { display: flex; gap: 8px; margin-bottom: 8px; }
+    .pair-box {
+      flex: 1; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; background: #fafafa;
+    }
+    .pair-box.ok { border-color: #b7eb8f; background: #f6ffed; }
+    .pair-box.warn { border-color: #ffe58f; background: #fffbe6; }
+    .pair-box.miss { border-color: #ffa39e; background: #fff1f0; }
+    .pair-box .k { color: var(--muted); font-size: 11px; }
+    .pair-box .v { font-weight: 600; margin-top: 2px; }
+    .scope-list { list-style: none; padding: 0; margin: 0; }
+    .scope-list li {
+      padding: 8px 0; border-bottom: 1px dashed var(--border);
+      display: flex; justify-content: space-between; gap: 12px;
+    }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    /* 处置弹窗 — 对齐现网 ProMethodDrawer.vue */
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 200; display: none; align-items: flex-start; justify-content: center;
+      padding: 48px 16px 24px; overflow: auto;
+    }
+    .modal-mask.open { display: flex; }
+    body.modal-open { overflow: hidden; }
+    .modal {
+      width: min(720px, 100%); background: #fff; border-radius: 4px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.15); animation: modalIn .2s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(-12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .modal-hd {
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .modal-hd h3 { margin: 0; font-size: 16px; font-weight: 600; }
+    .modal-close {
+      border: none; background: transparent; font-size: 20px; line-height: 1;
+      color: var(--muted); cursor: pointer; padding: 0 4px;
+    }
+    .modal-bd { padding: 20px 24px 8px; }
+    .modal-ft {
+      padding: 12px 20px 16px; border-top: 1px solid var(--border);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+    .form-row {
+      display: grid; grid-template-columns: 140px 1fr; gap: 8px 12px;
+      align-items: start; margin-bottom: 16px;
+    }
+    .form-row > label { color: rgba(0,0,0,.85); font-size: 14px; line-height: 32px; text-align: right; }
+    .form-row > label.required::before { content: '* '; color: #ff4d4f; }
+    .form-control {
+      width: 100%; min-height: 32px; border: 1px solid #d9d9d9; border-radius: 4px;
+      padding: 4px 11px; font-size: 14px; background: #fff;
+    }
+    .form-control:disabled { background: #f5f5f5; color: rgba(0,0,0,.65); cursor: not-allowed; }
+    .checkbox-list { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+    .checkbox-list label {
+      display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 1.5; cursor: pointer;
+    }
+    .checkbox-list label.disabled { color: rgba(0,0,0,.25); cursor: not-allowed; }
+    .checkbox-list input { width: 16px; height: 16px; }
+    .upload-box {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .upload-name { font-size: 13px; color: var(--muted); }
+    .modal-ref {
+      margin-top: 8px; padding: 8px 10px; background: #fafafa; border-radius: 4px;
+      border: 1px dashed var(--border); font-size: 12px; color: var(--muted);
+    }
+    .btn.dispose { color: #fa8c16; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="banner">
+      <strong>HTML 交互原型</strong> —
+      行点击嵌入摘要；进入主任务全页后：<b>上部主任务摘要不变</b>，
+      下部标签为 <b>概览 / 子任务 / 下发详情 / 结果摘要</b>（布局参考图）。
+    </div>
+
+    <div class="page-title">
+      <div>
+        <h1>任务详情</h1>
+        <div class="hint">工单 orderId：ORD-20260715-1060-001 · 对应现页「任务详情」全页/抽屉</div>
+      </div>
+      <div class="toolbar">
+        <button class="btn" onclick="toast('刷新：调用 getVulnScanTaskPage')">⟳ 刷新</button>
+      </div>
+    </div>
+
+    <!-- ===== 主任务列表（现有 columns 全保留） ===== -->
+    <div class="card" id="mainListCard">
+      <div class="card-hd">
+        <h2>主任务列表</h2>
+        <span class="hint">接口 getVulnScanTaskPage · 点击行在该行下方嵌入摘要</span>
+      </div>
+      <div class="card-bd" style="padding:0; overflow:auto;">
+        <table class="data" id="mainTable">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>任务ID</th>
+              <th>处置方式</th>
+              <th>工单业务阶段</th>
+              <th>任务状态</th>
+              <th>稽核状态</th>
+              <th>资产数量单元</th>
+              <th>排查资产数量</th>
+              <th>排查产品漏洞数量</th>
+              <th>排查弱口令数量</th>
+              <th>创建时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 任务全页：由详情/结果/台账等按钮打开，对齐现网全页子页 -->
+    <div id="workbench" class="workbench" style="display:none;">
+      <div class="task-fullpage-topbar" id="taskFullpageTopbar">
+        <div>
+          <button class="btn" onclick="exitTaskFullPage()">← 返回任务列表</button>
+          <span class="title" style="margin-left:12px;" id="taskFullpageTitle">任务全页</span>
+        </div>
+        <div class="toolbar">
+          <button class="btn" onclick="toast('刷新主/子任务')">⟳ 刷新</button>
+          <button class="btn" id="btnAudit" onclick="toast('稽核完成：写入生命周期 + 台账，工单状态更新')">稽核完成</button>
+          <button class="btn primary" onclick="toast('跳转：工单回传 OrderReturn')">工单回传</button>
+        </div>
+      </div>
+
+      <div class="card main-summary-card" id="fullpageSummaryCard">
+        <div class="card-hd">
+          <h2>主任务摘要 <span class="hint" id="mainIdLabel"></span></h2>
+        </div>
+        <div class="card-bd">
+          <div id="mainSummary"></div>
+          <div class="steps" id="mainSteps"></div>
+        </div>
+      </div>
+
+      <!-- 下部：参考图标签布局 -->
+      <div class="card page-tabs-card" style="margin-bottom:0;">
+        <div class="page-tabs-bar" id="pageTabsBar">
+          <div class="page-tab active" data-ptab="overview" onclick="switchPageTab('overview')">概览</div>
+          <div class="page-tab" data-ptab="subs" onclick="switchPageTab('subs')">子任务</div>
+          <div class="page-tab" data-ptab="dispatch" onclick="switchPageTab('dispatch')">下发详情</div>
+          <div class="page-tab" data-ptab="resultSummary" onclick="switchPageTab('resultSummary')">结果摘要</div>
+        </div>
+
+        <!-- 概览：左基础信息 + 右审计时间线 -->
+        <div class="page-tab-panel active" id="panel-overview">
+          <div class="overview-grid">
+            <div>
+              <h3 class="section-title">基础信息</h3>
+              <ul class="kv-list" id="overviewKv"></ul>
+            </div>
+            <div>
+              <h3 class="section-title">审计时间线</h3>
+              <div class="timeline" id="overviewTimeline"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 子任务：卡片列表（原样式）· 操作按钮全页打开 -->
+        <div class="page-tab-panel" id="panel-subs">
+          <div class="hint" style="margin-bottom:8px;">接口 getVulnScanTaskSubPage · 核验按 Gate/Scan 波次 · 操作全页打开详情/追踪/结果/台账</div>
+          <div class="sub-list" id="subList"></div>
+        </div>
+
+        <!-- 下发详情：confirmToken / 预览计划 / 范围 -->
+        <div class="page-tab-panel" id="panel-dispatch">
+          <h3 class="section-title">下发详情</h3>
+          <div class="hint" style="margin-bottom:12px;">对应 preDispatch 方案 + confirmToken 校验后的落库信息</div>
+          <ul class="kv-list" id="dispatchKv"></ul>
+          <div style="margin-top:16px;">
+            <h3 class="section-title">系统漏洞范围（节选）</h3>
+            <div id="dispatchScope"></div>
+          </div>
+        </div>
+
+        <!-- 结果摘要：与子任务全页一致 — Tab 切换任务结果 / 台账日志 -->
+        <div class="page-tab-panel" id="panel-resultSummary">
+          <div class="result-summary-view">
+            <div class="sub-fullpage-topbar result-summary-topbar">
+              <span class="title" id="resultSummaryTitle">主任务 · 任务结果</span>
+              <span class="hint" id="resultSummaryParamHint">传参 taskId（与现网一致）</span>
+            </div>
+            <div class="tabs" id="resultSummaryTabs">
+              <div class="tab active" data-rstab="result" onclick="switchResultSummaryTab('result')">任务结果</div>
+              <div class="tab" data-rstab="ledger" onclick="switchResultSummaryTab('ledger')">台账日志</div>
+            </div>
+            <div class="panel active" id="panel-rs-result">
+              <div class="hint" style="margin-bottom:8px;">系统漏洞列表 · 可导出</div>
+              <div style="overflow:auto;">
+                <table class="data" id="resultSummaryTable">
+                  <thead>
+                    <tr>
+                      <th>序号</th><th>系统漏洞ID</th><th>部侧编号</th><th>CVE</th><th>漏洞名称</th>
+                      <th>脆弱实例网络地址</th><th>端口</th><th>服务</th><th>系统漏洞状态</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="panel" id="panel-rs-ledger">
+              <div class="hint" style="margin-bottom:8px;">getLogInfoPage · 核验期望每子任务一对 opCode 9+10</div>
+              <div id="resultSummaryLedgerPairs"></div>
+              <div style="overflow:auto; margin-top:8px;">
+                <table class="data" id="resultSummaryLedgerTable">
+                  <thead>
+                    <tr>
+                      <th>发生时间</th><th>平台Hash</th><th>平台IP</th><th>用户账号</th><th>用户IP</th>
+                      <th>L2返回码</th><th>台账处置编码</th><th>日志等级</th><th>执行动作</th><th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 子任务全页（无右侧面板，全宽展示） -->
+      <div id="subFullpagePanel">
+        <div class="sub-fullpage-topbar">
+          <div>
+            <button class="btn" onclick="exitSubFullPage()">← 返回子任务列表</button>
+            <span class="title" style="margin-left:12px;" id="subFullpageTitle">子任务</span>
+          </div>
+          <span class="hint" id="ctxParamHint">传参 tskSubId / localTaskId</span>
+        </div>
+        <div class="card sub-fullpage-body">
+          <div class="card-bd">
+            <div class="tabs" id="mainTabs">
+              <div class="tab active" data-tab="info" onclick="switchTab('info')">任务详情</div>
+              <div class="tab" data-tab="result" onclick="switchTab('result')">任务结果</div>
+              <div class="tab" data-tab="ledger" onclick="switchTab('ledger')">台账日志</div>
+              <div class="tab" data-tab="trace" onclick="switchTab('trace')">任务追踪</div>
+            </div>
+            <div class="panel active" id="panel-info">
+              <div class="inner-tabs" id="infoInnerTabs">
+                <div class="inner-tab active" data-inner="vuln" onclick="switchInner('vuln')">系统漏洞范围</div>
+                <div class="inner-tab" data-inner="asset" onclick="switchInner('asset')">资产排查范围</div>
+                <div class="inner-tab" data-inner="pro" onclick="switchInner('pro')">产品漏洞排查范围</div>
+                <div class="inner-tab" data-inner="pwd" onclick="switchInner('pwd')">弱口令排查范围</div>
+              </div>
+              <div id="infoInnerBody"></div>
+              <div style="margin-top:12px; text-align:right;">
+                <button class="btn primary" id="btnDispose" onclick="openDisposeModalFromPanel()">处置</button>
+              </div>
+            </div>
+            <div class="panel" id="panel-result">
+              <div class="hint" style="margin-bottom:8px;">系统漏洞列表 · 可导出</div>
+              <div style="overflow:auto;">
+                <table class="data" id="resultTable">
+                  <thead>
+                    <tr>
+                      <th>序号</th><th>系统漏洞ID</th><th>部侧编号</th><th>CVE</th><th>漏洞名称</th>
+                      <th>脆弱实例网络地址</th><th>端口</th><th>服务</th><th>系统漏洞状态</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="panel" id="panel-ledger">
+              <div class="hint" style="margin-bottom:8px;">getLogInfoPage · 核验期望每子任务一对 opCode 9+10</div>
+              <div id="ledgerPairs"></div>
+              <div style="overflow:auto; margin-top:8px;">
+                <table class="data" id="ledgerTable">
+                  <thead>
+                    <tr>
+                      <th>发生时间</th><th>平台Hash</th><th>平台IP</th><th>用户账号</th><th>用户IP</th>
+                      <th>L2返回码</th><th>台账处置编码</th><th>日志等级</th><th>执行动作</th><th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="panel" id="panel-trace">
+              <div id="traceBody"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bar">
+        <button class="btn" onclick="backToList()">取消</button>
+        <button class="btn primary" onclick="toast('跳转：工单回传')">工单回传</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- 处置弹窗：对齐 TaskInfoDrawer → ProMethodDrawer -->
+  <div class="modal-mask" id="disposeModal" onclick="if(event.target===this) closeDisposeModal()">
+    <div class="modal" role="dialog" aria-labelledby="disposeModalTitle">
+      <div class="modal-hd">
+        <h3 id="disposeModalTitle">处置</h3>
+        <button class="modal-close" onclick="closeDisposeModal()" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-bd">
+        <div class="hint" style="margin-bottom:14px;">
+          子任务 <span class="mono" id="disposeSubLabel">-</span>
+          · 对应现网 <span class="api">ProMethodDrawer.vue</span>
+        </div>
+        <div class="form-row">
+          <label class="required">技术处置方式</label>
+          <select class="form-control" id="disposeProcMethod" disabled></select>
+        </div>
+        <div class="form-row">
+          <label class="required">漏洞业务阶段</label>
+          <select class="form-control" id="disposeTskPhase" disabled></select>
+        </div>
+        <div class="form-row">
+          <label class="required">处置类型</label>
+          <select class="form-control" id="disposeReportType" onchange="onDisposeReportTypeChange()"></select>
+        </div>
+        <div class="form-row" id="disposeUploadRow" style="display:none;">
+          <label class="required">上传文件</label>
+          <div class="upload-box">
+            <button class="btn primary" type="button" onclick="document.getElementById('disposeFileInput').click()">点击上传</button>
+            <input type="file" id="disposeFileInput" style="display:none;" onchange="onDisposeFileChange(this)">
+            <span class="upload-name" id="disposeFileName">未选择文件</span>
+            <button class="btn link" type="button" id="disposeFileRemove" style="display:none;" onclick="clearDisposeFile()">移除</button>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>资产匹配方式</label>
+          <div class="checkbox-list" id="disposeMatchRules"></div>
+        </div>
+        <div class="form-row">
+          <label>智能稽核</label>
+          <label style="line-height:32px; text-align:left;">
+            <input type="checkbox" id="disposeAutoSubmit"> 保存后自动触发智能稽核
+          </label>
+        </div>
+        <div class="modal-ref">
+          子任务保存接口：<span class="api">POST getVulnScanTaskSubRecycle / getVulnScanTaskSubRecycleAuto</span>
+          · 参数 subTaskId / reportType / matchAssetRule / autoSubmit
+        </div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn" type="button" onclick="closeDisposeModal()">取消</button>
+        <button class="btn primary" type="button" onclick="submitDispose()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ========== 字典：与 TaskDrawer.tskStatData / 业务码一致 ========== */
+    const TSK_STAT = {
+      0: { name: '待处置', color: 'cyan' },
+      1: { name: '已完成', color: 'green' },
+      2: { name: '失败', color: 'red' },
+      3: { name: '进行中', color: 'orange' },
+      4: { name: '预览态', color: 'blue' },
+      5: { name: '待离线导入', color: 'geekblue' },
+      6: { name: '待核验门闸完成', color: 'purple' },
+      7: { name: '待核验扫描完成', color: 'purple' },
+      8: { name: '核验完成', color: 'green' }
+    };
+    const PHASE = { 1: '验证', 2: '修复', 3: '核验' };
+    const PROC = {
+      1060: '1060 修复核验自适应扫描',
+      1022: '1022 漏洞扫描（混合）',
+      1028: '1028 连通性检测',
+      1021: '1021 POC插件',
+      1027: '1027 登录扫描'
+    };
+    const VUL_STAT = {
+      5: '已修复', 6: '核验修复', 7: '核验未修复', 10: '核验失败'
+    };
+    const REPORT = { 3: '平台漏洞实例XLSX', 10: '绿盟XML', 32: '修复核验报告' };
+    const OP = { 9: '下发验证任务', 10: '获取验证结果' };
+    const STRATEGY = {
+      CONNECTIVITY_GATE: '连通性门闸',
+      VUL_SCAN: '漏洞扫描型',
+      POC_BAS: 'POC/BAS型'
+    };
+    /** 现网 VulReportTypeEnum（hidden=1 子集，用于 ProMethodDrawer） */
+    const REPORT_TYPES = [
+      { code: 3, name: '常态化上报系统漏洞表V1.0(XLSX)', upload: 1 },
+      { code: 10, name: '漏洞扫描报告V1.2(绿盟-XML)', upload: 1 },
+      { code: 11, name: '弱口令扫描报告V1.2(绿盟-XML)', upload: 1 },
+      { code: 23, name: 'POC漏洞验证(绿盟-XML)', upload: 1 },
+      { code: 32, name: '漏洞核验修复V1.0', upload: 0 }
+    ];
+    /** 现网 MatchAssetRuleEnum（hidden=1） */
+    const MATCH_RULES = [
+      { code: 1, name: 'IP+端口+协议+服务', selected: 1, hidden: 1, disable: 0 },
+      { code: 2, name: 'IP+端口+协议', selected: 1, hidden: 1, disable: 0 },
+      { code: 4, name: 'IP+端口+服务', selected: 1, hidden: 1, disable: 0 },
+      { code: 8, name: 'IP+端口', selected: 1, hidden: 1, disable: 0 },
+      { code: 16, name: 'IP', selected: 0, hidden: 1, disable: 0 },
+      { code: 32, name: '人工匹配', selected: 0, hidden: 1, disable: 1 },
+      { code: 64, name: '报送资产ID', selected: 0, hidden: 1, disable: 0 }
+    ];
+    const ORDER_PHASE = [
+      { code: 1, name: '验证' },
+      { code: 2, name: '修复' },
+      { code: 3, name: '核验' },
+      { code: 4, name: '核验（扩展）' }
+    ];
+
+    /* ========== 样例数据：贴合 1060 门闸编排现网字段 ========== */
+    const mainTasks = [
+      {
+        id: 'TSK-MAIN-88001',
+        procMethod: 1060,
+        tskPhase: 3,
+        tskStat: 7,
+        orderAct: 1,
+        astUnitNum: -1,
+        astNum: 12,
+        vulNum: 38,
+        pwNum: 0,
+        createTime: '2026-07-15 14:22:08',
+        tskModel: 1,
+        confirmToken: 'cf-7a2b…e91',
+        srcDist: { 1050: 10, 1051: 19, 1052: 4, 1053: 5 }
+      },
+      {
+        id: 'TSK-MAIN-87012',
+        procMethod: 1022,
+        tskPhase: 1,
+        tskStat: 1,
+        orderAct: 0,
+        astUnitNum: 50,
+        astNum: 120,
+        vulNum: 0,
+        pwNum: 0,
+        createTime: '2026-07-10 09:01:33',
+        tskModel: 0
+      }
+    ];
+
+    const subTasksByMain = {
+      'TSK-MAIN-88001': [
+        {
+          id: 'SUB-G-1001',
+          tskPhase: 3,
+          tskStat: 1,
+          astNum: 12,
+          prcAstNum: 12,
+          prcVulNum: 38,
+          engHash: 'a1b2c3d4e5f6789012345678abcdef01',
+          engName: '连通性探针-A',
+          engTypeLabel: 'engType bit=16',
+          tskProgress: 1,
+          wave: 'GATE',
+          strategyClass: 'CONNECTIVITY_GATE',
+          verifySrcMethod: 1028,
+          srcMethods: [1050, 1051, 1052, 1053],
+          reportType: 10,
+          actualAlive: true,
+          aliveConsistent: true,
+          dependsOnGroupIndex: null,
+          deviceMatched: true,
+          scannerSource: 'FALLBACK'
+        },
+        {
+          id: 'SUB-S-2001',
+          tskPhase: 3,
+          tskStat: 3,
+          astNum: 8,
+          prcAstNum: null,
+          prcVulNum: null,
+          engHash: 'f0e1d2c3b4a5968778695a4b3c2d1e0f',
+          engName: '漏扫引擎-B',
+          engTypeLabel: '漏洞扫描',
+          tskProgress: 0,
+          wave: 'SCAN',
+          strategyClass: 'VUL_SCAN',
+          verifySrcMethod: 1022,
+          srcMethods: [1050],
+          reportType: null,
+          dependsOnGroupIndex: 0,
+          dependGateId: 'SUB-G-1001',
+          aliveFilter: 'Gate后存活 8/10（1050）',
+          deviceMatched: true,
+          scannerSource: 'LAST_SCAN'
+        },
+        {
+          id: 'SUB-S-2002',
+          tskPhase: 3,
+          tskStat: 5,
+          astNum: 15,
+          prcAstNum: null,
+          prcVulNum: null,
+          engHash: '11223344556677889900aabbccddeeff',
+          engName: 'POC引擎-C',
+          engTypeLabel: 'POC',
+          tskProgress: 0,
+          wave: 'SCAN',
+          strategyClass: 'POC_BAS',
+          verifySrcMethod: 1021,
+          srcMethods: [1051],
+          reportType: null,
+          dependsOnGroupIndex: 0,
+          dependGateId: 'SUB-G-1001',
+          aliveFilter: 'Gate后存活 15/19（1051）',
+          deviceMatched: true,
+          scannerSource: 'FALLBACK'
+        },
+        {
+          id: 'SUB-S-SKIP',
+          tskPhase: 3,
+          tskStat: 1,
+          astNum: 0,
+          prcAstNum: 0,
+          prcVulNum: 0,
+          engHash: '-',
+          wave: 'SCAN',
+          strategyClass: 'VUL_SCAN',
+          verifySrcMethod: 1022,
+          srcMethods: [1050],
+          skipped: true,
+          skipReason: 'Gate后无存活实例，未生成实际扫描子任务（TC-12）',
+          dependsOnGroupIndex: 0,
+          dependGateId: 'SUB-G-1001',
+          deviceMatched: true
+        }
+      ],
+      'TSK-MAIN-87012': [
+        {
+          id: 'SUB-N-9001',
+          tskPhase: 1,
+          tskStat: 1,
+          astNum: 60,
+          prcAstNum: 58,
+          prcVulNum: 0,
+          engHash: '99887766554433221100ffeeddccbbaa',
+          engName: '漏扫-日常',
+          tskProgress: 1,
+          wave: null,
+          verifySrcMethod: 1022,
+          reportType: 10,
+          deviceMatched: true
+        }
+      ]
+    };
+
+    const resultSamples = {
+      'SUB-G-1001': [
+        { vulInfoId: 'VI-10001', vulId: 'CNVD-2025-001', orgVulId: 'CVE-2024-1111', vulName: 'OpenSSL 信息泄露', vulNetAddr: '10.12.1.21', vulPort: 443, vulSvc: 'https', vulInfoStat: 7 },
+        { vulInfoId: 'VI-10002', vulId: 'CNVD-2025-002', orgVulId: 'CVE-2023-2222', vulName: 'Apache 路径穿越', vulNetAddr: '10.12.1.22', vulPort: 8080, vulSvc: 'http', vulInfoStat: 6 },
+        { vulInfoId: 'VI-10003', vulId: 'CNVD-2025-003', orgVulId: '-', vulName: '主机不可达资产', vulNetAddr: '10.12.1.99', vulPort: 22, vulSvc: 'ssh', vulInfoStat: 10 }
+      ],
+      'SUB-S-2001': [
+        { vulInfoId: 'VI-10001', vulId: 'CNVD-2025-001', orgVulId: 'CVE-2024-1111', vulName: 'OpenSSL 信息泄露', vulNetAddr: '10.12.1.21', vulPort: 443, vulSvc: 'https', vulInfoStat: 7 }
+      ],
+      'TSK-MAIN-88001': [
+        { vulInfoId: 'VI-10001', vulId: 'CNVD-2025-001', orgVulId: 'CVE-2024-1111', vulName: 'OpenSSL 信息泄露', vulNetAddr: '10.12.1.21', vulPort: 443, vulSvc: 'https', vulInfoStat: 7 },
+        { vulInfoId: 'VI-10002', vulId: 'CNVD-2025-002', orgVulId: 'CVE-2023-2222', vulName: 'Apache 路径穿越', vulNetAddr: '10.12.1.22', vulPort: 8080, vulSvc: 'http', vulInfoStat: 6 }
+      ]
+    };
+
+    const ledgerSamples = {
+      'SUB-G-1001': [
+        { time: '2026-07-15 14:30:01', platHash: 'plat-aa', platIp: '172.16.3.10', user: 'ops01', userIp: '10.1.1.8', l2: '0', logType: 1060, level: 'INFO', opCode: 9, innerSrc: 1028 },
+        { time: '2026-07-15 15:10:22', platHash: 'plat-aa', platIp: '172.16.3.10', user: 'ops01', userIp: '10.1.1.8', l2: '0', logType: 1060, level: 'INFO', opCode: 10, innerSrc: 1028, onlineAddr: '含 12 IP' }
+      ],
+      'SUB-S-2001': [
+        { time: '2026-07-15 15:12:01', platHash: 'plat-aa', platIp: '172.16.3.10', user: 'ops01', userIp: '10.1.1.8', l2: '0', logType: 1060, level: 'INFO', opCode: 9, innerSrc: 1022 },
+        { time: '-', platHash: '-', platIp: '-', user: '-', userIp: '-', l2: '-', logType: 1060, level: '-', opCode: 10, missing: true, innerSrc: 1022 }
+      ],
+      'TSK-MAIN-88001': [
+        { time: '2026-07-15 14:30:01', platHash: 'plat-aa', platIp: '172.16.3.10', user: 'ops01', userIp: '10.1.1.8', l2: '0', logType: 1060, level: 'INFO', opCode: 9, innerSrc: 1028, note: 'Gate' },
+        { time: '2026-07-15 15:10:22', platHash: 'plat-aa', platIp: '172.16.3.10', user: 'ops01', userIp: '10.1.1.8', l2: '0', logType: 1060, level: 'INFO', opCode: 10, innerSrc: 1028, note: 'Gate' },
+        { time: '2026-07-15 15:12:01', platHash: 'plat-aa', platIp: '172.16.3.10', user: 'ops01', userIp: '10.1.1.8', l2: '0', logType: 1060, level: 'INFO', opCode: 9, innerSrc: 1022, note: 'Scan' }
+      ]
+    };
+
+    const scopeSamples = {
+      vuln: [
+        { id: 'VI-10001', addr: '10.12.1.21:443', src: 1050, stat: 5 },
+        { id: 'VI-10002', addr: '10.12.1.22:8080', src: 1052, stat: 5 },
+        { id: 'VI-10004', addr: '10.12.1.30:22', src: 1051, stat: 5 }
+      ],
+      asset: [
+        { id: 'AST-01', ip: '10.12.1.21', name: 'web-01' },
+        { id: 'AST-02', ip: '10.12.1.22', name: 'app-02' }
+      ],
+      pro: [],
+      pwd: null
+    };
+
+    /* ========== 状态 ========== */
+    let selectedMain = null;
+    let selectedSub = null;
+    let ctxMode = 'main';
+    let currentTab = 'info';
+    let currentInner = 'vuln';
+    let currentPageTab = 'overview';
+    let subFullPage = false;
+    let taskFullPage = false;
+    let currentResultSummaryTab = 'result';
+    let disposeTargetSub = null;
+    let disposeSelectedFile = null;
+
+    function ensureSelectMain(id) {
+      selectedMain = mainTasks.find(x => x.id === id);
+      selectedSub = null;
+      ctxMode = 'main';
+    }
+
+    function switchPageTab(ptab) {
+      if (subFullPage && ptab !== 'subs') exitSubFullPage();
+      currentPageTab = ptab;
+      document.querySelectorAll('#pageTabsBar .page-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.ptab === ptab);
+      });
+      ['overview', 'subs', 'dispatch', 'resultSummary'].forEach(k => {
+        const el = document.getElementById('panel-' + k);
+        if (el) el.classList.toggle('active', k === ptab);
+      });
+      if (ptab === 'overview') renderOverview();
+      if (ptab === 'subs') renderSubs();
+      if (ptab === 'dispatch') renderDispatch();
+      if (ptab === 'resultSummary') switchResultSummaryTab(currentResultSummaryTab);
+    }
+
+    function switchResultSummaryTab(tab) {
+      currentResultSummaryTab = tab;
+      document.querySelectorAll('#resultSummaryTabs .tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.rstab === tab);
+      });
+      document.getElementById('panel-rs-result').classList.toggle('active', tab === 'result');
+      document.getElementById('panel-rs-ledger').classList.toggle('active', tab === 'ledger');
+      renderResultSummary(tab);
+    }
+
+    function getAggregatedLedgerRows(mainId) {
+      const subs = (subTasksByMain[mainId] || []).filter(s => !s.skipped);
+      const all = [];
+      (ledgerSamples[mainId] || []).forEach(r => all.push({ ...r, subId: mainId }));
+      subs.forEach(s => {
+        (ledgerSamples[s.id] || []).forEach(r => all.push({ ...r, subId: s.id }));
+      });
+      return all;
+    }
+
+    function buildResultRowsHtml(rows) {
+      if (!rows.length) {
+        return `<tr><td colspan="9" class="empty">暂无结果数据</td></tr>`;
+      }
+      return rows.map((r, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td class="mono">${r.vulInfoId}</td>
+          <td>${r.vulId}</td>
+          <td>${r.orgVulId}</td>
+          <td>${r.vulName}</td>
+          <td>${r.vulNetAddr}</td>
+          <td>${r.vulPort}</td>
+          <td>${r.vulSvc}</td>
+          <td>${tag(r.vulInfoStat === 6 ? 'green' : r.vulInfoStat === 7 ? 'orange' : 'red', (VUL_STAT[r.vulInfoStat] || r.vulInfoStat) + '(' + r.vulInfoStat + ')')}</td>
+        </tr>
+      `).join('');
+    }
+
+    function buildLedgerRowsHtml(rows, showSubId) {
+      if (!rows.length) {
+        return `<tr><td colspan="10" class="empty">暂无台账</td></tr>`;
+      }
+      return rows.map(r => `
+        <tr style="${r.missing ? 'opacity:.55' : ''}">
+          <td>${r.time}</td>
+          <td class="mono">${r.platHash}</td>
+          <td>${r.platIp}</td>
+          <td>${r.user}</td>
+          <td>${r.userIp}</td>
+          <td>${r.l2}</td>
+          <td>${tag('volcano', 'logType ' + r.logType)}${r.innerSrc ? tag('method', '内层 ' + r.innerSrc) : ''}${showSubId && r.subId ? tag('blue', r.subId) : ''}</td>
+          <td>${r.level}</td>
+          <td>${tag(r.opCode === 9 ? 'blue' : 'green', (OP[r.opCode] || r.opCode) + '(' + r.opCode + ')')}${r.onlineAddr ? tag('cyan', 'onlineAddr ' + r.onlineAddr) : ''}${r.missing ? tag('red', '待写') : ''}</td>
+          <td><button class="btn link" onclick="toast('打开台账详情 DetailsDrawer')">详情</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function renderOverview() {
+      if (!selectedMain) return;
+      const m = selectedMain;
+      const subs = subTasksByMain[m.id] || [];
+      const s = TSK_STAT[m.tskStat] || { name: m.tskStat, color: 'blue' };
+      document.getElementById('overviewKv').innerHTML = `
+        <li><span class="k">任务ID</span><span class="v mono">${m.id}</span></li>
+        <li><span class="k">处置方式</span><span class="v">${PROC[m.procMethod] || m.procMethod}</span></li>
+        <li><span class="k">工单业务阶段</span><span class="v">${PHASE[m.tskPhase] || m.tskPhase}</span></li>
+        <li><span class="k">任务状态</span><span class="v">${tag(s.color, s.name + '(' + m.tskStat + ')')}</span></li>
+        <li><span class="k">任务模式</span><span class="v">${m.tskModel === 0 ? '在线' : m.tskModel === 1 ? '离线导入' : '-'}</span></li>
+        <li><span class="k">子任务数</span><span class="v">${subs.filter(x => !x.skipped).length}</span></li>
+        <li><span class="k">astUnitNum</span><span class="v">${m.astUnitNum}</span></li>
+        <li><span class="k">资产 / 漏洞 / 弱口令</span><span class="v">${m.astNum} / ${m.vulNum} / ${m.pwNum}</span></li>
+        <li><span class="k">confirmToken</span><span class="v mono">${m.confirmToken || '-'}</span></li>
+        <li><span class="k">创建时间</span><span class="v">${m.createTime}</span></li>
+        <li><span class="k">接口</span><span class="v api">GET /vul-pass/vul-scan-task/page?orderId=…</span></li>
+      `;
+
+      const rows = ledgerSamples[m.id] || [];
+      const tl = document.getElementById('overviewTimeline');
+      if (!rows.length) {
+        tl.innerHTML = '<div class="empty">暂无审计事件</div>';
+        return;
+      }
+      tl.innerHTML = rows.map(r => {
+        const warn = !!r.missing;
+        const action = OP[r.opCode] || ('opCode ' + r.opCode);
+        const extra = r.innerSrc ? ` · 内层 ${r.innerSrc}` : '';
+        const note = r.note ? ` · ${r.note}` : '';
+        const miss = r.missing ? ' · 待写 opCode=10' : '';
+        return `
+          <div class="tl-item ${warn ? 'warn' : ''}">
+            <span class="dot"></span>
+            <div class="t">${r.time}</div>
+            <div class="c">logType ${r.logType} · ${action}${extra}${note}${miss}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderDispatch() {
+      if (!selectedMain) return;
+      const m = selectedMain;
+      const subs = subTasksByMain[m.id] || [];
+      document.getElementById('dispatchKv').innerHTML = `
+        <li><span class="k">confirmToken</span><span class="v mono">${m.confirmToken || '-'}</span></li>
+        <li><span class="k">预览接口</span><span class="v api">POST /vul-pass/vul-scan-task/pre/dispatch</span></li>
+        <li><span class="k">下发接口</span><span class="v api">dispatch + confirmToken 校验</span></li>
+        <li><span class="k">物理子任务</span><span class="v">${subs.length}（含占位/跳过）</span></li>
+        <li><span class="k">Gate 波</span><span class="v">${subs.filter(x => x.wave === 'GATE').length}</span></li>
+        <li><span class="k">Scan 波</span><span class="v">${subs.filter(x => x.wave === 'SCAN').length}</span></li>
+        <li><span class="k">tsk_model</span><span class="v">${m.tskModel === 1 ? '1 离线导入' : m.tskModel}</span></li>
+      `;
+      document.getElementById('dispatchScope').innerHTML = `
+        <ul class="scope-list">
+          ${scopeSamples.vuln.map(v => `
+            <li>
+              <span><b class="mono">${v.id}</b> · ${v.addr}</span>
+              <span>${tag('method', 'src_method ' + v.src)} ${tag('blue', VUL_STAT[v.stat] || v.stat)}</span>
+            </li>
+          `).join('')}
+        </ul>
+      `;
+    }
+
+    function renderResultSummary(activeTab) {
+      if (!selectedMain) return;
+      const tab = activeTab || currentResultSummaryTab || 'result';
+      const key = selectedMain.id;
+      const tabNames = { result: '任务结果', ledger: '台账日志' };
+      document.getElementById('resultSummaryTitle').textContent =
+        `主任务 ${key} · ${tabNames[tab] || tab}`;
+      document.getElementById('resultSummaryParamHint').textContent =
+        '传参 taskId（与现网一致）';
+
+      const rows = resultSamples[key] || [];
+      document.querySelector('#resultSummaryTable tbody').innerHTML = buildResultRowsHtml(rows);
+
+      const subs = (subTasksByMain[key] || []).filter(s => !s.skipped);
+      const allLedgerRows = getAggregatedLedgerRows(key);
+      const subsWith9 = subs.filter(s => (ledgerSamples[s.id] || []).some(r => r.opCode === 9 && !r.missing)).length;
+      const subsWith10 = subs.filter(s => (ledgerSamples[s.id] || []).some(r => r.opCode === 10 && !r.missing)).length;
+
+      document.getElementById('resultSummaryLedgerPairs').innerHTML = `
+        <div class="pair">
+          <div class="pair-box ${subsWith9 === subs.length && subs.length ? 'ok' : subsWith9 ? 'warn' : 'miss'}">
+            <div class="k">opCode=9 下发验证任务</div>
+            <div class="v">${subsWith9}/${subs.length || 0} 子任务已写</div>
+          </div>
+          <div class="pair-box ${subsWith10 === subs.length && subs.length ? 'ok' : subsWith10 ? 'warn' : 'miss'}">
+            <div class="k">opCode=10 获取验证结果</div>
+            <div class="v">${subsWith10}/${subs.length || 0} 子任务已写</div>
+          </div>
+        </div>
+        <div class="hint">外壳 logType=1060；内层手段见行内说明（Gate=1028 / Scan=1022…）</div>
+      `;
+      document.querySelector('#resultSummaryLedgerTable tbody').innerHTML =
+        buildLedgerRowsHtml(allLedgerRows, true);
+    }
+
+    /** 打开任务全页 — 上摘要 + 下四标签 */
+    function openTaskFullPage(id, tab) {
+      if (subFullPage) exitSubFullPage();
+      ensureSelectMain(id);
+      taskFullPage = true;
+      document.body.classList.add('task-fullpage-mode');
+      document.getElementById('workbench').style.display = 'block';
+      document.getElementById('taskFullpageTitle').textContent =
+        `${selectedMain.id} · ${PROC[selectedMain.procMethod] || selectedMain.procMethod}`;
+      document.getElementById('mainIdLabel').textContent = selectedMain.id;
+      document.getElementById('btnAudit').disabled = selectedMain.tskStat !== 3;
+      renderMainSummary();
+
+      // 入口映射到页面标签
+      let ptab = 'overview';
+      if (tab === 'subs') ptab = 'subs';
+      else if (tab === 'info' || tab === 'dispatch') ptab = 'dispatch';
+      else if (tab === 'result' || tab === 'resultSummary' || tab === 'ledger') {
+        ptab = 'resultSummary';
+        currentResultSummaryTab = tab === 'ledger' ? 'ledger' : 'result';
+      }
+      else if (tab === 'overview') ptab = 'overview';
+      switchPageTab(ptab);
+      toast('已打开任务全页');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function exitTaskFullPage() {
+      if (subFullPage) exitSubFullPage();
+      taskFullPage = false;
+      document.body.classList.remove('task-fullpage-mode');
+      document.getElementById('workbench').style.display = 'none';
+      renderMainTable();
+    }
+
+    /** 子任务全页：隐藏标签区，全宽展示详情/追踪/结果/台账（无右侧面板） */
+    function openSubFullPage(subId, tab) {
+      if (!selectedMain) return;
+      const list = subTasksByMain[selectedMain.id] || [];
+      selectedSub = list.find(x => x.id === subId);
+      if (!selectedSub) return;
+      ctxMode = 'sub';
+      subFullPage = true;
+      document.body.classList.add('sub-fullpage-mode');
+      updateSubFullPageTabs(tab);
+      const tabNames = { info: '任务详情', result: '任务结果', ledger: '台账日志', trace: '任务追踪' };
+      document.getElementById('subFullpageTitle').textContent =
+        `子任务 ${selectedSub.id} · ${tabNames[tab] || tab}`;
+      switchTab(tab);
+      renderSubs();
+      toast('已全页打开子任务');
+      window.scrollTo({ top: document.getElementById('subFullpagePanel').offsetTop - 8, behavior: 'smooth' });
+    }
+
+    function exitSubFullPage() {
+      if (!subFullPage) return;
+      subFullPage = false;
+      document.body.classList.remove('sub-fullpage-mode');
+      resetSubFullPageTabs();
+      renderSubs();
+      toast('已返回子任务列表');
+    }
+
+    /** 打开结果/台账时仅展示对应 Tab，与截图一致 */
+    function updateSubFullPageTabs(entryTab) {
+      const resultLedgerOnly = entryTab === 'result' || entryTab === 'ledger';
+      document.querySelectorAll('#mainTabs .tab').forEach(t => {
+        const name = t.dataset.tab;
+        if (resultLedgerOnly) {
+          t.style.display = (name === 'result' || name === 'ledger') ? '' : 'none';
+        } else {
+          t.style.display = '';
+        }
+      });
+    }
+
+    function resetSubFullPageTabs() {
+      document.querySelectorAll('#mainTabs .tab').forEach(t => { t.style.display = ''; });
+    }
+
+    function tag(cls, text) {
+      return `<span class="tag ${cls}">${text}</span>`;
+    }
+    function statTag(code) {
+      const s = TSK_STAT[code] || { name: code, color: 'blue' };
+      return tag(s.color, `${s.name}(${code})`);
+    }
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.style.display = 'block';
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => { el.style.display = 'none'; }, 2200);
+    }
+
+    function renderMainTable() {
+      const tb = document.querySelector('#mainTable tbody');
+      const colSpan = 12;
+      tb.innerHTML = mainTasks.map((m, i) => {
+        const selected = selectedMain && selectedMain.id === m.id;
+        let html = `
+        <tr class="clickable ${selected ? 'selected' : ''}" onclick="selectMain('${m.id}')">
+          <td>${i + 1}</td>
+          <td class="mono">${m.id}</td>
+          <td>${tag('volcano', PROC[m.procMethod] || m.procMethod)}</td>
+          <td>${tag('purple', PHASE[m.tskPhase] || m.tskPhase)}</td>
+          <td>${statTag(m.tskStat)}</td>
+          <td>${m.orderAct === 0 ? tag('red', '关闭') : tag('green', '打开')}</td>
+          <td>${tag('blue', m.astUnitNum)}</td>
+          <td>${tag('blue', m.astNum)}</td>
+          <td>${tag('blue', m.vulNum)}</td>
+          <td>${tag('blue', m.pwNum)}</td>
+          <td>${m.createTime}</td>
+          <td onclick="event.stopPropagation()">
+            <button class="btn link" title="任务详情" onclick="openTaskFullPage('${m.id}','info')">详情</button>
+            <button class="btn link" title="任务结果" onclick="openTaskFullPage('${m.id}','result')">结果</button>
+            <button class="btn link" title="台账日志" onclick="openTaskFullPage('${m.id}','ledger')">台账</button>
+            ${m.tskStat === 3 ? `<button class="btn link" onclick="openTaskFullPage('${m.id}','info'); toast('稽核完成确认框')">稽核</button>` : ''}
+          </td>
+        </tr>`;
+        // 仅在该任务行下方轻量嵌入摘要（非独立大卡片）
+        if (selected && !taskFullPage) {
+          html += `
+          <tr class="expand-row">
+            <td colspan="${colSpan}">
+              <div class="row-embed-summary" onclick="event.stopPropagation()">
+                <div class="embed-title">
+                  <div><strong>主任务摘要</strong> <span class="hint mono">${m.id}</span></div>
+                  <button class="btn link" onclick="collapseEmbed()">收起</button>
+                </div>
+                ${buildMainSummaryHtml(m)}
+                <div class="steps">${buildMainStepsHtml(m)}</div>
+                <div class="embed-actions">
+                  <button class="btn link" onclick="openTaskFullPage('${m.id}','info')">任务详情</button>
+                  <button class="btn link" onclick="openTaskFullPage('${m.id}','result')">任务结果</button>
+                  <button class="btn link" onclick="openTaskFullPage('${m.id}','ledger')">台账日志</button>
+                  <button class="btn link" onclick="openTaskFullPage('${m.id}','subs')">子任务编排</button>
+                  <button class="btn link" onclick="openTaskFullPage('${m.id}','info')">工单回传</button>
+                  <span class="hint">以上入口均打开任务全页（现网行为不变）</span>
+                </div>
+              </div>
+            </td>
+          </tr>`;
+        }
+        return html;
+      }).join('');
+    }
+
+    function buildMainSummaryHtml(m) {
+      const dist = m.srcDist
+        ? `1050:${m.srcDist[1050]} / 1051:${m.srcDist[1051]} / 1052:${m.srcDist[1052]} / 1053:${m.srcDist[1053]}`
+        : '-';
+      return `
+        <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+          ${tag('volcano', PROC[m.procMethod] || m.procMethod)}
+          ${tag('purple', '阶段 ' + (PHASE[m.tskPhase] || m.tskPhase))}
+          ${statTag(m.tskStat)}
+          ${tag('blue', m.tskModel === 0 ? '在线任务' : m.tskModel === 1 ? '离线导入' : '-')}
+          ${m.orderAct === 0 ? tag('red', '稽核关闭') : tag('green', '稽核打开')}
+        </div>
+        <div class="summary-grid">
+          <div class="summary-item"><div class="label">资产数量单元 astUnitNum</div><div class="value">${m.astUnitNum}</div></div>
+          <div class="summary-item"><div class="label">排查资产数量 astNum</div><div class="value">${m.astNum}</div></div>
+          <div class="summary-item"><div class="label">排查产品漏洞数量 vulNum</div><div class="value">${m.vulNum}</div></div>
+          <div class="summary-item"><div class="label">排查弱口令数量 pwNum</div><div class="value">${m.pwNum}</div></div>
+          <div class="summary-item"><div class="label">创建时间</div><div class="value">${m.createTime}</div></div>
+          <div class="summary-item"><div class="label">confirmToken</div><div class="value mono">${m.confirmToken || '-'}</div></div>
+          <div class="summary-item"><div class="label">实例 src_method 分布</div><div class="value">${dist}</div></div>
+        </div>
+      `;
+    }
+
+    function buildMainStepsHtml(m) {
+      if (!(m.procMethod === 1060 || m.procMethod === 1061)) {
+        return `<span class="hint">非修复核验任务</span>`;
+      }
+      const order = [
+        { code: 4, label: '预览态' },
+        { code: 5, label: '待离线导入' },
+        { code: 6, label: '待核验门闸完成' },
+        { code: 7, label: '待核验扫描完成' },
+        { code: 8, label: '核验完成' }
+      ];
+      const cur = m.tskStat;
+      let html = '';
+      order.forEach((s, idx) => {
+        let cls = 'step';
+        if (cur === 1 || cur === 8) {
+          cls += s.code < 8 ? ' done' : ' current done';
+        } else {
+          if (s.code < cur) cls += ' done';
+          else if (s.code === cur) cls += ' current';
+        }
+        html += `<div class="${cls}"><span class="dot">${idx + 1}</span>${s.label}</div>`;
+        if (idx < order.length - 1) html += `<span class="step-sep">→</span>`;
+      });
+      return html;
+    }
+
+    function selectMain(id) {
+      if (taskFullPage) return;
+      // 再次点击同一行 → 收起行内摘要
+      if (selectedMain && selectedMain.id === id) {
+        collapseEmbed();
+        return;
+      }
+      selectedMain = mainTasks.find(x => x.id === id);
+      selectedSub = null;
+      ctxMode = 'main';
+      document.getElementById('workbench').style.display = 'none';
+      renderMainTable();
+    }
+
+    function collapseEmbed() {
+      selectedMain = null;
+      selectedSub = null;
+      document.getElementById('workbench').style.display = 'none';
+      renderMainTable();
+    }
+
+    function collapseWorkbench() {
+      if (taskFullPage) {
+        exitTaskFullPage();
+        return;
+      }
+      collapseEmbed();
+    }
+
+    function backToList() {
+      exitTaskFullPage();
+    }
+
+    function openSubWorkbench() {
+      if (!selectedMain) return;
+      openTaskFullPage(selectedMain.id, 'subs');
+    }
+
+    function openMainAction(tab) {
+      if (!selectedMain) return;
+      openTaskFullPage(selectedMain.id, tab);
+    }
+
+    function renderMainSummary() {
+      if (!selectedMain) return;
+      const el = document.getElementById('mainSummary');
+      const stepsEl = document.getElementById('mainSteps');
+      if (el) el.innerHTML = buildMainSummaryHtml(selectedMain);
+      if (stepsEl) stepsEl.innerHTML = buildMainStepsHtml(selectedMain);
+      const label = document.getElementById('mainIdLabel');
+      if (label) label.textContent = selectedMain.id;
+    }
+
+    function renderSubs() {
+      if (!selectedMain) return;
+      const list = subTasksByMain[selectedMain.id] || [];
+      const el = document.getElementById('subList');
+      if (!list.length) {
+        el.innerHTML = '<div class="empty">暂无子任务</div>';
+        return;
+      }
+      el.innerHTML = list.map(s => {
+        const active = selectedSub && selectedSub.id === s.id;
+        const waveTag = s.wave === 'GATE' ? tag('purple', '门闸波 GATE')
+          : s.wave === 'SCAN' ? tag('geekblue', '扫描波 SCAN')
+          : tag('blue', '常规子任务');
+        const strategy = s.strategyClass ? tag('method', STRATEGY[s.strategyClass] || s.strategyClass) : '';
+        const verify = s.verifySrcMethod != null ? tag('method', PROC[s.verifySrcMethod] || s.verifySrcMethod) : '';
+        const report = s.tskStat === 1 && s.reportType != null ? tag('volcano', REPORT[s.reportType] || ('reportType=' + s.reportType)) : '';
+        const skipCls = s.skipped ? 'skipped' : '';
+        const depend = s.dependGateId
+          ? `<div class="depend">依赖门闸 ${s.dependGateId}${s.aliveFilter ? ' · ' + s.aliveFilter : ''}${s.skipReason ? ' · ' + s.skipReason : ''}</div>`
+          : (s.skipReason ? `<div class="depend">${s.skipReason}</div>` : '');
+
+        return `
+          <div class="sub-card ${active ? 'active' : ''} ${skipCls}" onclick="selectSub('${s.id}')">
+            <div class="sub-top">
+              <div>
+                <div class="sub-title mono">${s.id}</div>
+                <div style="margin-top:4px;">${waveTag}${strategy}${verify}${statTag(s.tskStat)}${report}</div>
+              </div>
+              <div>${tag('blue', '进度 ' + (s.tskProgress == null ? '-' : s.tskProgress))}</div>
+            </div>
+            ${depend}
+            <div class="sub-meta">
+              <div>阶段 <b>${PHASE[s.tskPhase] || s.tskPhase}</b></div>
+              <div>资产数 <b>${s.astNum}</b> / 实际 <b>${s.prcAstNum == null ? '-' : s.prcAstNum}</b></div>
+              <div>实际产品漏洞数 <b>${s.prcVulNum == null ? '-' : s.prcVulNum}</b></div>
+              <div>设备 <b>${s.engName || '-'}</b></div>
+              <div class="ellipsis" title="${s.engHash}">engHash <b class="mono">${s.engHash}</b></div>
+              <div>设备匹配 <b>${s.deviceMatched === false ? '否' : '是'}</b></div>
+            </div>
+            <div class="sub-actions" onclick="event.stopPropagation()">
+              <button class="btn link" onclick="openSubFullPage('${s.id}','info')">任务详情</button>
+              <button class="btn link" onclick="openSubFullPage('${s.id}','trace')">任务追踪</button>
+              <button class="btn link" onclick="openSubFullPage('${s.id}','result')">任务结果</button>
+              <button class="btn link" onclick="openSubFullPage('${s.id}','ledger')">台账日志</button>
+              ${s.tskStat !== 1 && !s.skipped ? `<button class="btn link dispose" onclick="openDisposeModal('${s.id}')">去处置</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectSub(id) {
+      const list = subTasksByMain[selectedMain.id] || [];
+      selectedSub = list.find(x => x.id === id);
+      ctxMode = 'sub';
+      renderSubs();
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('#mainTabs .tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === tab);
+      });
+      document.querySelectorAll('#subFullpagePanel .panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + tab).classList.add('active');
+
+      const traceTab = document.querySelector('#mainTabs .tab[data-tab="trace"]');
+      traceTab.style.opacity = '1';
+
+      if (subFullPage && selectedSub) {
+        const tabNames = { info: '任务详情', result: '任务结果', ledger: '台账日志', trace: '任务追踪' };
+        document.getElementById('subFullpageTitle').textContent =
+          `子任务 ${selectedSub.id} · ${tabNames[tab] || tab}`;
+      }
+      renderContext();
+    }
+
+    function switchInner(key) {
+      currentInner = key;
+      document.querySelectorAll('#infoInnerTabs .inner-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.inner === key);
+      });
+      renderInfoInner();
+    }
+
+    function renderContext() {
+      if (!subFullPage || !(ctxMode === 'sub' && selectedSub)) return;
+      const target = selectedSub;
+      document.getElementById('ctxParamHint').textContent =
+        '传参：tskSubId / localTaskId（与现网一致）';
+
+      const finished = target && target.tskStat === 1;
+      document.getElementById('btnDispose').style.display = finished ? 'none' : 'inline-flex';
+
+      if (currentTab === 'info') renderInfoInner();
+      if (currentTab === 'result') renderResult();
+      if (currentTab === 'ledger') renderLedger();
+      if (currentTab === 'trace') renderTrace();
+    }
+
+    function renderInfoInner() {
+      const body = document.getElementById('infoInnerBody');
+      if (currentInner === 'vuln') {
+        body.innerHTML = `
+          <ul class="scope-list">
+            ${scopeSamples.vuln.map(v => `
+              <li>
+                <span><b class="mono">${v.id}</b> · ${v.addr}</span>
+                <span>${tag('method', 'src_method ' + v.src)} ${tag('blue', VUL_STAT[v.stat] || v.stat)}</span>
+              </li>
+            `).join('')}
+          </ul>
+          <div class="hint" style="margin-top:8px;">对应 TaskInfoDrawer → SystemVulnRange</div>
+        `;
+      } else if (currentInner === 'asset') {
+        body.innerHTML = `
+          <ul class="scope-list">
+            ${scopeSamples.asset.map(a => `
+              <li><span>${a.name}</span><span class="mono">${a.ip}</span></li>
+            `).join('')}
+          </ul>
+          <div class="hint" style="margin-top:8px;">对应 TaskInfoDrawer → AssetPageInfo</div>
+        `;
+      } else if (currentInner === 'pro') {
+        body.innerHTML = `<div class="empty">本核验样例无产品漏洞排查范围（a-empty）</div>`;
+      } else {
+        body.innerHTML = `<div class="empty">无弱口令字典范围 pwDictRange（现网 Empty）</div>`;
+      }
+    }
+
+    function renderResult() {
+      const key = ctxMode === 'sub' && selectedSub ? selectedSub.id : selectedMain.id;
+      const rows = resultSamples[key] || resultSamples[selectedMain.id] || [];
+      document.querySelector('#resultTable tbody').innerHTML = buildResultRowsHtml(rows);
+    }
+
+    function renderLedger() {
+      const key = ctxMode === 'sub' && selectedSub ? selectedSub.id : selectedMain.id;
+      const rows = ledgerSamples[key] || [];
+      const pairsEl = document.getElementById('ledgerPairs');
+
+      if (ctxMode === 'sub' && selectedSub) {
+        const has9 = rows.some(r => r.opCode === 9 && !r.missing);
+        const has10 = rows.some(r => r.opCode === 10 && !r.missing);
+        pairsEl.innerHTML = `
+          <div class="pair">
+            <div class="pair-box ${has9 ? 'ok' : 'miss'}">
+              <div class="k">opCode=9 下发验证任务</div>
+              <div class="v">${has9 ? '已写' : '缺失'}</div>
+            </div>
+            <div class="pair-box ${has10 ? 'ok' : 'miss'}">
+              <div class="k">opCode=10 获取验证结果</div>
+              <div class="v">${has10 ? '已写' : '缺失（待回收）'}</div>
+            </div>
+          </div>
+          <div class="hint">外壳 logType=1060；内层手段见行内说明（Gate=1028 / Scan=1022…）</div>
+        `;
+      } else {
+        pairsEl.innerHTML = `<div class="hint" style="margin-bottom:8px;">主任务视角：汇总下属子任务台账（现网按 taskId 查）</div>`;
+      }
+
+      document.querySelector('#ledgerTable tbody').innerHTML = buildLedgerRowsHtml(rows, false);
+    }
+
+    function renderTrace() {
+      const body = document.getElementById('traceBody');
+      if (ctxMode !== 'sub' || !selectedSub) {
+        body.innerHTML = `<div class="empty">请选择子任务后查看任务追踪（现网仅子任务有 SearchTask）</div>`;
+        return;
+      }
+      body.innerHTML = `
+        <div class="hint">对应现网组件 SearchTask，常见子页：</div>
+        <ul class="scope-list" style="margin-top:8px;">
+          <li><span>资产信息 AssetsInfo</span><button class="btn link" onclick="toast('打开 AssetsInfo')">查看</button></li>
+          <li><span>端口信息 PortInfo</span><button class="btn link" onclick="toast('打开 PortInfo')">查看</button></li>
+          <li><span>漏洞信息 VulnInfo / VulnResult</span><button class="btn link" onclick="toast('打开 VulnInfo')">查看</button></li>
+          <li><span>弱口令 WeakInfo / WeakResult</span><button class="btn link" onclick="toast('打开 WeakInfo')">查看</button></li>
+          <li><span>核对对比 CheckContrast</span><button class="btn link" onclick="toast('打开 CheckContrast')">查看</button></li>
+        </ul>
+        <div style="margin-top:10px;">匹配规则 matchRuleData：现网枚举 MatchAssetRuleEnum</div>
+      `;
+    }
+
+    /** 去处置 — 对齐 ProMethodDrawer */
+    function openDisposeModalFromPanel() {
+      if (selectedSub) openDisposeModal(selectedSub.id);
+    }
+
+    function openDisposeModal(subId) {
+      if (!selectedMain) return;
+      const list = subTasksByMain[selectedMain.id] || [];
+      const sub = list.find(x => x.id === subId);
+      if (!sub) return;
+      if (sub.skipped) {
+        toast('占位/跳过子任务不可处置');
+        return;
+      }
+      if (sub.tskStat === 1) {
+        toast('任务已完成，是否重新发起处置？（现网二次确认）');
+        return;
+      }
+      disposeTargetSub = sub;
+      disposeSelectedFile = null;
+      initDisposeForm(sub);
+      document.getElementById('disposeModal').classList.add('open');
+      document.body.classList.add('modal-open');
+    }
+
+    function closeDisposeModal() {
+      document.getElementById('disposeModal').classList.remove('open');
+      document.body.classList.remove('modal-open');
+      disposeTargetSub = null;
+      disposeSelectedFile = null;
+      clearDisposeFile();
+    }
+
+    function initDisposeForm(sub) {
+      document.getElementById('disposeSubLabel').textContent = sub.id;
+      const procMethod = selectedMain.procMethod;
+
+      const procSel = document.getElementById('disposeProcMethod');
+      procSel.innerHTML = Object.entries(PROC).map(([code, name]) =>
+        `<option value="${code}" ${Number(code) === procMethod ? 'selected' : ''}>${name}</option>`
+      ).join('');
+
+      const phase = sub.tskPhase != null ? sub.tskPhase : selectedMain.tskPhase;
+      const phaseSel = document.getElementById('disposeTskPhase');
+      phaseSel.innerHTML = ORDER_PHASE.map(p =>
+        `<option value="${p.code}" ${p.code === Number(phase) ? 'selected' : ''}>${p.name}</option>`
+      ).join('');
+
+      const reportSel = document.getElementById('disposeReportType');
+      reportSel.innerHTML = REPORT_TYPES.map(r =>
+        `<option value="${r.code}">${r.name}</option>`
+      ).join('');
+      // 1060/1061 默认 reportType=32（漏洞核验修复V1.0）
+      const defaultReport = (procMethod === 1060 || procMethod === 1061) ? 32 : 3;
+      reportSel.value = String(defaultReport);
+
+      const matchEl = document.getElementById('disposeMatchRules');
+      matchEl.innerHTML = MATCH_RULES.filter(r => r.hidden === 1).map(r => `
+        <label class="${r.disable ? 'disabled' : ''}">
+          <input type="checkbox" value="${r.code}"
+            ${r.selected ? 'checked' : ''} ${r.disable ? 'disabled' : ''}>
+          ${r.name}
+        </label>
+      `).join('');
+
+      onDisposeReportTypeChange();
+    }
+
+    function onDisposeReportTypeChange() {
+      const code = Number(document.getElementById('disposeReportType').value);
+      const item = REPORT_TYPES.find(r => r.code === code);
+      const needUpload = item && item.upload === 1;
+      document.getElementById('disposeUploadRow').style.display = needUpload ? 'grid' : 'none';
+      if (!needUpload) clearDisposeFile();
+      // 对齐 ProMethodDrawer.setAutoSubmit：11/10/23 默认不勾选，其余默认勾选
+      document.getElementById('disposeAutoSubmit').checked = !(code === 11 || code === 10 || code === 23);
+      document.getElementById('disposeAutoSubmit').disabled = !(code === 11 || code === 10 || code === 23);
+    }
+
+    function onDisposeFileChange(input) {
+      const file = input.files && input.files[0];
+      disposeSelectedFile = file || null;
+      document.getElementById('disposeFileName').textContent = file ? file.name : '未选择文件';
+      document.getElementById('disposeFileRemove').style.display = file ? 'inline-flex' : 'none';
+    }
+
+    function clearDisposeFile() {
+      disposeSelectedFile = null;
+      const input = document.getElementById('disposeFileInput');
+      if (input) input.value = '';
+      document.getElementById('disposeFileName').textContent = '未选择文件';
+      document.getElementById('disposeFileRemove').style.display = 'none';
+    }
+
+    function submitDispose() {
+      if (!disposeTargetSub) return;
+      const reportType = Number(document.getElementById('disposeReportType').value);
+      const item = REPORT_TYPES.find(r => r.code === reportType);
+      if (item && item.upload === 1 && !disposeSelectedFile) {
+        toast('请上传文件');
+        return;
+      }
+      const matchAssetRule = Array.from(document.querySelectorAll('#disposeMatchRules input:checked'))
+        .reduce((sum, el) => sum + Number(el.value), 0);
+      const autoSubmit = document.getElementById('disposeAutoSubmit').checked ? 1 : 0;
+      if (confirm('确认保存？提示：确认保存？此操作不可撤销。')) {
+        toast(`已保存处置 · subTaskId=${disposeTargetSub.id} · reportType=${reportType} · matchAssetRule=${matchAssetRule} · autoSubmit=${autoSubmit}`);
+        closeDisposeModal();
+      }
+    }
+
+    // init
+    renderMainTable();
+  </script>
+</body>
+</html>
