@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>全阶段任务下发 · 阶段子任务链预览原型</title>
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --card: #fff;
+      --border: #e8e8e8;
+      --text: #262626;
+      --muted: #8c8c8c;
+      --primary: #1890ff;
+      --primary-bg: #e6f7ff;
+      --success: #52c41a;
+      --warning: #fa8c16;
+      --error: #f5222d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .app { max-width: 1280px; margin: 0 auto; padding: 16px; }
+    .banner {
+      background: #fffbe6;
+      border: 1px solid #ffe58f;
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      color: #874d00;
+    }
+    .banner strong { color: #ad6800; }
+    .page-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .page-title h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    .hint { color: var(--muted); font-size: 12px; }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+    }
+    .toolbar label { color: var(--muted); margin-right: 4px; }
+    .toolbar select, .toolbar input[type="number"], .toolbar .seg {
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0 8px;
+      background: #fff;
+      font-size: 13px;
+    }
+    .toolbar input[type="number"] { width: 72px; }
+    .seg {
+      display: inline-flex;
+      padding: 0;
+      overflow: hidden;
+    }
+    .seg button {
+      border: none;
+      background: #fff;
+      height: 28px;
+      padding: 0 12px;
+      cursor: pointer;
+      border-right: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text);
+    }
+    .seg button:last-child { border-right: none; }
+    .seg button.active {
+      background: var(--primary-bg);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      height: 28px; padding: 0 12px; border-radius: 4px;
+      border: 1px solid var(--border); background: #fff; cursor: pointer;
+      font-size: 13px; color: var(--text);
+    }
+    .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn.primary:disabled,
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .tag {
+      display: inline-block; padding: 0 7px; height: 22px; line-height: 20px;
+      border-radius: 2px; font-size: 12px; border: 1px solid transparent; margin-right: 4px;
+      vertical-align: middle; white-space: nowrap;
+    }
+    .tag.blue { background: #e6f7ff; border-color: #91d5ff; color: #096dd9; }
+    .tag.green { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
+    .tag.red { background: #fff1f0; border-color: #ffa39e; color: #cf1322; }
+    .tag.orange { background: #fff7e6; border-color: #ffd591; color: #d46b08; }
+    .tag.geekblue { background: #f0f5ff; border-color: #adc6ff; color: #1d39c4; }
+    .tag.purple { background: #f9f0ff; border-color: #d3adf7; color: #531dab; }
+    .tag.cyan { background: #e6fffb; border-color: #87e8de; color: #08979c; }
+    .tag.volcano { background: #fff2e8; border-color: #ffbb96; color: #d4380d; }
+    .tag.method { background: #fff; border: 1px solid #d9d9d9; color: #595959; }
+
+    .drawer {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+      overflow: hidden;
+    }
+    .drawer-hd {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fafafa;
+    }
+    .drawer-hd h2 { margin: 0; font-size: 14px; }
+    .drawer-bd {
+      padding: 14px 16px;
+      max-height: calc(100vh - 220px);
+      overflow: auto;
+    }
+    .drawer-ft {
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      background: #fafafa;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 10px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .section-title .bar {
+      width: 3px; height: 14px; background: var(--primary); border-radius: 1px;
+    }
+    .panel {
+      background: #fafafa;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 24px;
+    }
+    .form-item { display: flex; gap: 8px; align-items: flex-start; min-height: 28px; }
+    .form-item .label {
+      width: 132px; flex-shrink: 0; color: var(--muted); text-align: right; padding-top: 3px;
+    }
+    .form-item .value { flex: 1; }
+    .form-item select, .form-item input[type="number"] {
+      width: 100%;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0 8px;
+      background: #fff;
+    }
+    .form-item select:disabled,
+    .form-item input:disabled {
+      background: #f5f5f5;
+      color: var(--muted);
+    }
+
+    .alert {
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: 12px;
+    }
+    .alert.info { background: #e6f7ff; border: 1px solid #91d5ff; color: #096dd9; }
+    .alert.error { background: #fff1f0; border: 1px solid #ffa39e; color: #cf1322; }
+    .alert.warning { background: #fffbe6; border: 1px solid #ffe58f; color: #ad6800; }
+    .alert.success { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }
+    .alert .icon { font-weight: 700; }
+
+    table.data { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; }
+    table.data th, table.data td {
+      border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top;
+    }
+    table.data th { background: #fafafa; font-weight: 600; white-space: nowrap; }
+    table.data tr.batch-sep td { background: #f0f5ff; font-weight: 600; color: #1d39c4; }
+    .muted { color: var(--muted); }
+    .mono { font-family: Consolas, Menlo, monospace; font-size: 11px; }
+    .device-cell strong { display: inline-block; margin-right: 4px; }
+    .ellipsis { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chain-hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+    .device-block.hidden, .batch-block.hidden { display: none; }
+
+    .scanner-pick {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .scanner-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 12px;
+    }
+    .scanner-card h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .scanner-card select { width: 100%; height: 28px; margin-top: 4px; }
+    .scanner-card .meta { margin-top: 6px; font-size: 12px; color: var(--muted); }
+    .scanner-card.conflict { border-color: #ffa39e; background: #fff1f0; }
+
+    .batch-preview-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .batch-chip {
+      background: #fff;
+      border: 1px solid #adc6ff;
+      color: #1d39c4;
+      border-radius: 12px;
+      padding: 2px 10px;
+      font-size: 12px;
+    }
+
+    .legend {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: #fff;
+      border: 1px dashed var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .legend code {
+      background: #f5f5f5;
+      padding: 1px 4px;
+      border-radius: 2px;
+      color: #595959;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="banner">
+      <strong>交互原型（非现网）</strong>
+      — 新增：<strong>1026 交叉扫描须选两个不同厂家扫描器</strong>；
+      <strong>跨级联动支持按资产数量切批</strong>。切换菜单 / 阶段 / 切批参数查看预览变化。
+    </div>
+
+    <div class="page-title">
+      <h1>阶段子任务链预览 · 下发抽屉原型</h1>
+      <span class="hint">svmp/docs/internal/06-Mock与联调/全阶段任务下发-阶段子任务链预览-原型.html</span>
+    </div>
+
+    <div class="toolbar">
+      <div>
+        <label>菜单</label>
+        <div class="seg" id="menuSeg">
+          <button type="button" data-menu="warn">产品漏洞预警</button>
+          <button type="button" data-menu="sys">系统漏洞工单</button>
+          <button type="button" data-menu="ganged" class="active">跨级联动</button>
+        </div>
+      </div>
+      <div>
+        <label>快捷场景</label>
+        <select id="sceneQuick">
+          <option value="ganged-1026" selected>跨级 · 1026 双厂家 + 切批</option>
+          <option value="sys-1026">系统工单 · 1026 双厂家</option>
+          <option value="ganged-1060">跨级 · 核验 + 切批</option>
+          <option value="sys-1060">系统工单 · 核验（现网）</option>
+          <option value="warn-1080">产品预警 · 关联分析</option>
+          <option value="sys-1050">系统工单 · 修复</option>
+        </select>
+      </div>
+      <div>
+        <label>设备匹配演示</label>
+        <select id="deviceMatchDemo">
+          <option value="ok" selected>设备已匹配</option>
+          <option value="fail">设备未匹配（闸门）</option>
+          <option value="same-vendor">1026 同厂家冲突</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="drawer">
+      <div class="drawer-hd">
+        <h2>任务下发 <span class="tag geekblue" id="menuBadge">跨级联动</span></h2>
+        <span class="hint" id="drawerHint">选择处置方式后刷新阶段子任务链预览</span>
+      </div>
+      <div class="drawer-bd">
+        <div class="section-title"><span class="bar"></span>基本信息</div>
+        <div class="panel">
+          <div class="form-grid">
+            <div class="form-item">
+              <div class="label">指令ID</div>
+              <div class="value mono" id="orderId">GANG-20260717-55201</div>
+            </div>
+            <div class="form-item">
+              <div class="label">工单类型</div>
+              <div class="value"><span class="tag geekblue" id="orderType">跨级联动任务</span></div>
+            </div>
+            <div class="form-item">
+              <div class="label">执行方式</div>
+              <div class="value"><span class="tag orange">在线任务</span></div>
+            </div>
+            <div class="form-item">
+              <div class="label">任务名称</div>
+              <div class="value" id="tskName">跨级交叉扫描验证</div>
+            </div>
+            <div class="form-item">
+              <div class="label">排查系统漏洞数量</div>
+              <div class="value"><span class="tag geekblue" id="vulCnt">128</span></div>
+            </div>
+            <div class="form-item">
+              <div class="label">排查资产数量</div>
+              <div class="value"><span class="tag geekblue" id="astCnt">56</span></div>
+            </div>
+            <div class="form-item">
+              <div class="label">技术处置方式</div>
+              <div class="value"><select id="procMethod"></select></div>
+            </div>
+            <div class="form-item">
+              <div class="label">漏洞业务阶段</div>
+              <div class="value"><select id="tskPhase"></select></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 跨级切批 -->
+        <div class="batch-block" id="batchBlock">
+          <div class="section-title"><span class="bar"></span>跨级切批（按资产拆分）</div>
+          <div class="panel">
+            <div class="form-grid">
+              <div class="form-item">
+                <div class="label">启用资产切批</div>
+                <div class="value">
+                  <label style="display:inline-flex;align-items:center;gap:6px;">
+                    <input type="checkbox" id="batchEnabled" checked />
+                    按资产数量拆分为多批主任务/子任务链
+                  </label>
+                </div>
+              </div>
+              <div class="form-item">
+                <div class="label">每批资产数</div>
+                <div class="value">
+                  <input type="number" id="batchSize" min="1" max="500" value="20" />
+                </div>
+              </div>
+              <div class="form-item">
+                <div class="label">切批结果</div>
+                <div class="value" id="batchSummary">—</div>
+              </div>
+              <div class="form-item">
+                <div class="label">拆分维度</div>
+                <div class="value"><span class="tag cyan">资产</span><span class="muted">（按 IP/资产单元切分，漏洞实例随资产归属）</span></div>
+              </div>
+            </div>
+            <div class="alert info" style="margin-top:10px;margin-bottom:0;">
+              <span class="icon">i</span>
+              <div>仅<strong>跨级联动任务</strong>支持按资产拆分数量切批。每批独立生成一套阶段子任务链；预览表按「批次 → 编排步骤」展开。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 预览 -->
+        <div class="section-title">
+          <span class="bar"></span>
+          <span id="previewTitle">阶段子任务链预览 · 验证</span>
+        </div>
+        <div class="panel" id="previewPanel">
+          <div id="alerts"></div>
+          <div class="batch-preview-bar" id="batchChips"></div>
+          <div style="overflow:auto;">
+            <table class="data" id="previewTable">
+              <thead id="previewThead"></thead>
+              <tbody id="previewTbody"></tbody>
+            </table>
+          </div>
+          <p class="chain-hint" id="previewHint"></p>
+        </div>
+
+        <!-- 设备 -->
+        <div class="device-block" id="deviceBlock">
+          <div class="section-title"><span class="bar"></span><span id="deviceTitle">安全资源设备</span></div>
+          <div class="panel" id="devicePanel"></div>
+        </div>
+      </div>
+      <div class="drawer-ft">
+        <button type="button" class="btn">取消</button>
+        <button type="button" class="btn primary" id="submitBtn">确认下发</button>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div><strong>本次增量</strong></div>
+      <div style="margin-top:6px;">
+        1）处置方式 <code>1026 交叉扫描验证</code>：须选择<strong>两个不同厂家</strong>扫描器（主扫 + 交叉扫）；同厂家或只选一台时禁止确认下发。
+      </div>
+      <div style="margin-top:4px;">
+        2）菜单 <code>跨级联动</code>：可开启「按资产拆分数量」切批；预览按批次展开子任务链（示例资产总数 56）。
+      </div>
+      <div style="margin-top:4px;">
+        建议演示：快捷场景选「跨级 · 1026 双厂家 + 切批」，再把「设备匹配演示」切到「1026 同厂家冲突」看闸门。
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const AST_TOTAL = 56;
+    const VUL_TOTAL = 128;
+
+    const PHASES = [
+      { code: 0, name: '潜在预警' },
+      { code: 1, name: '排查' },
+      { code: 2, name: '验证' },
+      { code: 3, name: '修复' },
+      { code: 4, name: '核验' }
+    ];
+
+    const METHODS = [
+      { code: 1080, name: '1080-关联分析', phase: 0 },
+      { code: 1021, name: '1021-POC插件', phase: 1 },
+      { code: 1022, name: '1022-漏洞扫描（混合）', phase: 1 },
+      { code: 1028, name: '1028-连通性检测', phase: 1 },
+      { code: 1026, name: '1026-交叉扫描验证', phase: 2 },
+      { code: 1040, name: '1040-EXP漏洞利用', phase: 2 },
+      { code: 1050, name: '1050-补丁修复', phase: 3 },
+      { code: 1051, name: '1051-等效防护修复', phase: 3 },
+      { code: 1052, name: '1052-连通性阻断', phase: 3 },
+      { code: 1060, name: '1060-修复核验自适应扫描', phase: 4 },
+      { code: 1061, name: '1061-攻击模拟漏洞扫描', phase: 4 }
+    ];
+
+    const SCANNERS = [
+      { id: 'nsfocus-a', name: '绿盟漏洞扫描器-A', vendor: '绿盟', vendorCode: 'NSFOCUS', ip: '10.12.8.21', hash: 'nsf-a1b2…' },
+      { id: 'nsfocus-b', name: '绿盟漏洞扫描器-B', vendor: '绿盟', vendorCode: 'NSFOCUS', ip: '10.12.8.22', hash: 'nsf-c3d4…' },
+      { id: 'qianxin-a', name: '奇安信漏扫-01', vendor: '奇安信', vendorCode: 'QAX', ip: '10.20.3.11', hash: 'qax-e5f6…' },
+      { id: 'venustech-a', name: '启明星辰漏扫-华北', vendor: '启明星辰', vendorCode: 'VENUS', ip: '10.30.1.8', hash: 'ven-7788…' },
+      { id: 'huawei-a', name: '华为漏洞扫描-云', vendor: '华为', vendorCode: 'HUAWEI', ip: '10.40.2.5', hash: 'hw-99aa…' }
+    ];
+
+    const MENU = {
+      warn: { label: '产品漏洞预警', orderType: '产品漏洞预警任务', lockMethod: 1080, pool: false, batchable: false },
+      sys: { label: '系统漏洞工单', orderType: '系统漏洞工单', lockMethod: null, pool: false, batchable: false },
+      ganged: { label: '跨级联动', orderType: '跨级联动任务', lockMethod: null, pool: true, batchable: true }
+    };
+
+    const state = {
+      menu: 'ganged',
+      phase: 2,
+      method: 1026,
+      deviceOk: true,
+      sameVendorConflict: false,
+      batchEnabled: true,
+      batchSize: 20,
+      primaryScannerId: 'nsfocus-a',
+      crossScannerId: 'qianxin-a'
+    };
+
+    function $(id) { return document.getElementById(id); }
+
+    function isCrossScan1026(method) {
+      return Number(method) === 1026;
+    }
+
+    function needDevice(phase, method) {
+      if (state.menu === 'warn') return false;
+      if (phase === 0 || phase === 3) return false;
+      if ([1050, 1051, 1052].includes(method)) return false;
+      return true;
+    }
+
+    function useBatch() {
+      return state.menu === 'ganged' && state.batchEnabled && state.batchSize > 0;
+    }
+
+    function buildBatches() {
+      if (!useBatch()) {
+        return [{ index: 1, astFrom: 1, astTo: AST_TOTAL, astCount: AST_TOTAL, label: '全量' }];
+      }
+      const size = Math.max(1, Number(state.batchSize) || 1);
+      const batches = [];
+      let start = 1;
+      let i = 1;
+      while (start <= AST_TOTAL) {
+        const end = Math.min(AST_TOTAL, start + size - 1);
+        batches.push({
+          index: i,
+          astFrom: start,
+          astTo: end,
+          astCount: end - start + 1,
+          label: `第 ${i} 批`
+        });
+        start = end + 1;
+        i += 1;
+      }
+      return batches;
+    }
+
+    function getScanner(id) {
+      return SCANNERS.find(s => s.id === id) || null;
+    }
+
+    function dualVendorStatus() {
+      if (!isCrossScan1026(state.method)) return { required: false, ok: true, reason: '' };
+      if (!state.deviceOk) return { required: true, ok: false, reason: '请选择主扫与交叉扫两台设备' };
+      const a = getScanner(state.primaryScannerId);
+      const b = getScanner(state.crossScannerId);
+      if (!a || !b) return { required: true, ok: false, reason: '主扫 / 交叉扫设备不完整' };
+      if (state.sameVendorConflict || a.vendorCode === b.vendorCode) {
+        return { required: true, ok: false, reason: '交叉扫描验证要求两个不同厂家的扫描器，当前厂家相同：' + a.vendor };
+      }
+      if (a.id === b.id) {
+        return { required: true, ok: false, reason: '主扫与交叉扫不能是同一台设备' };
+      }
+      return { required: true, ok: true, reason: '', primary: a, cross: b };
+    }
+
+    function confirmGate(phase, method) {
+      const dual = dualVendorStatus();
+      if (dual.required && !dual.ok) {
+        return { ok: false, reason: dual.reason };
+      }
+      if (!needDevice(phase, method)) return { ok: true, reason: '' };
+      if (isCrossScan1026(method)) return { ok: true, reason: '' };
+      if (state.deviceOk) return { ok: true, reason: '' };
+      if (phase === 4) return { ok: false, reason: '存在未匹配设备，禁止确认下发' };
+      return { ok: false, reason: '安全资源设备未匹配，请先选择合法设备' };
+    }
+
+    function baseChainRows(phase, method, batch) {
+      const methodLabel = METHODS.find(m => m.code === method)?.name || String(method);
+      const targetScale = (astN) => `资产 ${astN} / 约实例 ${Math.max(1, Math.round(VUL_TOTAL * astN / AST_TOTAL))}`;
+      const dual = dualVendorStatus();
+      const poolSrc = state.menu === 'ganged' ? '指定设备池' : '策略匹配';
+
+      if (phase === 0) {
+        return [{
+          order: 1, wave: '关联分析', waveCode: 'CORRELATION_ANALYSIS',
+          methodLabel: '1080-关联分析', reportType: '关联分析结果',
+          target: targetScale(batch.astCount), depend: '-', device: null,
+          process: ['关联'], warnings: [], batch
+        }];
+      }
+      if (phase === 1) {
+        const isConn = method === 1028;
+        return [{
+          order: 1,
+          wave: isConn ? '连通性检测' : '漏洞扫描',
+          waveCode: isConn ? 'CONNECTIVITY_CHECK' : 'VUL_SCAN',
+          methodLabel, reportType: isConn ? '连通性检测报告' : '漏洞扫描报告',
+          target: targetScale(batch.astCount), depend: '-', device: true,
+          process: isConn ? ['连通性'] : ['端口', 'POC'],
+          warnings: state.deviceOk ? [] : ['设备未匹配'],
+          scanner: getScanner(state.primaryScannerId),
+          scannerSource: poolSrc,
+          batch
+        }];
+      }
+      if (phase === 2 && isCrossScan1026(method)) {
+        const a = dual.primary || getScanner(state.primaryScannerId);
+        const b = dual.cross || getScanner(state.crossScannerId);
+        const warnA = [];
+        const warnB = [];
+        if (!dual.ok) {
+          warnA.push(dual.reason);
+          warnB.push(dual.reason);
+        }
+        return [
+          {
+            order: 1, wave: '漏洞扫描（主扫）', waveCode: 'VUL_SCAN',
+            methodLabel, reportType: '漏洞扫描报告',
+            target: targetScale(batch.astCount), depend: '-', device: true,
+            process: ['主扫'], warnings: warnA,
+            scanner: a, role: '主扫厂家', scannerSource: poolSrc, batch
+          },
+          {
+            order: 2, wave: '二次扫描（交叉）', waveCode: 'CROSS_SCAN',
+            methodLabel, reportType: '交叉验证报告',
+            target: targetScale(batch.astCount),
+            depend: '等待主扫完成', device: true,
+            process: ['交叉扫'], warnings: warnB,
+            scanner: b, role: '交叉厂家', scannerSource: poolSrc, batch
+          }
+        ];
+      }
+      if (phase === 2) {
+        return [
+          {
+            order: 1, wave: '漏洞扫描', waveCode: 'VUL_SCAN',
+            methodLabel, reportType: '漏洞扫描报告',
+            target: targetScale(batch.astCount), depend: '-', device: true,
+            process: ['端口', 'POC'], warnings: [],
+            scanner: getScanner(state.primaryScannerId), scannerSource: poolSrc, batch
+          },
+          {
+            order: 2, wave: '二次扫描', waveCode: 'CROSS_SCAN',
+            methodLabel, reportType: '交叉验证报告',
+            target: targetScale(batch.astCount), depend: '等待漏洞扫描完成', device: true,
+            process: ['交叉验证'],
+            warnings: state.deviceOk ? [] : ['设备未匹配'],
+            scanner: getScanner(state.primaryScannerId), scannerSource: poolSrc, batch
+          }
+        ];
+      }
+      if (phase === 3) {
+        return [{
+          order: 1, wave: '漏洞修复', waveCode: 'VUL_REPAIR',
+          methodLabel, reportType: '修复结果（人工）',
+          target: `待修复实例（本批资产 ${batch.astCount}）`, depend: '-', device: null,
+          process: ['修复登记'], warnings: ['修复类任务不绑定扫描设备'], batch
+        }];
+      }
+      // phase 4
+      return [
+        {
+          order: 1, wave: '连通性检测', waveCode: 'CONNECTIVITY_CHECK',
+          methodLabel: '1028-连通性检测', reportType: '连通性检测报告',
+          target: `IP ${batch.astCount}（本批排查资产）`, depend: '-', device: true,
+          process: ['连通性'], warnings: [],
+          scanner: getScanner(state.primaryScannerId),
+          scannerSource: state.menu === 'ganged' ? '指定设备池' : '同源排查',
+          srcMethods: [], batch
+        },
+        {
+          order: 2, wave: '修复核验', waveCode: 'REPAIR_VERIFY',
+          methodLabel: '1021-POC插件', reportType: 'POC 核验报告',
+          target: `本批已修复实例（资产 ${batch.astCount}）`,
+          depend: '等待连通性检测完成后解锁', device: true,
+          process: ['POC'],
+          warnings: state.deviceOk ? [] : ['未匹配到合法设备'],
+          scanner: state.deviceOk ? getScanner(state.primaryScannerId) : null,
+          scannerSource: state.menu === 'ganged' ? '指定设备池' : '策略匹配',
+          srcMethods: ['1050', '1051'], batch
+        }
+      ];
+    }
+
+    function chainFor(phase, method) {
+      const batches = buildBatches();
+      const rows = [];
+      batches.forEach(batch => {
+        baseChainRows(phase, method, batch).forEach(row => rows.push(row));
+      });
+      return { batches, rows };
+    }
+
+    function chainAlertText(phase, method) {
+      if (isCrossScan1026(method)) {
+        return '预计子任务链：漏洞扫描（主扫厂家）→ 二次扫描（交叉厂家）；必须使用两个不同厂家的扫描器';
+      }
+      const map = {
+        0: '预计子任务链：关联分析；无需选择安全设备',
+        1: '预计子任务链：漏洞扫描（或连通性检测）',
+        2: '下发模式：顺序下发；结果处理顺序：先漏洞扫描，后二次扫描',
+        3: '预计子任务链：漏洞修复；修复类任务不绑定扫描设备',
+        4: '下发模式：顺序下发（sequential）；结果处理顺序：先连通性检测，后修复核验'
+      };
+      return map[phase];
+    }
+
+    function summaryText(phase, rows, batches) {
+      const menu = MENU[state.menu];
+      const parts = [
+        `将下发 ${rows.length} 条物理子任务`,
+        `业务阶段：${PHASES.find(p => p.code === phase).name}`
+      ];
+      if (useBatch()) {
+        parts.push(`切批：${batches.length} 批（每批 ≤${state.batchSize} 资产，共 ${AST_TOTAL}）`);
+      }
+      if (menu.pool) parts.push('设备来源：指定设备池');
+      if (isCrossScan1026(state.method)) {
+        const dual = dualVendorStatus();
+        parts.push(dual.ok
+          ? `双厂家：${dual.primary.vendor} + ${dual.cross.vendor}`
+          : '双厂家：未满足');
+      } else if (needDevice(phase, state.method)) {
+        parts.push(state.deviceOk ? '设备匹配：通过' : '设备匹配：失败');
+      } else {
+        parts.push('本阶段无需安全设备');
+      }
+      return parts.join('；');
+    }
+
+    function fillSelects() {
+      const methodSel = $('procMethod');
+      const phaseSel = $('tskPhase');
+      const menu = MENU[state.menu];
+      const locked = menu.lockMethod != null;
+
+      methodSel.innerHTML = '';
+      METHODS.filter(m => !locked || m.code === menu.lockMethod).forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.code;
+        opt.textContent = m.name;
+        methodSel.appendChild(opt);
+      });
+      methodSel.disabled = locked;
+      if (locked) {
+        state.method = menu.lockMethod;
+        state.phase = 0;
+      }
+
+      phaseSel.innerHTML = '';
+      PHASES.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.code;
+        opt.textContent = `${p.code} · ${p.name}`;
+        phaseSel.appendChild(opt);
+      });
+      phaseSel.disabled = locked;
+
+      if (![...methodSel.options].some(o => Number(o.value) === state.method)) {
+        state.method = Number(methodSel.options[0].value);
+        state.phase = METHODS.find(m => m.code === state.method).phase;
+      }
+      methodSel.value = String(state.method);
+      phaseSel.value = String(state.phase);
+    }
+
+    function renderDeviceCell(row, phase) {
+      if (!needDevice(phase, state.method) || row.device == null) {
+        return '<span class="muted">-</span>';
+      }
+      const s = row.scanner;
+      if (!s) {
+        return '<span class="tag red">未匹配到合法设备</span>';
+      }
+      const role = row.role ? `<span class="tag volcano">${row.role}</span>` : '';
+      return `<div class="device-cell">
+        <div><strong>${s.name}</strong>${role}<span class="tag method">${s.vendor}</span></div>
+        <div class="muted">IP: ${s.ip}</div>
+        <div class="muted mono ellipsis">HASH: ${s.hash}</div>
+        <div class="muted">来源: ${row.scannerSource || '-'}</div>
+      </div>`;
+    }
+
+    function renderTable(phase, rows, batches) {
+      const showSrc = phase === 4;
+      const showDevice = needDevice(phase, state.method);
+      const showBatch = useBatch() && batches.length > 1;
+      const cols = [
+        ...(showBatch ? [{ key: 'batch', title: '批次' }] : []),
+        { key: 'order', title: '顺序' },
+        { key: 'wave', title: '编排步骤' },
+        ...(showSrc ? [{ key: 'src', title: '原修复方式' }] : []),
+        { key: 'method', title: '处置方式' },
+        { key: 'report', title: '处置类型' },
+        ...(showDevice ? [{ key: 'device', title: '安全资源' }] : []),
+        { key: 'target', title: '目标规模' },
+        { key: 'depend', title: '依赖/解锁' },
+        { key: 'process', title: '过程' },
+        { key: 'warn', title: '警告' }
+      ];
+
+      $('previewThead').innerHTML = '<tr>' + cols.map(c => `<th>${c.title}</th>`).join('') + '</tr>';
+
+      let html = '';
+      let lastBatch = null;
+      rows.forEach(row => {
+        if (showBatch && row.batch && row.batch.index !== lastBatch) {
+          lastBatch = row.batch.index;
+          html += `<tr class="batch-sep"><td colspan="${cols.length}">${row.batch.label} · 资产 ${row.batch.astFrom}–${row.batch.astTo}（${row.batch.astCount} 个）</td></tr>`;
+        }
+        const cells = cols.map(c => {
+          if (c.key === 'batch') return `<td><span class="tag geekblue">${row.batch.label}</span></td>`;
+          if (c.key === 'order') return `<td>${row.order}</td>`;
+          if (c.key === 'wave') return `<td><span class="tag purple">${row.wave}</span><div class="muted mono">${row.waveCode}</div></td>`;
+          if (c.key === 'src') {
+            const tags = (row.srcMethods || []).map(x => `<span class="tag method">${x}</span>`).join('') || '-';
+            return `<td>${tags}</td>`;
+          }
+          if (c.key === 'method') return `<td><span class="tag method">${row.methodLabel}</span></td>`;
+          if (c.key === 'report') return `<td>${row.reportType}</td>`;
+          if (c.key === 'device') return `<td>${renderDeviceCell(row, phase)}</td>`;
+          if (c.key === 'target') return `<td>${row.target}</td>`;
+          if (c.key === 'depend') {
+            return `<td>${row.depend === '-' ? '<span class="muted">-</span>' : `<span class="tag orange">${row.depend}</span>`}</td>`;
+          }
+          if (c.key === 'process') {
+            return `<td>${(row.process || []).map(p => `<span class="tag cyan">${p}</span>`).join('') || '-'}</td>`;
+          }
+          if (c.key === 'warn') {
+            if (!row.warnings || !row.warnings.length) return '<td><span class="muted">-</span></td>';
+            return `<td><span class="tag orange">${row.warnings.length} 项</span><div class="muted" style="margin-top:4px;">${row.warnings.join('；')}</div></td>`;
+          }
+          return '<td>-</td>';
+        });
+        html += `<tr>${cells.join('')}</tr>`;
+      });
+      $('previewTbody').innerHTML = html;
+    }
+
+    function renderDualScannerPick() {
+      const dual = dualVendorStatus();
+      const conflict = dual.required && !dual.ok && (state.sameVendorConflict || (getScanner(state.primaryScannerId)?.vendorCode === getScanner(state.crossScannerId)?.vendorCode));
+      const opts = (selectedId, excludeVendor) => SCANNERS.map(s => {
+        const selected = s.id === selectedId ? 'selected' : '';
+        return `<option value="${s.id}" ${selected}>${s.name}（${s.vendor}）</option>`;
+      }).join('');
+
+      return `
+        <div class="alert ${dual.ok ? 'success' : 'error'}">
+          <span class="icon">${dual.ok ? '✓' : '!'}</span>
+          <div>
+            <strong>1026 交叉扫描验证</strong>：必须选择两个<strong>不同厂家</strong>的扫描器。
+            ${dual.ok
+              ? `当前：主扫 ${dual.primary.vendor} + 交叉 ${dual.cross.vendor}`
+              : dual.reason}
+          </div>
+        </div>
+        <div class="scanner-pick">
+          <div class="scanner-card ${conflict ? 'conflict' : ''}">
+            <h4><span class="tag volcano">主扫</span> 第一厂家扫描器</h4>
+            <select id="primaryScanner">${opts(state.primaryScannerId)}</select>
+            <div class="meta" id="primaryMeta"></div>
+          </div>
+          <div class="scanner-card ${conflict ? 'conflict' : ''}">
+            <h4><span class="tag volcano">交叉扫</span> 第二厂家扫描器</h4>
+            <select id="crossScanner">${opts(state.crossScannerId)}</select>
+            <div class="meta" id="crossMeta"></div>
+          </div>
+        </div>
+        ${state.menu === 'ganged' ? '<div class="muted" style="margin-top:8px;">跨级约束：仅展示 eng_hash_cnt 设备池内设备（原型用全量示意）</div>' : ''}
+      `;
+    }
+
+    function renderDeviceBlock(phase) {
+      const block = $('deviceBlock');
+      const panel = $('devicePanel');
+      if (!needDevice(phase, state.method)) {
+        block.classList.add('hidden');
+        return;
+      }
+      block.classList.remove('hidden');
+      $('deviceTitle').textContent = isCrossScan1026(state.method)
+        ? '安全资源设备（双厂家）'
+        : '安全资源设备';
+
+      if (isCrossScan1026(state.method)) {
+        panel.innerHTML = renderDualScannerPick();
+        const syncMeta = () => {
+          const a = getScanner(state.primaryScannerId);
+          const b = getScanner(state.crossScannerId);
+          $('primaryMeta').textContent = a ? `厂家 ${a.vendor} · IP ${a.ip}` : '';
+          $('crossMeta').textContent = b ? `厂家 ${b.vendor} · IP ${b.ip}` : '';
+        };
+        $('primaryScanner').addEventListener('change', e => {
+          state.primaryScannerId = e.target.value;
+          state.sameVendorConflict = false;
+          $('deviceMatchDemo').value = 'ok';
+          state.deviceOk = true;
+          render();
+        });
+        $('crossScanner').addEventListener('change', e => {
+          state.crossScannerId = e.target.value;
+          state.sameVendorConflict = false;
+          $('deviceMatchDemo').value = 'ok';
+          state.deviceOk = true;
+          render();
+        });
+        syncMeta();
+        return;
+      }
+
+      if (phase === 4) {
+        panel.innerHTML = `
+          <div class="alert info"><span class="icon">i</span>
+            <div>核验确认态：设备由策略 / LastScanner 决定，下发抽屉内禁改。</div>
+          </div>`;
+        return;
+      }
+
+      if (!state.deviceOk) {
+        panel.innerHTML = `
+          <div class="alert error"><span class="icon">!</span>
+            <div>尚未选择合法安全资源设备。</div>
+          </div>`;
+        return;
+      }
+      const s = getScanner(state.primaryScannerId);
+      panel.innerHTML = `
+        <div class="alert success"><span class="icon">✓</span>
+          <div>已选择：${s.name}（${s.vendor} · ${s.ip}）</div>
+        </div>
+        ${state.menu === 'ganged' ? '<div class="muted" style="margin-top:6px;">跨级约束：指定设备池</div>' : ''}`;
+    }
+
+    function renderBatchBlock() {
+      const block = $('batchBlock');
+      const menu = MENU[state.menu];
+      if (!menu.batchable) {
+        block.classList.add('hidden');
+        return;
+      }
+      block.classList.remove('hidden');
+      $('batchEnabled').checked = state.batchEnabled;
+      $('batchSize').value = String(state.batchSize);
+      $('batchSize').disabled = !state.batchEnabled;
+
+      const batches = buildBatches();
+      if (!state.batchEnabled) {
+        $('batchSummary').innerHTML = `<span class="tag method">不切批</span> 全量资产 ${AST_TOTAL}`;
+      } else {
+        const last = batches[batches.length - 1];
+        $('batchSummary').innerHTML =
+          `<span class="tag geekblue">${batches.length} 批</span>` +
+          `<span class="muted">前 ${batches.length - 1} 批各 ${state.batchSize}，末批 ${last.astCount}</span>`;
+      }
+    }
+
+    function renderBatchChips(batches) {
+      const bar = $('batchChips');
+      if (!useBatch() || batches.length <= 1) {
+        bar.innerHTML = '';
+        return;
+      }
+      bar.innerHTML = batches.map(b =>
+        `<span class="batch-chip">${b.label}：资产 ${b.astFrom}–${b.astTo}（${b.astCount}）</span>`
+      ).join('');
+    }
+
+    function applyDeviceDemo(mode) {
+      state.sameVendorConflict = false;
+      if (mode === 'ok') {
+        state.deviceOk = true;
+        if (isCrossScan1026(state.method)) {
+          state.primaryScannerId = 'nsfocus-a';
+          state.crossScannerId = 'qianxin-a';
+        }
+      } else if (mode === 'fail') {
+        state.deviceOk = false;
+      } else if (mode === 'same-vendor') {
+        state.deviceOk = true;
+        state.sameVendorConflict = true;
+        state.method = 1026;
+        state.phase = 2;
+        state.primaryScannerId = 'nsfocus-a';
+        state.crossScannerId = 'nsfocus-b'; // 同厂家绿盟
+      }
+    }
+
+    function applyScene(scene) {
+      const map = {
+        'ganged-1026': { menu: 'ganged', method: 1026, phase: 2, batchEnabled: true, batchSize: 20 },
+        'sys-1026': { menu: 'sys', method: 1026, phase: 2, batchEnabled: false },
+        'ganged-1060': { menu: 'ganged', method: 1060, phase: 4, batchEnabled: true, batchSize: 20 },
+        'sys-1060': { menu: 'sys', method: 1060, phase: 4, batchEnabled: false },
+        'warn-1080': { menu: 'warn', method: 1080, phase: 0, batchEnabled: false },
+        'sys-1050': { menu: 'sys', method: 1050, phase: 3, batchEnabled: false }
+      };
+      const s = map[scene];
+      if (!s) return;
+      state.menu = s.menu;
+      state.method = s.method;
+      state.phase = s.phase;
+      state.batchEnabled = s.batchEnabled;
+      if (s.batchSize) state.batchSize = s.batchSize;
+      document.querySelectorAll('#menuSeg button').forEach(b => {
+        b.classList.toggle('active', b.dataset.menu === state.menu);
+      });
+      if (isCrossScan1026(state.method) && !state.sameVendorConflict) {
+        state.primaryScannerId = 'nsfocus-a';
+        state.crossScannerId = 'qianxin-a';
+        state.deviceOk = true;
+      }
+    }
+
+    function render() {
+      fillSelects();
+      renderBatchBlock();
+
+      const menu = MENU[state.menu];
+      const phase = state.phase;
+      const phaseName = PHASES.find(p => p.code === phase).name;
+      const { batches, rows } = chainFor(phase, state.method);
+      const gate = confirmGate(phase, state.method);
+
+      $('menuBadge').textContent = menu.label;
+      $('orderType').textContent = menu.orderType;
+      $('astCnt').textContent = String(AST_TOTAL);
+      $('vulCnt').textContent = String(VUL_TOTAL);
+      $('orderId').textContent = state.menu === 'warn' ? 'WARN-20260717-10086'
+        : (state.menu === 'ganged' ? 'GANG-20260717-55201' : 'ORD-20260717-88421');
+      $('tskName').textContent = isCrossScan1026(state.method)
+        ? (state.menu === 'ganged' ? '跨级交叉扫描验证' : '交叉扫描验证任务')
+        : ({
+          0: '产品漏洞关联分析任务',
+          1: '系统漏洞排查扫描任务',
+          2: '验证阶段任务',
+          3: '补丁修复登记任务',
+          4: '2026-Q3 修复核验专项'
+        })[phase];
+      $('previewTitle').textContent = `阶段子任务链预览 · ${phaseName}`;
+      $('drawerHint').textContent = menu.lockMethod
+        ? '产品预警：处置方式/阶段只读'
+        : (isCrossScan1026(state.method)
+          ? '1026：请配置双厂家扫描器后再确认下发'
+          : '选择处置方式后自动带出业务阶段并刷新预览');
+
+      const alerts = [];
+      alerts.push(`<div class="alert info"><span class="icon">i</span><div>${chainAlertText(phase, state.method)}</div></div>`);
+      if (useBatch()) {
+        alerts.push(`<div class="alert info"><span class="icon">i</span><div>跨级切批已启用：资产总数 ${AST_TOTAL}，每批 ${state.batchSize}，共 ${batches.length} 批；预览按批次展开。</div></div>`);
+      }
+      const sumType = gate.ok ? 'info' : 'error';
+      alerts.push(`<div class="alert ${sumType}"><span class="icon">${gate.ok ? 'i' : '!'}</span><div>${summaryText(phase, rows, batches)}${gate.ok ? '' : '。' + gate.reason}</div></div>`);
+      if (phase === 3) {
+        alerts.push(`<div class="alert warning"><span class="icon">!</span><div>修复阶段通常由运营登记结果，预览仅展示将创建的修复子任务壳。</div></div>`);
+      }
+      $('alerts').innerHTML = alerts.join('');
+
+      renderBatchChips(batches);
+      renderTable(phase, rows, batches);
+      $('previewHint').textContent = isCrossScan1026(state.method)
+        ? '一行=一条物理子任务；主扫与交叉扫必须分属不同厂家；跨级开启切批时按「批次 × 双扫步骤」展开。'
+        : (phase === 4
+          ? '一行=一条物理子任务；连通性覆盖本批资产 IP，修复核验按修复状态筛选；未匹配设备禁止确认下发。'
+          : '一行=一条将下发的物理子任务；编排步骤与后续自动化处置 wave 对齐。');
+
+      renderDeviceBlock(phase);
+
+      const btn = $('submitBtn');
+      btn.textContent = '确认下发';
+      btn.disabled = !gate.ok;
+    }
+
+    // events
+    document.querySelectorAll('#menuSeg button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#menuSeg button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.menu = btn.dataset.menu;
+        if (state.menu === 'warn') {
+          state.method = 1080;
+          state.phase = 0;
+          state.batchEnabled = false;
+        } else if (state.menu === 'ganged') {
+          state.batchEnabled = true;
+          if (state.phase === 0) {
+            state.method = 1026;
+            state.phase = 2;
+          }
+        } else {
+          state.batchEnabled = false;
+          if (state.phase === 0) {
+            state.method = 1022;
+            state.phase = 1;
+          }
+        }
+        $('sceneQuick').value = state.menu === 'ganged' && state.method === 1026 ? 'ganged-1026'
+          : state.menu === 'sys' && state.method === 1026 ? 'sys-1026'
+          : state.menu === 'ganged' && state.method === 1060 ? 'ganged-1060'
+          : state.menu === 'warn' ? 'warn-1080' : 'sys-1060';
+        render();
+      });
+    });
+
+    $('sceneQuick').addEventListener('change', e => {
+      applyScene(e.target.value);
+      $('deviceMatchDemo').value = 'ok';
+      applyDeviceDemo('ok');
+      render();
+    });
+
+    $('deviceMatchDemo').addEventListener('change', e => {
+      applyDeviceDemo(e.target.value);
+      render();
+    });
+
+    $('procMethod').addEventListener('change', e => {
+      state.method = Number(e.target.value);
+      const m = METHODS.find(x => x.code === state.method);
+      if (m) state.phase = m.phase;
+      if (isCrossScan1026(state.method) && !state.sameVendorConflict) {
+        state.primaryScannerId = 'nsfocus-a';
+        state.crossScannerId = 'qianxin-a';
+        state.deviceOk = true;
+      }
+      render();
+    });
+
+    $('tskPhase').addEventListener('change', e => {
+      state.phase = Number(e.target.value);
+      const prefer = METHODS.find(m => m.phase === state.phase);
+      if (prefer) state.method = prefer.code;
+      render();
+    });
+
+    $('batchEnabled').addEventListener('change', e => {
+      state.batchEnabled = e.target.checked;
+      render();
+    });
+
+    $('batchSize').addEventListener('change', e => {
+      state.batchSize = Math.max(1, Number(e.target.value) || 1);
+      render();
+    });
+
+    applyScene('ganged-1026');
+    render();
+  </script>
+</body>
+</html>
