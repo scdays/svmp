@@ -3,7 +3,7 @@
 
 | 项        | 内容                                                         |
 | --------- | ------------------------------------------------------------ |
-| API 版本  | **1.0.6**                                                    |
+| API 版本  | **1.0.7**                                                    |
 | 协议      | HTTPS · REST JSON                                            |
 | Base Path | `/api/open/v1`                                               |
 | OpenAPI   | [`openapi/v1/openapi.yaml`](../../openapi/v1/openapi.yaml)（OpenAPI 3.1，可导入 Swagger UI / Postman / 代码生成） |
@@ -23,6 +23,7 @@
 - [8. 能力码（Capability）](#8-能力码capability)
 - [9. 业务错误码](#9-业务错误码)
 - [10. 典型集成流程](#10-典型集成流程)
+- [11. 扫描窗口与超时暂停处理](#11-扫描窗口与超时暂停处理)
 - [附录 A · 漏洞实例状态 `vulInfoStat`](#附录-a-漏洞实例状态-vulinfostat)
 - [附录 B · 相关资源](#附录-b-相关资源)
 - [附录 C · 平台用户角色](#附录-c-平台用户角色-srctktrole-dsttktrole)
@@ -61,6 +62,7 @@
 | 能力             | 说明                                                         |
 | ---------------- | ------------------------------------------------------------ |
 | 扫描/排查        | 创建任务、查询进度与结果摘要                                 |
+| 扫描窗口控制     | 配置允许扫描时间段，处理超窗暂停、补充扫描窗口；通过 `pause` / `start` 控制任务暂停与继续扫描 |
 | 漏洞实例         | 查询、验证、处置（含修复与修复失败/备案）、修复核验          |
 | 扫描结果数据外发 | 任务结束、验证/修复核验扫描完成后下载规范化结构化结果（`TaskExport`，支持 XML / JSON） |
 | 扫描报告产物外发 | 任务结束、验证/修复核验扫描完成后下载扫描器原始报告或平台渲染报告（XML / XLSX / PDF 等二进制产物） |
@@ -390,6 +392,9 @@ Idempotency-Key: remediate:batch:batch-20260518-001
 | 排查     | POST | `/tasks/vul`                        | `TASK_WRITE`          |
 | 排查     | GET  | `/tasks`                            | `TASK_READ`           |
 | 排查     | GET  | `/tasks/{taskId}`                   | `TASK_READ`           |
+| 排查     | POST | `/tasks/{taskId}/scan-windows`      | `TASK_WINDOW_WRITE`   |
+| 排查     | POST | `/tasks/{taskId}/pause`             | `TASK_CONTROL`        |
+| 排查     | POST | `/tasks/{taskId}/start`             | `TASK_CONTROL`        |
 | 查询     | POST | `/instances/search`                 | `INSTANCE_READ`       |
 | 查询     | GET  | `/instances/{vulInfoID}`            | `INSTANCE_READ`       |
 | 验证     | POST | `/instances/{vulInfoID}/verify`     | `INSTANCE_VERIFY`     |
@@ -576,7 +581,12 @@ Idempotency-Key: idem-ext-2026-web-0001
 | taskId    | string   |  ✓   | 平台任务 ID（后续均用此字段）      |
 | status    | enum     |  ✓   | `ACCEPTED` / `QUEUED` / `REJECTED` |
 | createdAt | datetime |  ✓   | 创建时间                           |
+| estimatedStartAt | datetime |  ○ | **预计启动时间**（平台按当前扫描窗口策略匹配的下一可扫时刻，UTC）；无可用窗口时为 `null` |
+| matchedScanWindow | object |  ○ | 命中的扫描窗口，含 `startAt` / `endAt`；无可用窗口时为 `null` |
+| windowSource | enum   |  ○   | 窗口来源，固定 `POLICY`（平台策略）；说明窗口由平台侧统一维护 |
 | message   | string   |  ○   | `REJECTED` 时原因                  |
+
+> **扫描窗口说明**：创建任务不接收 `scanWindows` 入参；允许扫描时间段由平台按窗口策略统一裁决。接入方可通过 [§5.1.8 `GET /scan-windows/policy`](#518-get-scan-windowspolicy-查询扫描窗口策略) 查询可用窗口以决定下发时机，并从本响应的 `estimatedStartAt` 获知预计启动时间。任务暂停后可通过 [§5.1.5](#515-post-taskstaskidscan-windows-追加扫描窗口) 追加窗口。
 
 **状态约束**：相同 `extTaskId` 重复提交 → **40901** 或 **200** 且返回已有 `taskId`。`scanTemplateId` / `reportTemplateId` 匹配规则见 [附录 H](#附录-h-扫描模板与报告模板)。
 
@@ -635,7 +645,13 @@ Idempotency-Key: idem-ext-2026-0001
     "extTaskId": "EXT-TASK-2026-0001",
     "taskId": "TASK-7f3a2b1c",
     "status": "ACCEPTED",
-    "createdAt": "2026-05-17T08:00:00Z"
+    "createdAt": "2026-05-17T08:00:00Z",
+    "estimatedStartAt": "2026-05-17T16:00:00Z",
+    "matchedScanWindow": {
+      "startAt": "2026-05-17T16:00:00Z",
+      "endAt": "2026-05-17T22:00:00Z"
+    },
+    "windowSource": "POLICY"
   }
 }
 ```
@@ -662,10 +678,14 @@ Idempotency-Key: idem-ext-2026-0001
 | ------------ | -------- | :--: | --------------------------------------------- |
 | extTaskId    | string   |  ○   | 回显（来自映射表，非请求入参）                |
 | taskId       | string   |  ✓   | 平台任务 ID                                   |
-| status       | enum     |  ✓   | `PENDING` / `RUNNING` / `FINISHED` / `FAILED` |
+| status       | enum     |  ✓   | `PENDING` / `RUNNING` / `PAUSED_WAITING_SCAN_WINDOW` / `PAUSED_NO_SCAN_WINDOW` / `FINISHED` / `FAILED` |
 | progress     | int      |  ○   | 0–100                                         |
 | startedAt    | datetime |  ○   | 开始时间                                      |
 | finishedAt   | datetime |  ○   | 结束时间                                      |
+| pauseReason  | enum     |  ○   | 暂停原因：`SCAN_WINDOW_EXPIRED_REPORT_PENDING` / `NO_REMAINING_SCAN_WINDOW` |
+| currentScanWindow | object |  ○ | 当前或最近一次扫描窗口，含 `startAt` / `endAt` |
+| nextScanWindow | object |  ○ | 下一扫描窗口；无多余窗口时为 `null` |
+| manualOptions | string[] |  ○ | `PAUSED_NO_SCAN_WINDOW` 时可选人工介入动作：`ADD_SCAN_WINDOW` / `TASK_START` |
 | errorMessage | string   |  ○   | 失败原因                                      |
 
 **请求示例**
@@ -708,7 +728,7 @@ Authorization: Bearer <accessToken>
 | 参数        | 类型     | 必填 | 说明                                          |
 | ----------- | -------- | :--: | --------------------------------------------- |
 | extTaskId   | string   |  ○   | 按 Partner 键过滤（平台库，不调引擎）         |
-| status      | enum     |  ○   | `PENDING` / `RUNNING` / `FINISHED` / `FAILED` |
+| status      | enum     |  ○   | `PENDING` / `RUNNING` / `PAUSED_WAITING_SCAN_WINDOW` / `PAUSED_NO_SCAN_WINDOW` / `FINISHED` / `FAILED` |
 | createdFrom | datetime |  ○   | 创建时间起（含）                              |
 | createdTo   | datetime |  ○   | 创建时间止（含）                              |
 | page        | int      |  ✓   | 从 1 开始                                     |
@@ -735,6 +755,213 @@ Authorization: Bearer <accessToken>
 | startedAt / finishedAt | datetime |  ○   | 起止时间                         |
 | errorMessage           | string   |  ○   | 失败原因                         |
 | createdAt              | datetime |  ✓   | 创建时间                         |
+
+---
+
+#### 5.1.5 `POST /tasks/{taskId}/scan-windows` — 追加扫描窗口
+<a id="515-post-taskstaskidscan-windows-追加扫描窗口"></a>
+
+| 项   | 值                                                           |
+| ---- | ------------------------------------------------------------ |
+| 能力 | `TASK_WINDOW_WRITE`                                          |
+| 说明 | 当任务处于 `PAUSED_NO_SCAN_WINDOW` 时，由 SOC / Partner 同步新的扫描窗口。平台保存后等待新窗口到达，自动调用 `start` 向扫描器下发继续扫描指令 |
+
+**路径参数**：
+
+| 参数   | 类型   | 必填 | 说明        |
+| ------ | ------ | :--: | ----------- |
+| taskId | string |  ✓   | 平台任务 ID |
+
+**请求体**：
+
+| 参数        | 类型   | 必填 | 说明                                                         |
+| ----------- | ------ | :--: | ------------------------------------------------------------ |
+| scanWindows | array  |  ✓   | 追加的扫描窗口列表；元素含 `startAt` / `endAt`，时间须晚于当前时间且 `startAt < endAt` |
+| reason      | string |  ○   | 添加原因                                                     |
+| operator    | string |  ○   | 操作人或系统标识                                             |
+
+**响应 data**：
+
+| 参数           | 类型     | 必填 | 说明                  |
+| -------------- | -------- | :--: | --------------------- |
+| taskId         | string   |  ✓   | 平台任务 ID           |
+| status         | enum     |  ✓   | `PAUSED_WAITING_SCAN_WINDOW` / `RUNNING` |
+| nextScanWindow | object   |  ○   | 下一扫描窗口          |
+| updatedAt      | datetime |  ✓   | 更新时间              |
+
+**状态约束**：仅允许在 `PAUSED_NO_SCAN_WINDOW` / `PAUSED_WAITING_SCAN_WINDOW` 状态追加窗口；窗口非法 → **40006**；任务已结束 → **40002**。
+
+**请求示例**
+
+```http
+POST /api/open/v1/tasks/TASK-7f3a2b1c/scan-windows HTTP/1.1
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+Idempotency-Key: idem-window-2026-0001
+
+{
+  "scanWindows": [
+    {
+      "startAt": "2026-05-19T08:00:00Z",
+      "endAt": "2026-05-19T12:00:00Z"
+    }
+  ],
+  "reason": "SOC 工单补充扫描窗口",
+  "operator": "soc-user-001"
+}
+```
+
+---
+
+#### 5.1.6 `POST /tasks/{taskId}/pause` — 任务暂停
+<a id="516-post-taskstaskidpause-任务暂停"></a>
+
+| 项   | 值                                                           |
+| ---- | ------------------------------------------------------------ |
+| 能力 | `TASK_CONTROL`                                               |
+| 说明 | 向扫描器下发**暂停扫描**指令，并停止报告回收轮询。平台在超过允许扫描时间段仍未收到扫描报告时会自动执行；SOC 也可在运行中任务需要人工暂停时主动调用 |
+
+**路径参数**：
+
+| 参数   | 类型   | 必填 | 说明        |
+| ------ | ------ | :--: | ----------- |
+| taskId | string |  ✓   | 平台任务 ID |
+
+**请求体**：
+
+| 参数     | 类型   | 必填 | 说明             |
+| -------- | ------ | :--: | ---------------- |
+| reason   | string |  ○   | 暂停原因；       |
+| operator | string |  ○   | 操作人或系统标识 |
+| remark   | string |  ○   | 备注             |
+
+**响应 data**：
+
+| 参数           | 类型     | 必填 | 说明                                                         |
+| -------------- | -------- | :--: | ------------------------------------------------------------ |
+| taskId         | string   |  ✓   | 平台任务 ID                                                  |
+| status         | enum     |  ✓   | `PAUSED_WAITING_SCAN_WINDOW` / `PAUSED_NO_SCAN_WINDOW`       |
+| pauseReason    | enum     |  ✓   | `SCAN_WINDOW_EXPIRED_REPORT_PENDING` / `NO_REMAINING_SCAN_WINDOW` / `MANUAL_PAUSE` |
+| nextScanWindow | object   |  ○   | 下一扫描窗口；无多余窗口时为 `null`                          |
+| updatedAt      | datetime |  ✓   | 更新时间                                                     |
+
+**状态约束**：`RUNNING` 状态可主动暂停；平台超窗自动暂停时根据是否还有下一窗口返回对应暂停状态。已 `FINISHED` / `FAILED` → **40002**。
+
+**请求示例（SOC 主动暂停）**
+
+```http
+POST /api/open/v1/tasks/TASK-7f3a2b1c/pause HTTP/1.1
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+Idempotency-Key: idem-pause-2026-0001
+
+{
+  "reason": "业务侧要求临时暂停扫描",
+  "operator": "soc-user-001"
+}
+```
+
+---
+
+#### 5.1.7 `POST /tasks/{taskId}/start` — 任务启动（继续扫描）
+<a id="517-post-taskstaskidstart-任务启动继续扫描"></a>
+
+| 项   | 值                                                           |
+| ---- | ------------------------------------------------------------ |
+| 能力 | `TASK_CONTROL`                                               |
+| 说明 | 向扫描器下发**继续扫描**指令，并恢复报告回收轮询。平台在下一扫描窗口到达时自动执行；SOC 在人工处置场景下也可主动调用以启动任务 |
+
+**路径参数**：
+
+| 参数   | 类型   | 必填 | 说明        |
+| ------ | ------ | :--: | ----------- |
+| taskId | string |  ✓   | 平台任务 ID |
+
+**请求体**：
+
+| 参数             | 类型    | 必填 | 说明                                                         |
+| ---------------- | ------- | :--: | ------------------------------------------------------------ |
+| reason           | string  |  ○   | 启动原因；                                                   |
+| operator         | string  |  ○   | 操作人或系统标识                                             |
+| remark           | string  |  ○   | 备注；人工处置场景可记录与专业沟通情况                       |
+| ignoreScanWindow | boolean |  ○   | 是否忽略扫描窗口立即启动，默认 **false**。人工处置扫描（非窗口期继续扫描）时传 **true** |
+
+**响应 data**：
+
+| 参数      | 类型     | 必填 | 说明        |
+| --------- | -------- | :--: | ----------- |
+| taskId    | string   |  ✓   | 平台任务 ID |
+| status    | enum     |  ✓   | `RUNNING`   |
+| updatedAt | datetime |  ✓   | 更新时间    |
+
+**状态约束**：仅允许在 `PAUSED_WAITING_SCAN_WINDOW` / `PAUSED_NO_SCAN_WINDOW` 状态调用；`ignoreScanWindow=false` 且当前不在允许扫描时间段内 → **40002**。调用后平台恢复轮询获取原始扫描报告，直至扫描完成后返回结果。
+
+**请求示例（人工处置扫描 · 非窗口期继续）**
+
+```http
+POST /api/open/v1/tasks/TASK-7f3a2b1c/start HTTP/1.1
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+Idempotency-Key: idem-start-2026-0001
+
+{
+  "reason": "经专业确认允许非窗口期继续扫描",
+  "operator": "security-service-001",
+  "remark": "安服人员已在扫描器控制台确认继续扫描",
+  "ignoreScanWindow": true
+}
+```
+
+---
+
+#### 5.1.8 `GET /scan-windows/policy` — 查询可用扫描时间窗
+<a id="518-get-scan-windowspolicy-查询扫描窗口策略"></a>
+
+| 项   | 值                                                           |
+| ---- | ------------------------------------------------------------ |
+| 能力 | `TASK_READ`                                                  |
+| 说明 | 查询平台当前生效的**可用扫描时间窗列表**（平台已按内部窗口策略裁决并展开为绝对时间区间，接入方无需理解平台侧策略规则）。接入方创建任务前可据此了解可扫时机，无需自行掐点下发；亦无需在创建任务时携带 `scanWindows`。 |
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 说明                                                |
+| ---- | ---- | :--: | --------------------------------------------------- |
+| days | int  |  ○   | 返回未来多少天内的可用窗口，默认 **7**，上限 **31** |
+
+**响应 data**：
+
+| 参数             | 类型     | 必填 | 说明                                                         |
+| ---------------- | -------- | :--: | ------------------------------------------------------------ |
+| availableWindows | array    |  ✓   | **可用扫描时段列表**（已按平台策略计算，禁扫期已剔除）；元素含 `startAt` / `endAt`（UTC），按时间升序 |
+| nextScanWindow   | object   |  ○   | 相对当前时间的下一可扫窗口；无则为 `null`                    |
+| updatedAt        | datetime |  ✓   | 策略最近更新时间                                             |
+
+> `availableWindows` 为平台裁决后的**净可用时间**（内部允许窗扣除禁扫窗）；接入方直接使用即可，封网/禁扫期表现为列表中的时间空档。策略变更时平台通过 `SCAN_WINDOW_CHANGED` Webhook 主动推送（见 §6）。
+
+**请求示例**
+
+```http
+GET /api/open/v1/scan-windows/policy?days=7 HTTP/1.1
+Authorization: Bearer <accessToken>
+```
+
+**响应示例**
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "requestId": "req-20260517-w001",
+  "data": {
+    "availableWindows": [
+      { "startAt": "2026-05-17T16:00:00Z", "endAt": "2026-05-17T22:00:00Z" },
+      { "startAt": "2026-05-18T16:00:00Z", "endAt": "2026-05-18T22:00:00Z" }
+    ],
+    "nextScanWindow": { "startAt": "2026-05-17T16:00:00Z", "endAt": "2026-05-17T22:00:00Z" },
+    "updatedAt": "2026-05-16T10:00:00Z"
+  }
+}
+```
 
 ---
 
@@ -1562,7 +1789,7 @@ TaskExport / taskExport
 
 | 项 | 约定 |
 |----|------|
-| 触发时机 | 任务完成/失败、修复核验完成、外发就绪等（见 §6.2） |
+| 触发时机 | 任务完成/失败、任务暂停、修复核验完成、外发就绪等（见 §6.2） |
 | 与 REST 关系 | Partner **主动调用**业务 API **不会**触发 Webhook；Webhook 为平台**单向推送** |
 | 替代方式 | 也可轮询 `GET /tasks/{taskId}`、`GET /exports/{exportId}`、`GET /tasks/{taskId}/artifacts` 等，见 §10 |
 
@@ -1600,6 +1827,8 @@ TaskExport / taskExport
 | ------------------------------- | ----------------------- |
 | `TASK_COMPLETED`                | 任务正常结束            |
 | `TASK_FAILED`                   | 任务失败                |
+| `TASK_PAUSED`                   | 任务因扫描窗口超时暂停  |
+| `SCAN_WINDOW_CHANGED`           | 平台扫描窗口策略变更（如临时封网 / 加窗） |
 | `INSTANCE_VERIFY_FIX_COMPLETED` | 修复核验完成（→6/7/10） |
 | `EXPORT_READY`                  | 规范化外发包可下载（§5.6）      |
 | `ARTIFACT_READY`                | 扫描报告产物可下载（§5.7）      |
@@ -1616,7 +1845,30 @@ TaskExport / taskExport
 | summary.falsePositive  | int    |  ○   | 验证误报数              |
 | summary.initialDiscovery | int  |  ○   | 初始发现数（autoVerify=true 时验证阶段新发现，vulInfoStat=1） |
 
-| **`INSTANCE_VERIFY_FIX_COMPLETED` · payload**：
+**`TASK_PAUSED` · payload**：
+
+| 参数              | 类型     | 必填 | 说明                                                         |
+| ----------------- | -------- | :--: | ------------------------------------------------------------ |
+| taskId            | string   |  ✓   | 平台任务 ID                                                  |
+| extTaskId         | string   |  ○   | Partner 任务键                                               |
+| status            | enum     |  ✓   | `PAUSED_WAITING_SCAN_WINDOW` / `PAUSED_NO_SCAN_WINDOW`       |
+| pauseReason       | enum     |  ✓   | `SCAN_WINDOW_EXPIRED_REPORT_PENDING` / `NO_REMAINING_SCAN_WINDOW` |
+| currentScanWindow | object   |  ○   | 当前或最近一次扫描窗口，含 `startAt` / `endAt`               |
+| nextScanWindow    | object   |  ○   | 下一扫描窗口；无多余窗口时为 `null`                          |
+| manualOptions     | string[] |  ○   | `PAUSED_NO_SCAN_WINDOW` 时可选：`ADD_SCAN_WINDOW` / `TASK_START` |
+
+**`SCAN_WINDOW_CHANGED` · payload**：
+
+| 参数             | 类型     | 必填 | 说明                                                         |
+| ---------------- | -------- | :--: | ------------------------------------------------------------ |
+| availableWindows | array    |  ✓   | 变更后的可用扫描时段列表（UTC，已剔除禁扫期）；元素含 `startAt` / `endAt` |
+| nextScanWindow   | object   |  ○   | 相对当前时间的下一可扫窗口；无则为 `null`                    |
+| reason           | string   |  ○   | 变更原因（如护网封网、临时加窗）                             |
+| updatedAt        | datetime |  ✓   | 变更时间                                                    |
+
+> 接入方收到本事件后可重新调用 §5.1.8 `GET /scan-windows/policy` 获取完整可用窗口列表。
+
+**`INSTANCE_VERIFY_FIX_COMPLETED` · payload**：
 
 | 参数             | 类型   | 必填 | 说明                                                 |
 | ---------------- | ------ | :--: | ---------------------------------------------------- |
@@ -1765,6 +2017,33 @@ TaskExport / taskExport
     "contentType": "application/xml",
     "byteSize": 2097152,
     "downloadUrl": "https://vuln-platform.example.com/download/ART-20260518-ns01?sig=..."
+  }
+}
+```
+
+### 6.7 示例：任务暂停（等待扫描窗口）
+<a id="67-示例任务暂停等待扫描窗口"></a>
+
+```json
+{
+  "eventId": "evt-20260518-0005",
+  "eventType": "TASK_PAUSED",
+  "occurredAt": "2026-05-18T12:00:01Z",
+  "partnerId": "partner-demo-01",
+  "payload": {
+    "extTaskId": "EXT-TASK-2026-0001",
+    "taskId": "TASK-7f3a2b1c",
+    "status": "PAUSED_WAITING_SCAN_WINDOW",
+    "pauseReason": "SCAN_WINDOW_EXPIRED_REPORT_PENDING",
+    "currentScanWindow": {
+      "startAt": "2026-05-18T08:00:00Z",
+      "endAt": "2026-05-18T12:00:00Z"
+    },
+    "nextScanWindow": {
+      "startAt": "2026-05-19T08:00:00Z",
+      "endAt": "2026-05-19T12:00:00Z"
+    },
+    "manualOptions": []
   }
 }
 ```
@@ -2174,6 +2453,8 @@ TaskExport / taskExport
 | --------------------- | ------------------------------------ |
 | `TASK_WRITE`          | 创建任务                             |
 | `TASK_READ`           | 查询任务                             |
+| `TASK_WINDOW_WRITE`   | 追加扫描窗口                             |
+| `TASK_CONTROL`        | 任务暂停、任务启动（继续扫描）           |
 | `INSTANCE_READ`       | 查询实例                             |
 | `INSTANCE_VERIFY`     | 验证                                 |
 | `INSTANCE_REMEDIATE`  | 处置（含已修复与修复失败）           |
@@ -2197,6 +2478,7 @@ TaskExport / taskExport
 | 40003 | 资源不存在     | 检查 ID                                                      |
 | 40004 | 枚举/码表非法  | 对照附录状态表                                               |
 | 40005 | 修复与备案互斥 | 勿重复处置                                                   |
+| 40006 | 扫描窗口非法   | §5.1.5 追加窗口时检查是否为空、重叠、`startAt` 早于当前时间或早于 `endAt` |
 | 40101 | 鉴权失败       | 检查 Token/签名                                              |
 | 40301 | 能力未开通     | 联系运营开通                                                 |
 | 40901 | 幂等冲突       | 创建任务使用已返回的 `taskId`；实例写使用首次响应或更换 `clientRequestId` |
@@ -2211,7 +2493,9 @@ TaskExport / taskExport
 
 ```text
 1. POST /tasks/file 或 POST /tasks/vul（§5.1.1 XML / §5.1.2 JSON；`extTaskId` 幂等）→ 保存 taskId
-2. 轮询 GET /tasks/{taskId} 或等待 Webhook TASK_COMPLETED
+2. 轮询 GET /tasks/{taskId} 或等待 Webhook TASK_COMPLETED / TASK_PAUSED
+2a. 若收到 `PAUSED_WAITING_SCAN_WINDOW`，SOC 展示“暂停（等待扫描窗口）”，平台在下一扫描窗口自动调用 `start` 继续扫描
+2b. 若收到 `PAUSED_NO_SCAN_WINDOW`，SOC 展示“暂停（无扫描窗口）”，由人工选择追加扫描窗口或调用 `POST /tasks/{taskId}/start` 启动任务
 3. 收到 EXPORT_READY → GET /exports/{exportId}/download → 按 `format` 解析 XML 或 JSON
 3a. （可选）收到 ARTIFACT_READY → GET /artifacts/{artifactId}/download → 存档原始/平台报告
 4. POST /instances/search?taskId=... → 入库漏洞实例
@@ -2222,6 +2506,33 @@ TaskExport / taskExport
 6. 若 verify / verify-fix 触发扫描，继续接收 EXPORT_READY / ARTIFACT_READY，按 `exportStage` 识别阶段
 7. 可选：订阅 `INSTANCE_VERIFY_FIX_COMPLETED` / `EXPORT_READY` / `ARTIFACT_READY` 等事件驱动 ITSM 工单
 ```
+
+---
+
+## 11. 扫描窗口与超时暂停处理
+<a id="11-扫描窗口与超时暂停处理"></a>
+
+本节面向漏管平台与 SOC 的扫描窗口联动场景。允许扫描时间段由平台按窗口策略统一裁决，创建任务**不传** `scanWindows`。接入方可通过 §5.1.8 `GET /scan-windows/policy` 查询可用窗口以决定下发时机，并从创建响应的 `estimatedStartAt` 获知预计启动时间；任务暂停后可通过 §5.1.5 追加窗口，或通过 §5.1.6 / §5.1.7 控制任务暂停与启动。
+
+| 场景 | 平台动作 | 对 SOC 返回状态 | 后续动作 |
+| ---- | -------- | ---------------- | -------- |
+| 扫描报告在当前允许扫描时间段内回收成功 | 继续组装结果并触发 `TASK_COMPLETED` / `EXPORT_READY` / `ARTIFACT_READY` | `FINISHED` | SOC 拉取结果 |
+| 超过当前允许扫描时间段仍未收到扫描报告，且存在下一扫描窗口 | 平台调用 `POST /tasks/{taskId}/pause`（内部），向扫描器下发暂停扫描指令 | `PAUSED_WAITING_SCAN_WINDOW`（暂停：等待扫描窗口） | 到达下一窗口后平台调用 `POST /tasks/{taskId}/start`（内部），向扫描器下发继续扫描指令并恢复轮询 |
+| 超过当前允许扫描时间段仍未收到扫描报告，且无多余扫描窗口期 | 平台调用 `POST /tasks/{taskId}/pause`（内部），向扫描器下发暂停扫描指令 | `PAUSED_NO_SCAN_WINDOW`（暂停：无扫描窗口） | SOC 进入人工介入，选择追加窗口或手动启动任务 |
+| 人工选择“添加扫描窗口” | SOC 调用 `POST /tasks/{taskId}/scan-windows` 同步新窗口 | `PAUSED_WAITING_SCAN_WINDOW` 或到窗后 `RUNNING` | 平台到窗后调用 `start` 继续扫描并恢复轮询 |
+| 人工选择“手动处置扫描” | 安服人员与专业沟通确认可在非窗口期继续扫描后，SOC 调用 `POST /tasks/{taskId}/start`（`ignoreScanWindow=true`） | `RUNNING` | 平台向扫描器下发继续扫描指令，恢复轮询获取原始扫描报告，直至扫描完成后返回结果 |
+
+**约束说明**：
+
+| 项 | 约定 |
+| -- | ---- |
+| 暂停状态语义 | `PAUSED_WAITING_SCAN_WINDOW` / `PAUSED_NO_SCAN_WINDOW` 均为任务中间态，不代表扫描失败 |
+| 结果返回 | 任务暂停期间不触发 `TASK_COMPLETED`、`EXPORT_READY`、`ARTIFACT_READY`；扫描恢复并完成后再返回结果 |
+| 自动恢复 | `PAUSED_WAITING_SCAN_WINDOW` 到达下一扫描窗口后由平台自动调用 `start`，无需 SOC 再次调用接口 |
+| 人工恢复 | `PAUSED_NO_SCAN_WINDOW` 必须通过 §5.1.5 追加窗口，或 §5.1.7 `start` 启动任务 |
+| 任务控制 | `pause` / `start` 为统一任务控制接口，平台超窗自动调用与 SOC 人工调用复用同一契约 |
+| 窗口来源 | 创建任务不传 `scanWindows`，允许扫描时段由平台窗口策略裁决；接入方经 §5.1.8 查询可用窗口、由创建响应 `estimatedStartAt` 获知预计启动时间。策略变更经 `SCAN_WINDOW_CHANGED` Webhook 推送 |
+| 审计 | 追加扫描窗口、任务暂停、任务启动属于人工介入操作，平台记录操作人、原因与时间 |
 
 ---
 
@@ -2691,9 +3002,10 @@ H.1 / H.2 定义扫描策略与报告/外发的数据结构。平台可预置模
 | J-0 | 能力码如何使用？ | **能力码**是**平台**对REST API接口的能力分类，仅用于**平台**为第三方接入系统接入授权使用，**Partner**无需使用 | [§8](#8-能力码capability) |
 | J-1 | §1.3 写接口到底有几个操作？ | 实例生命周期 **3 类业务动作**（验证、处置、修复核验）→ **6 个 HTTP 路径**（每类单条 + 批量）；含排查任务创建时再加 **2 个创建路径（二选一）**，共 **8 个写路径** | [§1.3.2](#132-写接口数量对照) |
 | J-2 | `Bearer Token` 应调哪个接口换取 | 第三方接入API，需由**平台**运营人员开通并授予API能力，开通后运营分发运营开通手册(含运营开通时分配的 `clientId`、`clientSecret`、`业务 API Base URL`、`认证服务 Base URL`) | [§2.2](#22-环境地址)、[§3.1.1](#311-获取-access-token) |
-| J-3 | 调用 REST 是否每次都要做 Webhook 验签？ | **否**。Webhook 验签仅用于 Partner **接收**平台异步事件回调时校验 `X-Webhook-Signature`；Partner **主动调用** REST 只需 `Authorization: Bearer`，事件回调时机：任务完成/失败、修复核验完成、外发就绪。 | [§3.3](#33-webhook-验签与-rest-无关)、[§6.0](#60-partner-接收端验签) |
+| J-3 | 调用 REST 是否每次都要做 Webhook 验签？ | **否**。Webhook 验签仅用于 Partner **接收**平台异步事件回调时校验 `X-Webhook-Signature`；Partner **主动调用** REST 只需 `Authorization: Bearer`，事件回调时机：任务完成/失败/暂停、修复核验完成、外发就绪。 | [§3.3](#33-webhook-验签与-rest-无关)、[§6.0](#60-partner-接收端验签) |
 | J-4 | 幂等「二选一」与示例同时带 `extTaskId`、`Idempotency-Key` 是否矛盾？ | **不矛盾**。创建扫描任务时 `extTaskId` **必填**（业务幂等键），`Idempotency-Key` **可选**（HTTP 层增强）；同时携带合法，平台 **优先按 `extTaskId` 判重** | [§4.2](#42-幂等)、[§5.1.1](#511-post-tasksfile-创建扫描任务xml-配置) |
 | J-5 | 各节表格列名不一致，如何阅读？ | 全文按场景固定表头：接口元信息 `项·值`、约定 `项·约定`、REST 参数 `参数·类型·必填·说明`、简化结构 `字段·类型·说明`、外发映射 `JSON 路径·XML 路径·…` | [§5.0.1](#501-文档体例) |
+| J-6 | 扫描超出窗口后是否直接失败？ | **否**。有下一窗口时返回 `PAUSED_WAITING_SCAN_WINDOW` 并自动续扫；无多余窗口时返回 `PAUSED_NO_SCAN_WINDOW`，需人工追加窗口或调用 `start` 启动任务 | [§11](#11-扫描窗口与超时暂停处理) |
 
 ### J-0 · 能力码如何使用？
 <a id="j-0-能力码如何使用"></a>
@@ -2757,7 +3069,7 @@ H.1 / H.2 定义扫描策略与报告/外发的数据结构。平台可预置模
 | Partner → 平台 REST 调用 | **否**；使用 Bearer Token（§3.1） |
 | 平台 → Partner 异步事件 POST 到 `callbackUrl` | **是**；Partner 在接收端校验 `X-Webhook-Signature`、`X-Webhook-Timestamp`（§6.0） |
 
-Partner 主动调用 REST **不会**触发平台向 Partner 回调；Webhook 为平台在任务完成/失败、修复核验完成、外发就绪等事件上的**单向推送**。
+Partner 主动调用 REST **不会**触发平台向 Partner 回调；Webhook 为平台在任务完成/失败/暂停、修复核验完成、外发就绪等事件上的**单向推送**。
 
 ### J-4 · 创建任务幂等：`extTaskId` 与 `Idempotency-Key`
 <a id="j-4-创建任务幂等exttaskid-与-idempotency-key"></a>
@@ -2780,6 +3092,13 @@ Partner 主动调用 REST **不会**触发平台向 Partner 回调；Webhook 为
 
 **答复**：列名差异表示**表格用途**不同，字段语义一致。接入开发时以 [§5.0.1](#501-文档体例) 对照表为准；REST 请求/响应字段描述优先采用 `参数·类型·必填·说明` 四列体例，Webhook 公共体等简化块采用 `字段·类型·说明` 三列体例。
 
+### J-6 · 扫描超出窗口后是否直接失败？
+<a id="j-6-扫描超出窗口后是否直接失败"></a>
+
+**疑问**：扫描器超过允许扫描时间段仍未停止扫描或未生成报告时，SOC 工单应该收到失败还是暂停？
+
+**答复**：优先返回暂停，不直接失败。平台超过当前扫描窗口仍未回收扫描报告时，会调用 `pause` 向扫描器下发暂停扫描指令：若存在下一扫描窗口，状态为 `PAUSED_WAITING_SCAN_WINDOW`，平台到窗自动调用 `start` 继续扫描；若无多余窗口，状态为 `PAUSED_NO_SCAN_WINDOW`，SOC 进入人工介入，可选择追加扫描窗口或调用 `start` 启动任务。完整规则见 [§11](#11-扫描窗口与超时暂停处理)。
+
 ---
 
 ## 修订记录
@@ -2787,6 +3106,7 @@ Partner 主动调用 REST **不会**触发平台向 Partner 回调；Webhook 为
 
 | 版本      | 日期       | 说明                                                         |
 | --------- | ---------- | ------------------------------------------------------------ |
+| **1.0.7** | 2026-07-17 | 新增扫描窗口与超时暂停处理：允许扫描时间段由平台窗口策略裁决，创建任务（**§5.1.2** JSON / **附录 G.2** XML）不接收 `scanWindows` 入参，**§5.1.2** 响应新增 `estimatedStartAt`（预计启动时间）/ `matchedScanWindow` / `windowSource`；**§5.1.3/§5.1.4** 新增 `PAUSED_WAITING_SCAN_WINDOW`、`PAUSED_NO_SCAN_WINDOW` 及暂停字段；新增 **§5.1.5** 追加扫描窗口、**§5.1.6** 任务暂停、**§5.1.7** 任务启动、**§5.1.8** `GET /scan-windows/policy` 查询可用扫描窗口；**§6.2/§6.7** 新增 `TASK_PAUSED`、**§6.2** 新增 `SCAN_WINDOW_CHANGED` Webhook；**§8** 新增 `TASK_WINDOW_WRITE`、`TASK_CONTROL`；**§11** 新增扫描窗口与超时暂停处理规则 |
 | **1.0.6** | 2026-06-17 | **§1.3.1** 新增漏洞状态跃迁规则表（写操作前置/后置状态）；**§5.4** 放宽 `remediate` 前置为 `{1,2,7}`（**3 误报禁止**）；新增请求参数 `vulInfoStat`（推荐）及 `lvRsn` 兜底推断规则；更新请求示例（显式/兼容两种模式）；增加附录A2· 危害等级(产品漏洞脆弱性级别) `vulLevel` |
 | **1.0.5** | 2026-06-16 | **§5.7** 新增扫描报告产物外发（Artifact）四接口；**§6.2** 新增 `ARTIFACT_READY` Webhook；**§7.4** 产物外发说明；**§8** 新增 `ARTIFACT_READ`；**§5.1.2** / **附录 H.3** 新增 `deliveryOptions`；明确 §5.6 Export 与 §5.7 Artifact 分层；**§1.3.1** 状态流转补充 `autoVerify` 自动验证阶段说明；**§5.1.2** 创建任务新增 `autoVerify` 参数（默认 true）及双扫合并策略说明；**§5.1.2** 请求示例补充；**附录 G.2** `<server>` 新增 `autoVerify` 路径；**§5.6.2** `TASK_COMPLETED` 外发补充 autoVerify=true 时含两阶段合并结果；**§6** `TASK_COMPLETED` payload 新增 `summary.initialDiscovery` |
 | **1.0.4** | 2026-06-05 | **§6.2** `INSTANCE_VERIFY_FIX_COMPLETED` payload 重构为 `items[]` 数组结构，支持批量核验结果一次回调；附录 A更名为附录 A1，并修正附录 A1内容 · 漏洞实例状态 `vulInfoStat` 阶段信息； |

@@ -1,0 +1,298 @@
+feature:
+
+  id: VULPASS-VERIFYFIX-V14
+
+  name: 修复核验全链路（vul-pass）v1.4 · 1028门闸
+
+  phase: P2prime-gate
+
+  prd: svmp/docs/internal/04-子PRD与规格/修复核验全链路-vul-pass-PRD.md
+
+  landing_plan: null
+
+  page_design: null
+
+  openapi: null
+
+  branch: feature/fix-ledger-log-records
+
+  notes: |
+
+    v1.4：工单1060 → 先Gate(1028)写onlineAddr → 1052/1053存活则stat=7否则6；
+
+    1050/1051不存活→10；存活再二次1020…/1021·1061。台账外壳logType=1060、内层真实手段。
+
+    Verdict 1052→7 已改码；Planner 门闸编排待「同意执行」。
+
+
+
+shared_reads:
+
+  - .cursor/skills/esmp-rd-standards/SKILL.md
+
+  - .cursor/skills/esmp-backend-dev/SKILL.md
+
+  - .cursor/skills/esmp-frontend-dev/SKILL.md
+
+  - .cursor/rules/java-hard-ban.mdc
+
+  - .cursor/rules/backend-layer-boundary-strict.mdc
+
+  - .cursor/rules/backend-ddd-layers.mdc
+
+  - .cursor/rules/backend-naming.mdc
+
+  - .cursor/rules/test-required-strict.mdc
+
+  - .cursor/rules/security-hard-ban.mdc
+
+  - svmp/docs/internal/04-子PRD与规格/修复核验全链路-vul-pass-PRD.md
+
+
+
+acceptance:
+
+  - 1060 工单存在 Gate(1028)；1052 仍存活 → stat=7；不可达 → stat=6
+
+  - 1050/1051 不存活 → stat=10，且不得技术通过；存活二次手段 ∈{1020,1022,1023,1024,1027}/{1021,1061}
+
+  - 台账外壳 logType=1060；Gate 内层 1028；Gate opCode=10 含 onlineAddrFileLoc
+
+  - preDispatch/dispatch confirmToken 仍有效；feature flag 关走 legacy
+
+  - mvn 相关单测通过（含 tc06_1052→7）
+
+
+
+agents:
+
+  - id: B-R1
+
+    name: Backend-P1prime-StrategyClass-Planner
+
+    owner: 业务后端
+
+    repos:
+
+      - project_backend/svmp/vul-pass
+
+    allow_paths:
+
+      - project_backend/svmp/vul-pass/src/main/java/com/vtc/security/**
+
+      - project_backend/svmp/vul-pass/src/test/**
+
+      - project_backend/svmp/vul-pass/src/main/resources/**
+
+    deny_paths:
+
+      - project_frontend/**
+
+      - project_backend/svmp/open-api-service/**
+
+      - project_backend/svmp/partner-gateway/**
+
+    reads:
+
+      - svmp/docs/internal/04-子PRD与规格/修复核验全链路-vul-pass-PRD.md
+
+      - .cursor/skills/esmp-rd-standards/SKILL.md
+
+      - .cursor/skills/esmp-backend-dev/SKILL.md
+
+    delivers:
+
+      - StrategyResolver/Planner 改为策略类展开（1050→VUL_SCAN 一行；PORT 不落物理行）
+
+      - buildSubTasksFromVerifyFixPlan 与 groups/evidenceCapabilities DTO 对齐
+
+      - 单测：TC-01～TC-04 物理子任务条数
+
+    depends_on: []
+
+    verify:
+
+      - mvn compile + Planner 相关单测
+
+    prompt: |
+
+      你是 Agent B-R1 · 修复核验 P1′（策略类物理子任务重构）负责人。
+
+
+
+      【工程】project_backend/svmp/vul-pass，分支 feature/fix-ledger-log-records
+
+      【禁止】改 open-api-service；勿重写 OnlineAddrMerger/ConfirmTokenStore/台账骨架。
+
+
+
+      【必读】PRD v1.2 §4.2、§5.1–5.2、§6.2、§16。
+
+      【目标】废止按 CONNECTIVITY/PORT/VERSION_LOGIN 乘行；改为策略类×astUnitNum。
+
+      confirmToken 链路保留。UTF-8 无 BOM。交付改动清单+测试结果。
+
+
+
+  - id: F-R1
+
+    name: Frontend-P1prime-PlanPreview-StrategyClass
+
+    owner: 前端
+
+    repos:
+
+      - project_frontend/asset/asset-newleak-manage
+
+    allow_paths:
+
+      - project_frontend/asset/asset-newleak-manage/**
+
+    deny_paths:
+
+      - project_backend/**
+
+      - project_frontend/asset/asset-openplatform-manage/**
+
+    reads:
+
+      - svmp/docs/internal/04-子PRD与规格/修复核验全链路-vul-pass-PRD.md
+
+      - .cursor/skills/esmp-frontend-dev/SKILL.md
+
+      - .cursor/skills/esmp-rd-standards/SKILL.md
+
+    delivers:
+
+      - VerifyFixPlanPreview 策略类一行；展示 evidenceCapabilities
+
+      - 回归 confirmToken 与 changeTskPhase 同步
+
+    depends_on:
+
+      - B-R1
+
+    verify:
+
+      - npm run lint（或项目既有 lint）
+
+
+
+  - id: B-P2
+
+    name: Backend-P2-Report-Verdict-Ledger
+
+    owner: 业务后端
+
+    repos:
+
+      - project_backend/svmp/vul-pass
+
+    allow_paths:
+
+      - project_backend/svmp/vul-pass/**
+
+    deny_paths:
+
+      - project_frontend/**
+
+      - project_backend/svmp/open-api-service/**
+
+    reads:
+
+      - svmp/docs/internal/04-子PRD与规格/修复核验全链路-vul-pass-PRD.md
+
+      - .cursor/skills/esmp-backend-dev/SKILL.md
+
+      - .cursor/skills/esmp-rd-standards/SKILL.md
+
+    delivers:
+
+      - 报告按 IP/实例过滤（Slicer 语义纠偏）+ §4.3 键匹配
+
+      - VerifyFixVerdictService；recycle/submit；opCode=10 字段写全
+
+      - 单测 TC-05～TC-09
+
+    depends_on:
+
+      - B-R1
+
+    verify:
+
+      - mvn compile + 判定单测
+
+
+
+  - id: F-P2
+
+    name: Frontend-P2-OfflineDispose
+
+    owner: 前端
+
+    repos:
+
+      - project_frontend/asset/asset-newleak-manage
+
+    allow_paths:
+
+      - project_frontend/asset/asset-newleak-manage/**
+
+    deny_paths:
+
+      - project_backend/**
+
+    delivers:
+
+      - ProMethodDrawer reportType 默认 3/10；submit 接线
+
+    depends_on:
+
+      - B-P2
+
+    verify:
+
+      - lint
+
+
+
+  - id: R1
+
+    name: Integration-Review
+
+    owner: 审查
+
+    repos:
+
+      - project_backend/svmp/vul-pass
+
+      - project_frontend/asset/asset-newleak-manage
+
+    allow_paths: []
+
+    deny_paths: []
+
+    reads:
+
+      - .cursor/skills/esmp-code-review-strict/SKILL.md
+
+      - .cursor/skills/esmp-rd-standards/checklist.md
+
+      - svmp/docs/internal/04-子PRD与规格/修复核验全链路-vul-pass-PRD.md
+
+    delivers:
+
+      - 对照 PRD §9 / §16.4 通过/阻塞清单
+
+    depends_on:
+
+      - B-P2
+
+      - F-P2
+
+      - F-R1
+
+    verify:
+
+      - compile + lint + 验收勾选
+

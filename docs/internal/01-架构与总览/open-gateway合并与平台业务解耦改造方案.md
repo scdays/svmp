@@ -1,295 +1,703 @@
-# 网关归位与平台/业务解耦改造方案（v2 · 基于迭代后现状重写）
+# partner-gateway / partner-admin / open-api-service / vul-pass 平台业务解耦改造方案（v3）
 
-> 版本：v2.0  日期：2026-06-22
-> 上一版：v1.0（2026-06-19，主张"物理合并为一个 open-gateway"）
-> 本版变更：基于近期前后端迭代重新摸底，**放弃物理合并**，改为"职责归位 + 接口对齐 + 分期推进"，服从"先保证 mock 完整，再 vul-pass 对接"的诉求
-> 适用范围：partner-gateway、open-api-service、vul-pass、vuln-task-center、asset-openplatform-manage、asset-manage-master
-
----
-
-## 0. 为什么重写（v1 → v2 的关键转变）
-
-v1 主张把 partner-gateway + open-api-service 物理合并为一个 `open-gateway`。近期迭代后重新摸底，发现四个改变假设的事实：
-
-| 事实 | 对 v1 的影响 |
-|---|---|
-| partner-gateway 是独立 WebFlux 网关（Spring Boot **2.6.3** + Spring Cloud 2021.0.1），**不继承 esmp-support**，正是为避开 Servlet 冲突才独立建项 | 物理合并要解决 reactive/servlet 栈冲突，代价高 |
-| open-api-service 是 Servlet MVC（Spring Boot **2.2.10** + Hoxton.SR4），继承 `esmp-support:3.0.2-SNAPSHOT` | 两栈代际差大，硬合等于重写其中一个 |
-| partner-gateway 已是纯转发网关（4 条路由全部 `lb://open-api-service`），职责干净 | 真正的污染在 open-api-service，不在网关 |
-| open-api-service 的 **mock 已完整**（`adapter-mode: mock` 全契约覆盖），缺的是 partner-gateway 层 mock + 当前默认 mode 是 task-center | v1"先保证 mock 完整"的前提已部分成立，只需补齐 |
-
-**v2 结论：不物理合并。** 保持 partner-gateway 独立网关，把散在 open-api-service 的网关职责归位，open-api-service 退化为"业务服务 + mock 桩 + 通往 vul-pass 的适配层"。这样既不碰栈冲突，又能达成解耦目标。
+> 版本：v3.0  日期：2026-06-23
+> 上一版：v2.0（2026-06-22，主张“不物理合并，partner-gateway 独立，open-api-service 暂留平台管理面 + mock”）
+> 本版变更：正式引入 **partner-admin**，形成四服务目标架构：`partner-gateway` 入站网关执行面、`partner-admin` 平台治理管理面、`open-api-service` 纯 mock 业务服务、`vul-pass` 真实漏洞业务服务。
+> 适用范围：`project_backend/svmp/partner-gateway`、`project_backend/svmp/open-api-service`、后续 `partner-admin`、`project_backend/svmp/vul-pass`、`project_frontend/asset/asset-openplatform-manage`、`project_frontend/asset/asset-manage-master`
 
 ---
 
-## 1. 现状摸底（迭代后真实状态）
+## 0. 本版结论
 
-### 1.1 partner-gateway（端口 35770，WebFlux）
+本方案采纳新的四服务拆分：
 
-- **栈**：Spring Boot 2.6.3 / Spring Cloud 2021.0.1 / WebFlux / Nacos / Redis(db=2)
-- **职责**：Partner 鉴权 + 能力码拦截 + 路由转发 + 限流(默认关) + CORS
-- **路由**：4 条全部转发到 `lb://open-api-service`（`/api/open/v1/**`、`/oauth/token`、`/api/open/v1/oauth/token`、`/open-api-service/**`）
-- **核心类**：`PartnerAuthFilter`(G1–G6, order=-100)、`PartnerTokenResolver`(redis/feign 双模式)、`PartnerJwtSupport`(JWT 校验,密钥硬编码)、`PartnerCapability`(9 项枚举)、`PartnerCapabilityMatcher`(17 条硬编码 AntPathMatcher 规则)、`PartnerRateLimiter`
-- **关键缺陷**：
-  - **无 mock 机制**（无 adapter-mode，无降级）
-  - **无调用记录**（`api_invocation` 在 open-api-service 侧记）
-  - **JWT 密钥硬编码** `SECURITY_KEY`（与 spore JWTUtils 一致，但散在两处）
-  - **能力码权威定义在此**（9 项枚举 + 17 条规则），与 open-api-service 的 `partner_capability` 表无单一数据源
-  - 无 GlobalExceptionHandler（错误由 Filter 内 `OpenApiErrorWriter` 直接写 HTTP 200 + code）
+```text
+partner-gateway
+  入站网关执行面
+  - Partner API 唯一入口
+  - Token 校验
+  - 能力码拦截
+  - 限流执行
+  - 调用记录采集
+  - 请求追踪
+  - 路由到 mock 或 vul-pass
 
-### 1.2 open-api-service（端口 35780，Servlet MVC）
+partner-admin
+  平台治理管理面 + 查询面 + 异步治理 Worker
+  - Partner 管理
+  - 凭证管理
+  - 能力码/接口目录/开发指南
+  - 流控配置
+  - Webhook 配置、投递执行、投递记录查询
+  - 调用记录查询
+  - 运营案件壳
+  - Token 签发（短期）
 
-- **栈**：Spring Boot 2.2.10 / Hoxton.SR4 / esmp-support 3.0.2-SNAPSHOT / MyBatis-Plus / Kafka / Nacos / Redis(db=2) / MySQL(`open_api`)
-- **职责**（过载）：Partner 契约实现 + 管理面 + Token 签发/校验 + 调用记录 + 三模式引擎适配 + 漏洞业务全套
-- **Controller**：17 个 / 76 接口
-  - `/api/open/v1/**`（Partner 契约，17 接口）：OpenTaskUI / OpenInstanceUI / OpenExportUI
-  - `/oauth/token` + `/internal/token/introspect`（PartnerTokenUI）
-  - `/internal/admin/**`（管理面，54 接口）：PartnerAdminUI / InvocationAdminUI / OpenTaskAdminUI / OpenVulnInstanceAdminUI / OperationCaseAdminUI / VerifyFixAdminUI / ApiCatalogAdminUI / **MockTaskAdminUI** / **MockVerifyFixAdminUI** / WebhookTestAdminUI
-  - `/internal/svmp/v1/verify-fix/jobs/{id}/completed`（SvmpVerifyFixNotifyUI）
-- **FeignClient**：4 个 → vul-pass(2)、vuln-task-center(1)、file-sharing-center(1)
-- **三模式适配**（`@ConditionalOnProperty(open-api.engine.adapter-mode)`）：
-  - `vul-pass`（代码默认 matchIfMissing=true）
-  - `mock`（`application-mock.yml`，**已完整实现**）
-  - `task-center`（`application-task-center.yml`，**当前 application.yml 默认**）
-- **表**：11 张平台表 + 13 张漏洞业务表，同库 `open_api`，Liquibase Groovy 管理（18 文件），无自定义 Mapper XML
-- **mock 完整性**：✅ 全契约覆盖（SvmpEngineAdapterMockImpl + VulnInstanceGatewayMockImpl + MockTaskAdminUI + MockVerifyFixAdminUI + fixture 机制），含 auto/manual 两模式、webhook 外发、案件通知
+open-api-service
+  纯 mock 业务服务
+  - 保留当前已上线完整 mock 能力
+  - 风险排查 mock
+  - 修复核验 mock
+  - 接入测试 mock
+  - 处置测试 mock
+  - Export / Webhook / OperationCase mock 事件产生
+  - 不再沉淀新的真实业务编排
 
-### 1.3 前端 asset-openplatform-manage（端口 13021，qiankun 子应用 `openPlatform`）
-
-- 双通道：Admin 通道 `/open-api-service`(→平台网关:7000) + Partner 通道 `/api/open/v1`(→partner-gateway:35770)
-- 22 路由，20 页面；mock 入口：`MockE2eConsole`(接入测试) / `MockManualIngest`(半人工导入) / `VerifyFixWorkspace`(核验)
-- 枚举高度集中：`src/constants/openPlatformDisplay/enums.js`（CAPABILITIES/WEBHOOK_EVENT_TYPES/OPERATION_CASE_TYPES/API_OPERATIONS 等全硬编码）
-- `OpenSocOrchestration.vue` 仍存在但**已无路由挂载**（遗留代码）
-
-### 1.4 前端 asset-manage-master（端口 13001，qiankun 主应用）
-
-- 注册 `openPlatform` 子应用：`container=#subapp-viewport2`，`activeRule=/openPlatform`，entry 由 `window.conf` 下发
-- 隐藏路由 `open-platform-hidden-routes.js`（9 条详情/工作台路由，`RouteView` 占位，不依赖 DB menu）
-- proxy：`/open-api-service`→7000、`/api/open/v1`+`/oauth/token`→35770、`/openPlatform`→13021
-
-### 1.5 三个关键判断
-
-1. **mock 完整性**：open-api-service mock ✅ 完整；缺的是 **partner-gateway 无 mock** + **当前默认 mode=task-center 不是 mock**。测试期联调需切回 mock。
-2. **网关职责倒挂**：Token 签发/校验、调用记录、能力码权威都错位在 open-api-service；partner-gateway 反而只做转发。
-3. **能力码无单一数据源**：枚举在 partner-gateway，授权在 open-api-service 表，拦截规则在 partner-gateway 硬编码，三处手工同步。
-
----
-
-## 2. 设计原则（v2 调整）
-
-1. **不物理合并**：partner-gateway 保持独立 WebFlux 网关；避免 reactive/servlet 栈冲突。
-2. **职责归位**：把散在 open-api-service 的网关职责（Token 签发/校验、调用记录、能力码权威）逐步上移到 partner-gateway 或独立认证服务；open-api-service 退化为业务服务。
-3. **mock 优先**：先确保 mock 端到端可用（partner-gateway 层 mock + 默认 mode 切回 mock），再推 vul-pass 真实对接。
-4. **注册表驱动**：能力码、Webhook 事件、案件类型由业务注册，平台不硬编码枚举。
-5. **业务下沉**：漏洞业务表/编排/契约实现下沉 vul-pass（远期，vul-pass 就绪后）。
-6. **判据不变**：一个字段/表/事件类型，换个非漏洞业务就用不上，就不该在平台层。
-
----
-
-## 3. 目标架构（v2）
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  partner-gateway  (独立 WebFlux 网关, 35770)                      │
-│  公司级公共底座 · 零业务语义                                       │
-│  ─ 入站治理: TLS / 限流 / Token校验 / 能力码拦截 / X-Partner-Id注入 │
-│  ─ 路由:     /api/open/v1/**  → open-api-service(业务/mock)       │
-│             /oauth/token      → 认证服务(签发)                    │
-│  ─ 调用记录: api_invocation (从 open-api-service 上移)            │
-│  ─ 能力码权威: PartnerCapability 注册表 (从硬编码改配置/接口加载)   │
-│  ─ mock旁路:  gateway.mock.enabled 时跳过Token/能力码强校验        │
-└──────────┬────────────────────────────────────┬─────────────────┘
-           │ adapter-mode=mock                  │ adapter-mode=vul-pass
-           ▼                                    ▼
-┌────────────────────────────────────────┐   ┌──────────────────────────────┐
-│ open-api-service (业务服务 + mock桩)     │   │ vul-pass (+vuln-business)     │
-│ ─ Partner契约实现(mock分支已完整)        │   │ ─ 漏洞业务真实实现              │
-│ ─ 管理面 /internal/admin/**             │   │ ─ open_task/open_vuln_instance │
-│ ─ 三模式适配: mock / vul-pass / task    │   │   /open_verify_fix_job/open_export│
-│ ─ 漏洞业务表(暂留,远期下沉)              │   │ ─ autoVerify/UNION/INTERSECT   │
-│ ─ 注册项: 向网关注册能力码/事件/案件类型  │   │   /scan_phase/双轨/transition  │
-└────────────────────────────────────────┘   └──────────────────────────────┘
-
-认证服务(远期): OAuth Token 签发/刷新/吊销 (从 open-api-service 上移)
-vuln-task-center(18087): 扫描治理, 由 vul-pass 调用
-file-sharing-center: 外发文件
+vul-pass
+  真实漏洞业务服务
+  - 真实任务
+  - 真实漏洞实例
+  - 真实验证 / 处置 / 修复核验
+  - 真实扫描编排
+  - 真实业务 payload
 ```
 
-### 3.1 职责归位对照
+核心判断：
 
-| 职责 | 当前位置 | 目标位置 | 阶段 |
-|---|---|---|---|
-| Token 签发（`/oauth/token`） | open-api-service `PartnerTokenUI` | 认证服务（远期）/ 暂留 open-api-service | P3 |
-| Token 校验（introspect） | open-api-service + partner-gateway 双写 | partner-gateway redis 模式为主 | P2 |
-| Token Redis 存储 | open-api-service `PartnerTokenRedisStore` | 暂留（partner-gateway 读） | P2 |
-| 调用记录 `api_invocation` | open-api-service `InvocationPipeline` | partner-gateway（上移） | P3 |
-| 能力码权威定义 | partner-gateway 枚举(硬编码) + open-api-service 表 | **单一数据源：open-api-service 表 + partner-gateway 启动加载** | P2 |
-| 能力码拦截规则 | partner-gateway 17 条 AntPathMatcher(硬编码) | 注册表/配置驱动 | P2 |
-| JWT 密钥 | partner-gateway 硬编码 | Nacos 配置共享 | P1 |
-| 限流 | partner-gateway(默认关) | partner-gateway(按需开) | P3 |
-| 漏洞业务表/编排 | open-api-service | vul-pass | P4 |
-| Partner 契约实现 | open-api-service(mock 完整 / vul-pass 待接) | open-api-service 适配层 → vul-pass | P4 |
+1. **不物理合并 partner-gateway 与 open-api-service**：两者栈差异明显，partner-gateway 为 WebFlux/Spring Boot 2.6.3，open-api-service 为 Servlet MVC/Spring Boot 2.2.10 + esmp-support，硬合代价高。
+2. **新增 partner-admin 承接平台管理面**：避免把管理 CRUD 塞进 partner-gateway，也避免 open-api-service 继续承担平台管理面。
+3. **open-api-service 保留当前完整 mock**：当前 mock 能力已上线，可作为后续 vul-pass 接入的回滚基线。
+4. **路由到 mock 或 vul-pass 由 partner-gateway 决策**：partner-gateway 是所有 Partner API 的唯一入口，负责入站治理和 route target 选择。
+5. **Webhook 不由 partner-gateway 投递**：Webhook 是出站异步投递，归 partner-admin 的 dispatcher/worker 执行。
 
 ---
 
-## 4. 分期实施（服从"先 mock 完整，再 vul-pass 对接"）
+## 1. 背景与现状
 
-### Phase 1 —— mock 端到端可用（最高优先级，1 周）
+### 1.1 v1 / v2 演进
 
-**目标**：让 mock 模式从 partner-gateway 入口到 open-api-service 全链路跑通，作为联调与前端测试的稳定基线。
-
-| 任务 | 文件/位置 | 说明 |
+| 版本 | 主张 | 后续修正 |
 |---|---|---|
-| 1.1 默认 mode 切回 mock | `open-api-service/src/main/resources/application.yml` | `open-api.engine.adapter-mode: mock`（当前是 task-center）；或测试环境用 `application-mock.yml` profile |
-| 1.2 partner-gateway 增加 mock 旁路 | `partner-gateway` 新增 `partner.gateway.mock.enabled` 配置 + `PartnerAuthFilter` 分支 | `mock.enabled=true` 时：Token 校验降级（放行或固定 context）、能力码拦截放行、仍注入 `X-Partner-Id`（从 query/header 兜底）。**仅测试环境启用**，生产强制关 |
-| 1.3 JWT 密钥配置化 | `PartnerJwtSupport.SECURITY_KEY` → Nacos `partner.gateway.jwt.secret` | 与 open-api-service 签发密钥共享同一配置项，消除硬编码 |
-| 1.4 mock fixture 扩充 | `open-api-service/src/main/resources/mock/engine/bundles/` | 当前仅 6 个 NSFocus 模板，补齐 verify/remediate/verify-fix 各状态机分支的 fixture |
-| 1.5 前端默认联调 mock | `asset-manage-master/public/conf/index.js` + `.env.development.local` | Admin Key 保持 `dev-internal-admin-key-change-in-prod`；确认前端双通道代理指向 35770/7000 |
-| 1.6 验收 | MockE2eConsole + MockManualIngest + VerifyFixWorkspace | 跑通 `runBootstrapE2e` + `runFullManualE2e` + 实例 FSM 全链路 |
+| v1 | 物理合并 partner-gateway + open-api-service 为 open-gateway | 重新摸底发现 WebFlux/Servlet 栈冲突明显，不宜硬合 |
+| v2 | 不物理合并；partner-gateway 独立；open-api-service 暂留平台管理面 + mock | 用户决定新增 partner-admin，进一步拆出平台管理面 |
+| v3 | 四服务架构：partner-gateway + partner-admin + open-api-service mock + vul-pass | 本版定稿 |
 
-**验收标准**：
-- `adapter-mode=mock` + `gateway.mock.enabled=true` 下，前端 MockE2eConsole 一键全流程通过（Partner 注册→Token→建任务→导入→实例 verify/remediate/verify-fix→webhook→export）；
-- partner-gateway 在 mock 旁路下不依赖 vul-pass/vuln-task-center 任何真实服务；
-- mock 不暴露 `scan_phase`/`verify_merge_strategy` 等内部字段（契约形状 only）。
+### 1.2 当前代码状态摘要
 
-**回滚**：`adapter-mode` 改回 task-center，`gateway.mock.enabled=false`。
+#### partner-gateway
+
+- 路径：`project_backend/svmp/partner-gateway`
+- 技术栈：Spring Boot 2.6.3 / Spring Cloud 2021.0.1 / WebFlux / Redis / Nacos
+- 当前职责：Partner 鉴权、能力码拦截、路由转发、CORS、限流（默认关）
+- 当前路由：`/api/open/v1/**`、`/oauth/token`、`/api/open/v1/oauth/token`、`/open-api-service/**` 均转发到 `lb://open-api-service`
+- 核心类：`PartnerAuthFilter`、`PartnerTokenResolver`、`PartnerJwtSupport`、`PartnerCapability`、`PartnerCapabilityMatcher`、`PartnerRateLimiter`
+- 主要问题：能力码硬编码、JWT 密钥硬编码、无调用记录采集、无 route-mode(mock/vul-pass) 配置
+
+#### open-api-service
+
+- 路径：`project_backend/svmp/open-api-service`
+- 技术栈：Spring Boot 2.2.10 / Hoxton.SR4 / esmp-support / Servlet MVC / MyBatis-Plus / Kafka / Redis / MySQL
+- 当前职责过重：Partner 契约实现、平台管理面、Token 签发/校验、调用记录、Webhook、运营案件、mock、task-center/vul-pass 适配
+- 当前 mock：已完整上线，覆盖风险排查、修复核验、接入测试、处置测试、Export、Webhook、运营案件等联调闭环
+- 当前模式：具备 `adapter-mode: mock / task-center / vul-pass` 三模式；早期 fixture-based mock（`adapter-mode: mock`）已弃用，**当下 mock 由 task-center 引擎实现**，即测试环境 `adapter-mode=task-center` 即为 mock 验收环境
+
+#### 前端
+
+- `asset-openplatform-manage`：qiankun 子应用，端口 13021，负责开放平台页面
+- `asset-manage-master`：qiankun 主应用，端口 13001，注册 `openPlatform` 子应用
+- 当前双通道：
+  - Admin 通道 `/open-api-service` → 平台管理面
+  - Partner 通道 `/api/open/v1` + `/oauth/token` → partner-gateway
 
 ---
 
-### Phase 2 —— 能力码单一数据源 + 注册表雏形（2 周）
+## 2. 四服务职责边界
 
-**目标**：解决能力码三处手工同步问题，并为注册表机制打底。
+### 2.1 partner-gateway：入站网关执行面
 
-| 任务 | 说明 |
+partner-gateway 只做运行时入站治理，不做管理 CRUD，不做 Webhook 出站投递，不做漏洞业务。
+
+职责：
+
+| 职责 | 说明 |
 |---|---|
-| 2.1 能力码权威归一 | open-api-service `partner_capability` 表为单一数据源；partner-gateway 启动时通过 Feign/接口拉取能力码清单与拦截规则，替换 `PartnerCapability` 枚举与 17 条硬编码 AntPathMatcher |
-| 2.2 能力码查询接口 | open-api-service 新增 `GET /internal/registry/capabilities`（内网鉴权），返回 `{code, path, method}[]`；partner-gateway 启动加载 + 定时刷新 |
-| 2.3 前端能力码注册表下发 | 新增 `GET /internal/admin/registry/capabilities`（Admin 通道）；前端 `enums.js` 的 `CAPABILITIES` 改为启动时拉取填充 `REGISTRY`，本地保留兜底枚举 |
-| 2.4 前端 E2E_CAPABILITIES 去硬编码 | `openPartnerApi.js` 的 `E2E_CAPABILITIES` 改从注册表读取 |
-| 2.5 scannerTypeLabel 去硬编码 | `verifyFix.js` 的 `scannerTypeLabel`(1=绿盟/7=Nessus) 改注册表或配置 |
+| Partner API 唯一入口 | `/api/open/v1/**`、`/oauth/token` |
+| Token 校验 | 校验 Bearer Token，读取 token context |
+| 能力码拦截 | 根据 operation/capability 规则拦截，未授权返回 40301 |
+| 限流执行 | QPS、日配额、能力级限额等在入口执行 |
+| 幂等基础校验 | 识别 `Idempotency-Key`，可做基础去重/透传 |
+| 请求追踪 | 生成/透传 `X-Request-Id` |
+| Partner 上下文注入 | 注入 `X-Partner-Id` 等内部 Header |
+| 调用记录采集 | 采集 invocation start/finish，写事件或异步落库 |
+| 路由选择 | 根据 `route-mode`/路由注册表转发到 mock 或 vul-pass |
+| CORS | 外部 Partner API 的跨域统一处理 |
 
-**验收标准**：
-- open-api-service 表新增一个能力码，partner-gateway 无需改代码即可拦截；
-- 前端新建 Partner 时能力码选项从后端下发，与网关拦截规则一致。
+不做：
 
-**回滚**：partner-gateway 回退硬编码枚举；前端回退本地枚举。
+- Partner 管理 CRUD；
+- 凭证管理；
+- 接口目录维护；
+- Webhook 出站投递；
+- Webhook 投递日志查询；
+- 运营案件工作台；
+- 漏洞任务/实例/修复核验业务。
 
----
+### 2.2 partner-admin：平台治理管理面
 
-### Phase 3 —— 网关职责归位（2-3 周，可与 P2 并行）
+partner-admin 承接 open-api-service 当前的通用平台管理能力，并承担 Webhook dispatcher / case shell / 查询面。
 
-**目标**：把错位在 open-api-service 的网关职责上移，open-api-service 开始瘦身。
+首批迁入能力：
 
-| 任务 | 说明 |
+| 能力 | 说明 |
 |---|---|
-| 3.1 调用记录上移 | `api_invocation` 写入逻辑从 open-api-service `InvocationPipeline` 上移到 partner-gateway（WebFlux filter 侧记录）；open-api-service 保留查询读。需注意 reactive 环境下异步写 DB/异步发 Kafka |
-| 3.2 Token 校验收敛 redis 模式 | partner-gateway `introspect-mode` 固定 redis，移除 feign 降级依赖（消除网关→业务反向依赖）；open-api-service `/internal/token/introspect` 降级为内部诊断用 |
-| 3.3 Token 签发评估 | `/oauth/token` 是否上移认证服务，视公司认证服务现状定；暂留 open-api-service 但隔离为独立模块，便于后续迁移 |
-| 3.4 限流启用评估 | partner-gateway `rate-limit.enabled` 按 Partner 维度开启，配额数据从 open-api-service `partner_quota` 表加载 |
-| 3.5 CORS 单点化 | 确认 CORS 仅在 partner-gateway 一处配置，open-api-service 移除重复 CORS |
+| Partner 管理 | Partner CRUD、状态启停、类型维护 |
+| 凭证管理 | clientId/clientSecret 生成、禁用、轮换 |
+| Token 签发（短期） | `/oauth/token` 可由 partner-gateway 转发到 partner-admin；远期可迁认证服务 |
+| 能力码配置 | capability registry、Partner 能力授权 |
+| 接口目录 | `api_operation`、operationId/path/method/capability |
+| 开发指南 | developer docs、文档链接、接入说明 |
+| 流控配置 | Partner QPS、日配额、能力级限额配置；执行仍在 gateway |
+| 调用记录查询 | 查询 `api_invocation`，采集由 gateway 负责 |
+| Webhook 配置 | webhookUrl、secret、启停、签名配置 |
+| Webhook 投递执行 | dispatcher/worker 消费业务事件，签名、投递、重试 |
+| Webhook 投递记录查询 | 查询 `webhook_delivery_log` |
+| 运营案件壳 | case_id、partner_id、case_type、timeline、关联 invocation/webhook |
+| 运营案件工作台聚合 | 读取案件壳，按 case_type 调用 mock/vul-pass 业务 handler 获取 payload |
 
-**验收标准**：
-- partner-gateway 独立承担鉴权 + 调用记录 + 限流，open-api-service 故障时网关仍能记录调用并拒绝未授权请求；
-- 网关→open-api-service 无鉴权反向依赖（redis 模式）。
+不做：
 
-**回滚**：调用记录回 open-api-service；introspect 回 feign 模式。
+- 入站 Partner API 网关拦截；
+- 漏洞真实任务、实例、修复核验编排；
+- mock 业务状态机。
 
----
+### 2.3 open-api-service：纯 mock 业务服务
 
-### Phase 4 —— vul-pass 真实对接（3-4 周，依赖 vul-pass 就绪）
+open-api-service 保留当前已上线完整 mock 能力，作为联调/E2E/回归基线。
 
-**目标**：在 mock 稳定基础上，切到 vul-pass 真实链路，逐步替换 mock 分支。
+保留能力：
 
-| 任务 | 说明 |
+| 能力 | 说明 |
 |---|---|
-| 4.1 vul-pass 契约对齐 | 确认 vul-pass `/vul-scan-task/dispatch`、`/vul-scan-task/page2`、`/vul-scan-task-sub-system/page`、`PUT /vul-scan-task-sub-system` 与 `IVulPassScanTaskFeign`/`IVulPassInstanceFeign` 方法签名一致；对齐实例域两硬约束（vulInfoID≠id、写前先查 page 换 id） |
-| 4.2 SvmpEngineAdapterImpl 补全 | vul-pass 模式下 `SvmpEngineAdapterImpl` 的实例方法（searchInstances/getInstanceDetail/disposeInstance/verifyInstance）从 UnsupportedOperationException 补全，走 `IVulPassInstanceFeign` |
-| 4.3 灰度切流 | `adapter-mode` 从 mock 灰度切到 vul-pass；同一输入 mock vs vul-pass 输出对比回归 |
-| 4.4 mock 保留为联调桩 | mock 分支不删除，作为 Partner 联调/E2E 测试的常驻桩（`adapter-mode=mock` 仍可切回） |
-| 4.5 前端无感切换 | 前端不动，后端切 mode |
+| 接入测试 mock | Partner 契约输入输出、任务创建、token 链路配合 |
+| 风险排查 mock | `open-task`、mock 报告导入、任务工作台 payload |
+| 处置测试 mock | verify/remediate/verify-fix/batch 状态机 |
+| 修复核验 mock | verify-fix job、复扫 XML、allFixed/allUnfixed/compare |
+| Export mock | mock 外发元数据与下载 |
+| Webhook 事件产生 | 产生 `TASK_COMPLETED`、`EXPORT_READY`、`INSTANCE_VERIFY_FIX_COMPLETED` 等事件，投递由 partner-admin 执行 |
+| OperationCase 业务 payload | 产生/提供 mock 案件业务详情，案件壳由 partner-admin 维护 |
 
-**验收标准**：
-- `adapter-mode=vul-pass` 下，前端 MockE2eConsole 全流程通过（真实 vul-pass 链路）；
-- mock 与 vul-pass 同输入输出一致（契约形状）；
-- mock 桩仍可随时切回用于联调。
+逐步剥离：
 
-**回滚**：`adapter-mode` 切回 mock。
+- Partner 管理；
+- 凭证管理；
+- 接口目录；
+- 开发指南；
+- 流控配置；
+- Webhook 投递执行与记录查询；
+- 运营案件壳；
+- 调用记录查询；
+- Token 签发。
+
+### 2.4 vul-pass：真实漏洞业务服务
+
+vul-pass 承接真实业务能力。
+
+职责：
+
+- 真实任务创建与扫描编排；
+- 真实漏洞实例查询；
+- 真实验证、处置、修复核验；
+- 真实 export 生成；
+- 真实业务事件产生；
+- 真实案件业务 payload；
+- 与 vuln-task-center、扫描器、file-sharing-center 等对接。
 
 ---
 
-### Phase 5 —— 业务下沉 vul-pass（远期，vul-pass 稳定后）
+## 3. 路由决策：由 partner-gateway 发出
 
-**目标**：漏洞业务表/编排/案件彻底下沉 vul-pass，open-api-service 回到"网关后端的通用业务服务"定位。
+### 3.1 结论
 
-| 任务 | 说明 |
+路由到 mock 或 vul-pass 的决策必须在 partner-gateway：
+
+```text
+Partner / 前端联调
+  ↓
+partner-gateway
+  1. Token 校验
+  2. 能力码拦截
+  3. 限流
+  4. 生成 requestId
+  5. 采集 invocation start
+  6. 根据 route-mode / route registry 选择后端
+       mock     → open-api-service
+       vul-pass → vul-pass
+  7. 转发请求
+  8. 采集 invocation finish
+```
+
+不建议继续保留：
+
+```text
+Partner → partner-gateway → open-api-service → mock 或 vul-pass
+```
+
+因为这会让 open-api-service 继续成为二级网关，违背“open-api-service 纯 mock 化”的目标。
+
+### 3.2 route-mode 配置建议
+
+短期配置：
+
+```yaml
+partner:
+  gateway:
+    route-mode: mock # mock | vul-pass
+    routes:
+      mock-target: lb://open-api-service
+      vul-pass-target: lb://vul-pass
+```
+
+语义：
+
+| route-mode | `/api/open/v1/**` 目标 | 用途 |
+|---|---|---|
+| `mock` | open-api-service | 当前联调/E2E/回归基线 |
+| `vul-pass` | vul-pass | 后续真实漏洞业务链路 |
+
+中期演进为 route registry：
+
+```yaml
+partner:
+  gateway:
+    route-registry:
+      - business: vuln
+        mode: mock
+        prefix: /api/open/v1
+        target: lb://open-api-service
+      - business: vuln
+        mode: vul-pass
+        prefix: /api/open/v1
+        target: lb://vul-pass
+```
+
+---
+
+## 4. 调用记录 / 流控 / Webhook / 运营案件归属
+
+### 4.1 调用记录
+
+| 动作 | 服务 |
 |---|---|
-| 5.1 业务表迁移 | `open_task`/`open_task_sub`/`open_task_scan_result`/`open_vuln_instance`/`open_vuln_instance_log`/`open_verify_fix_job`/`open_verify_fix_job_item`/`open_operation_case*` 迁 vul-pass；open-api-service 留平台表（partner/api_invocation/api_operation/webhook_delivery_log/open_export*） |
-| 5.2 业务 Admin 迁移 | `/internal/admin/open-tasks`、`/open-vuln-instances`、`/verify-fix`、`/operation-cases` 迁 vul-pass；open-api-service 留 `/internal/admin/partners`、`/invocations`、`/webhook-deliveries`、`/quotas` |
-| 5.3 契约实现迁移 | `/api/open/v1/tasks/vul`、`/instances/*` 真实实现迁 vul-pass；open-api-service 只保留 mock 桩 + 路由 |
-| 5.4 Webhook 事件/案件类型注册表 | 平台层不持业务枚举，vul-pass 启动向 partner-gateway/open-api-service 注册 `TASK_COMPLETED` 等事件类型 + `TASK_SCAN` 等案件类型 + 工作台 handler |
-| 5.5 前端枚举全注册表化 | `WEBHOOK_EVENT_TYPES`/`OPERATION_CASE_TYPES`/`API_OPERATIONS` 全部改注册表下发；案件工作台多态面板按注册表 case_type 渲染 |
-| 5.6 OpenSocOrchestration.vue 清理 | 删除遗留未挂路由组件 |
+| 采集 invocation start/finish | partner-gateway |
+| 写入 `api_invocation` | 短期可由 gateway 异步写 DB 或调用 partner-admin 内部接口；中期推荐发事件由 partner-admin 消费落库 |
+| 查询调用记录 | partner-admin |
+| 前端展示 | asset-openplatform-manage 流量治理页面 |
 
-**验收标准**：
-- open-api-service 代码库无 `scan_policy`/`auto_verify`/`vulInfoStat`/`scan_phase` 等漏洞字段，无 `open_task` 等业务表；
-- 新增非漏洞业务，仅靠注册接口即可跑通拦截/投递/案件渲染/路由。
+推荐链路：
 
-**回滚**：表迁移用双写过渡，对账通过后再切。
+```text
+partner-gateway
+  ↓ InvocationRecordedEvent
+partner-admin consumer
+  ↓
+api_invocation
+  ↓
+/internal/admin/invocations 查询
+```
 
----
+短期可以先保持 open-api-service 查询接口不动，待 partner-admin 创建后迁移查询面。
 
-## 5. 前端改造（按阶段穿插）
+### 4.2 流控
 
-| 阶段 | 前端任务 |
+流控拆成配置与执行：
+
+| 能力 | 服务 |
 |---|---|
-| P1 | 确认 `.env.development.local` 双通道代理指向正确；mock 联调验证 |
-| P2 | `enums.js` CAPABILITIES 改注册表下发（保留兜底）；`E2E_CAPABILITIES`/`scannerTypeLabel` 去硬编码；新增 `openPlatformRuntime` 注册表拉取 + 缓存 |
-| P3 | 无（后端职责归位对前端透明） |
-| P4 | 无（mode 切换对前端透明） |
-| P5 | `WEBHOOK_EVENT_TYPES`/`OPERATION_CASE_TYPES`/`API_OPERATIONS` 全注册表化；16 个直接 import 常量的视图/组件改异步/响应式获取；删除 `OpenSocOrchestration.vue` |
+| 流控配置 CRUD | partner-admin |
+| QPS/日配额/能力限额执行 | partner-gateway |
+| 限流命中记录 | partner-gateway 采集 |
+| 流控统计查询 | partner-admin |
 
-**前端编码护栏保留**：`verify-utf8.js` + 生成脚本链不动，修改生成产物类 Vue 文件仍走 `scripts/` 生成脚本。
+流控必须发生在请求进入业务服务前，因此执行面不能放在 partner-admin 或 open-api-service。
+
+### 4.3 Webhook
+
+Webhook 是出站异步投递，不属于 partner-gateway。
+
+| 能力 | 服务 |
+|---|---|
+| Webhook 配置管理 | partner-admin |
+| Webhook Secret 轮换 | partner-admin |
+| Webhook 业务事件产生 | open-api-service mock 或 vul-pass |
+| Webhook 投递执行 | partner-admin dispatcher/worker |
+| HMAC-SHA256 签名 | partner-admin dispatcher/worker |
+| 重试 / 退避 | partner-admin dispatcher/worker |
+| `webhook_delivery_log` 落库 | partner-admin |
+| Webhook 投递记录查询 | partner-admin |
+
+推荐链路：
+
+```text
+open-api-service mock 或 vul-pass
+  ↓ OpenPlatformWebhookEvent
+partner-admin webhook-dispatcher
+  ↓ 读取 partner_webhook_config
+  ↓ HMAC-SHA256 签名
+  ↓ HTTP 投递 Partner webhookUrl
+  ↓ 写 webhook_delivery_log
+asset-openplatform-manage 查询展示
+```
+
+### 4.4 运营案件壳
+
+| 内容 | 服务 |
+|---|---|
+| case_id / partner_id / case_type / primary_resource / status | partner-admin |
+| timeline / invocation 关联 / webhook 关联 | partner-admin |
+| 业务 payload | open-api-service mock 或 vul-pass |
+| 工作台聚合 | partner-admin |
+
+工作台查询链路：
+
+```text
+前端
+  ↓
+partner-admin /internal/admin/operation-cases/{caseId}/workspace
+  ↓
+读取案件壳 + timeline + invocation + webhook
+  ↓
+根据 case_type / route-mode 调用业务 handler
+    route-mode=mock     → open-api-service
+    route-mode=vul-pass → vul-pass
+  ↓
+聚合返回 workspace
+```
 
 ---
 
-## 6. 风险与回滚
+## 5. 能力迁移清单
+
+### 5.1 从 open-api-service 迁往 partner-admin
+
+| 能力 | 当前 open-api-service 典型接口 | 目标 |
+|---|---|---|
+| Partner 管理 | `/internal/admin/partners` | partner-admin |
+| 凭证管理 | `/internal/admin/partners/{id}/credentials` | partner-admin |
+| Webhook Secret 轮换 | `/internal/admin/partners/{id}/webhook-secret/rotate` | partner-admin |
+| 接口目录 | `/internal/admin/api-operations` | partner-admin |
+| 开发指南 | `/internal/admin/developer-docs` | partner-admin |
+| 调用记录查询 | `/internal/admin/invocations` | partner-admin |
+| Webhook 投递记录查询 | `/internal/admin/webhook-deliveries` | partner-admin |
+| Export 下载治理入口 | `/internal/admin/exports/{id}/download` | partner-admin 或后续 artifact/export 服务 |
+| 流控策略/统计 | quota/stats 相关接口 | partner-admin 配置/查询，gateway 执行 |
+| 运营案件壳 | `/internal/admin/operation-cases` | partner-admin |
+| Token 签发 | `/oauth/token` | 短期 partner-admin，远期认证服务 |
+| Token introspect | `/internal/token/introspect` | 尽量废弃；gateway 以 Redis 校验为主 |
+
+### 5.2 保留在 open-api-service mock
+
+| 能力 | 当前接口/页面 |
+|---|---|
+| 接入测试 | `MockE2eConsole` / `e2eRunner` / Partner 契约 mock |
+| 风险排查 | `/internal/admin/mock-tasks`、`/internal/admin/open-tasks` mock 工作台 payload |
+| 处置测试 | `/api/open/v1/instances/*/verify|remediate|verify-fix` mock |
+| 修复核验 | `/internal/admin/mock-verify-fix`、verify-fix mock job |
+| mock 报告导入 | NSFocus XML 预览/导入 |
+| mock Export | mock 外发元数据和下载 |
+| mock 业务事件 | TASK_COMPLETED / EXPORT_READY / INSTANCE_VERIFY_FIX_COMPLETED 事件产生 |
+| mock 业务案件 payload | TASK_SCAN / INSTANCE_VERIFY / VERIFY_FIX / INSTANCE_BATCH 详情 |
+
+### 5.3 后续迁往 vul-pass
+
+| 能力 | 目标 |
+|---|---|
+| 真实任务 | vul-pass |
+| 真实漏洞实例 | vul-pass |
+| 真实验证/处置/修复核验 | vul-pass |
+| 真实 export | vul-pass 或 export/artifact 服务 |
+| 真实业务事件 | vul-pass 产生，partner-admin 投递 |
+| 真实运营案件业务 payload | vul-pass |
+
+---
+
+## 6. 分阶段实施计划
+
+### Phase 0：v3 架构定稿与验收基线确认
+
+目标：确认当前 open-api-service mock 已作为上线基线。
+
+任务：
+
+1. 确认测试环境 `open-api.engine.adapter-mode=mock` 或使用 mock profile；
+2. 补一份 mock 链路验收记录；
+3. 明确 route-mode 后续由 partner-gateway 控制；
+4. 明确 partner-admin 拆分边界。
+
+验收：
+
+- open-api-service mock 已上线；
+- 前端四个入口可跑通：接入测试、风险排查、修复核验、处置测试；
+- 流量治理、Webhook 记录、运营案件、Export 等治理面能查到 mock 产生的数据。
+
+### Phase 1：partner-gateway route-mode 与入站治理补齐
+
+目标：让 partner-gateway 成为 mock/vul-pass 的路由决策点。
+
+任务：
+
+1. 新增 `partner.gateway.route-mode=mock|vul-pass`；
+2. 新增 mock target / vul-pass target 配置；
+3. 保持 `/oauth/token` 短期转发到 open-api-service，后续切 partner-admin；
+4. JWT 密钥配置化；
+5. 调用记录采集设计（先事件模型，不一定立即落库）；
+6. 保持真实 Token 链路优先，必要时仅本地支持 auth-bypass。
+
+验收：
+
+- route-mode=mock 时，Partner API 转发 open-api-service；
+- route-mode=vul-pass 配置存在但可暂不启用；
+- mock 链路不绕过 partner-gateway；
+- 生产环境不存在 auth-bypass。
+
+### Phase 2：创建 partner-admin 空壳并迁平台管理面第一批能力
+
+目标：创建 partner-admin，先迁通用管理面，不碰 mock 业务。
+
+首批迁移：
+
+1. Partner 管理；
+2. 凭证管理；
+3. 能力码配置；
+4. 接口目录；
+5. 开发指南；
+6. 流控配置；
+7. Token 签发（短期）；
+8. 调用记录查询。
+
+原则：
+
+- 不迁 mock 风险排查；
+- 不迁 mock 修复核验；
+- 不迁 mock 报告导入；
+- 不迁 mock 工作台 payload。
+
+验收：
+
+- 前端 Partner 管理、接口目录、开发指南、流控策略页面指向 partner-admin 后可用；
+- `/oauth/token` 可由 partner-gateway 转发 partner-admin；
+- partner-gateway Token 校验仍可从 Redis 读取 token context。
+
+### Phase 3：Webhook dispatcher 与运营案件壳迁 partner-admin
+
+目标：把出站治理能力与 case shell 从 open-api-service 剥离。
+
+任务：
+
+1. 迁 Webhook 配置管理；
+2. 迁 Webhook Secret 轮换；
+3. 新建 partner-admin webhook-dispatcher；
+4. mock/vul-pass 统一发布 `OpenPlatformWebhookEvent`；
+5. partner-admin 消费事件，投递并写 `webhook_delivery_log`；
+6. 迁运营案件壳；
+7. 工作台聚合由 partner-admin 调 mock/vul-pass handler。
+
+验收：
+
+- mock 业务事件由 partner-admin 投递 Webhook；
+- 推送记录页面查 partner-admin；
+- 运营案件列表/工作台查 partner-admin；
+- 业务 payload 仍来自 open-api-service mock。
+
+### Phase 4：vul-pass 对接
+
+目标：在 mock 稳定基线上接真实业务。
+
+任务：
+
+1. 对齐 Partner 契约与 vul-pass 内部接口；
+2. partner-gateway route-mode=vul-pass 灰度；
+3. vul-pass 实现真实任务/实例/处置/修复核验；
+4. vul-pass 产生业务事件，partner-admin 负责投递；
+5. partner-admin 工作台按 route-mode 聚合 vul-pass payload。
+
+验收：
+
+- route-mode=vul-pass 下 Partner API 全流程通过；
+- route-mode=mock 可随时切回；
+- mock 与 vul-pass 对外契约形状一致。
+
+### Phase 5：open-api-service 纯 mock 化收口
+
+目标：open-api-service 不再承载平台管理面和真实业务，只保留 mock。
+
+任务：
+
+1. 删除/下线已迁走的 admin 接口；
+2. 移除真实 vul-pass/task-center adapter 或保留为测试分支；
+3. 保留 mock 实现（当下由 task-center 引擎承载的 mock 能力）；早期 fixture-based mock 已弃用，不再保留；
+4. 保留 mock 业务 handler；
+5. 梳理数据库表归属，平台表迁 partner-admin，真实业务表迁 vul-pass，mock 表可独立库/独立 schema。
+
+验收：
+
+- open-api-service 只服务 route-mode=mock；
+- partner-admin 可独立承担平台治理管理面；
+- vul-pass 可独立承担真实业务。
+
+---
+
+## 7. 前端调整计划
+
+### 7.1 短期保持路径兼容
+
+为降低风险，前端短期路径保持：
+
+| 前端通道 | 当前 baseURL | 后续代理目标 |
+|---|---|---|
+| Partner 通道 | `/api/open/v1`、`/oauth/token` | partner-gateway |
+| Admin 通道 | `/open-api-service` | 先指 open-api-service，逐步切 partner-admin |
+
+迁移时建议使用网关/nginx 兼容旧路径：
+
+```text
+/open-api-service/internal/admin/partners        → partner-admin
+/open-api-service/internal/admin/api-operations  → partner-admin
+/open-api-service/internal/admin/mock-tasks      → open-api-service mock
+/open-api-service/internal/admin/mock-verify-fix → open-api-service mock
+```
+
+这样前端可以分批改，不需要一次性大改所有 API 文件。
+
+### 7.2 中期新增运行时配置
+
+新增：
+
+```js
+VUE_APP_PARTNER_ADMIN_BASE_URL=/partner-admin
+VUE_APP_OPEN_MOCK_ADMIN_BASE_URL=/open-api-service
+```
+
+前端 API 分组：
+
+| API 文件 | 目标 |
+|---|---|
+| `partner.js` | partner-admin |
+| `catalog.js` | partner-admin |
+| `invocation.js` | partner-admin（invocation/webhook 查询） |
+| `quota.js` | partner-admin |
+| `operationCase.js` | partner-admin 壳 + workspace 聚合 |
+| `mockTask.js` | open-api-service mock |
+| `mockVerifyFix.js` | open-api-service mock |
+| `openPartnerApi.js` | partner-gateway（Partner 通道） |
+| `verifyFix.js` | 阶段性：mock 时 open-api-service；real 时 partner-admin 聚合/vul-pass handler |
+
+### 7.3 枚举注册表化
+
+后续由 partner-admin 提供：
+
+- capabilities；
+- operation catalog；
+- webhook event types；
+- case types；
+- response codes；
+- scanner types。
+
+前端 `src/constants/openPlatformDisplay/enums.js` 从硬编码逐步改为启动时加载 + 本地兜底。
+
+---
+
+## 8. 数据归属建议
+
+### 8.1 partner-admin 平台治理库
+
+建议归 partner-admin：
+
+- `partner`
+- `partner_credential`
+- `partner_capability`
+- `partner_webhook_config`
+- `api_operation`
+- `api_invocation`
+- `webhook_delivery_log`
+- `open_operation_case`
+- `open_operation_case_event`
+- `open_operation_case_target`
+- quota / rate limit 相关表
+- developer docs 相关表
+
+### 8.2 open-api-service mock 库
+
+建议只保留 mock 需要的表（当下 mock 由 task-center 引擎实现，不再依赖早期 fixture bundle）：
+
+- mock task；
+- mock task sub；
+- mock vuln instance；
+- mock verify fix job；
+- mock export。
+
+可继续沿用现库过渡，但最终建议独立 schema，避免 mock 与真实数据混用。
+
+### 8.3 vul-pass 真实业务库
+
+建议归 vul-pass：
+
+- 真实任务；
+- 真实任务子任务；
+- 真实扫描结果；
+- 真实漏洞实例；
+- 真实漏洞实例日志；
+- 真实修复核验作业；
+- 真实 export/artifact 业务数据。
+
+---
+
+## 9. 风险与回滚
 
 | 风险 | 缓解 | 回滚 |
 |---|---|---|
-| P1 partner-gateway mock 旁路被误开到生产 | 配置项 `partner.gateway.mock.enabled` 默认 false，生产 Nacos 强制不配；启动日志告警 | 改回 false |
-| P1 切 mock 影响当前 task-center 测试 | mock 与 task-center profile 隔离，独立环境验证 | 切回 task-center profile |
-| P2 能力码注册表加载失败致网关启动阻塞 | 本地兜底缓存 + 加载失败用上次缓存 + 告警不阻塞 | 回退硬编码枚举 |
-| P3 调用记录上移网关后 reactive 写 DB 性能 | 异步队列写 + Kafka 削峰；监控落库延迟 | 回 open-api-service 同步写 |
-| P4 vul-pass 契约不一致 | P4.1 先对齐契约再切；灰度比对 | 切回 mock |
-| P5 表迁移数据不一致 | 双写过渡 + 对账 | 回退双写 |
+| partner-admin 拆分导致前端大面积改动 | 先用网关/nginx 做旧路径兼容，再逐步改前端 baseURL | 路由回 open-api-service |
+| route-mode=vul-pass 不稳定 | mock 保持可用，route-mode 可切回 mock | 切回 mock |
+| 调用记录上移 partner-gateway 后性能受影响 | 异步事件/Kafka/Redis Stream，不阻塞请求 | 临时回 open-api-service 写 invocation |
+| Webhook dispatcher 迁移造成重复投递 | 事件幂等 key + delivery 唯一约束 | 暂停新 dispatcher，回 open-api-service 投递 |
+| Token 签发迁 partner-admin 影响登录 | 先保持 `/oauth/token` 旧路径兼容，灰度切 partner-admin | 回 open-api-service 签发 |
+| 数据表迁移风险 | 双写 + 对账 + 分批切读 | 回退读旧表 |
 
 ---
 
-## 7. 验收总标准
+## 10. 验收标准
 
-1. **P1 mock 端到端**：mock 模式 + gateway mock 旁路下，前端 E2E 全流程通过，不依赖任何真实引擎服务。
-2. **P2 单一数据源**：能力码新增/修改只改一处（open-api-service 表），网关拦截与前端展示自动一致。
-3. **P3 职责归位**：partner-gateway 独立承担鉴权 + 调用记录 + 限流，无网关→业务鉴权反向依赖。
-4. **P4 vul-pass 对接**：vul-pass 模式下 E2E 全流程通过，mock 桩仍可切回联调。
-5. **P5 业务下沉**：open-api-service 无漏洞业务表/字段；新增非漏洞业务零代码改动平台层即可接入。
+### Phase 0 / 1 验收
+
+- 当前 open-api-service mock 能力已上线；
+- route-mode=mock 时，Partner API 经 partner-gateway 进入 open-api-service mock；
+- 接入测试、风险排查、修复核验、处置测试均可跑通；
+- 治理页面能查到调用记录、Webhook 投递、运营案件、Export。
+
+### Phase 2 验收
+
+- Partner 管理、凭证管理、接口目录、开发指南、流控配置、调用记录查询迁 partner-admin；
+- `/oauth/token` 可由 partner-admin 签发并写入 Redis token context；
+- partner-gateway 可正常校验 partner-admin 签发的 token。
+
+### Phase 3 验收
+
+- Webhook 投递由 partner-admin dispatcher 执行；
+- open-api-service mock / vul-pass 只产生业务事件；
+- 运营案件壳由 partner-admin 维护，业务 payload 由 mock/vul-pass 提供。
+
+### Phase 4 验收
+
+- route-mode=vul-pass 下真实漏洞业务全流程通过；
+- route-mode=mock 可作为回滚基线；
+- mock 与 vul-pass 对外契约保持一致。
+
+### Phase 5 验收
+
+- open-api-service 只保留 mock 业务；
+- partner-admin 独立承担平台治理管理面；
+- vul-pass 独立承担真实漏洞业务；
+- 新接入非漏洞业务时，平台层不需要新增硬编码业务枚举。
 
 ---
 
-## 8. 与 v1 的差异说明
+## 11. 下一步建议
 
-| 维度 | v1（2026-06-19） | v2（本版） |
-|---|---|---|
-| 网关形态 | 物理合并为单一 `open-gateway` | **不合并**，partner-gateway 保持独立，职责归位 |
-| 依据 | 假设两者栈相近、可合 | 摸底发现 WebFlux 2.6.3 vs MVC 2.2.10 栈冲突 |
-| mock 起点 | 假设需从零补 mock | open-api-service mock **已完整**，只缺网关层 mock + 默认 mode |
-| 优先级 | 解耦优先 | **mock 优先**（P1），解耦分阶段推后 |
-| 能力码 | 注册表（全新建） | 单一数据源归一（先解决三处同步，再演进注册表） |
-| 业务下沉 | Phase 3 | Phase 5（远期，vul-pass 稳定后） |
+立即进入 **Phase 0 / Phase 1**：
 
----
+1. 补充当前 mock 上线验收记录；
+2. 在 partner-gateway 设计并实现 `route-mode=mock|vul-pass`；
+3. 确认所有 Partner API 不绕过 partner-gateway；
+4. 梳理 partner-admin 首批接口清单与建项方案；
+5. 输出 P1 施工清单：涉及 partner-gateway 配置、open-api-service mock 配置、前端代理配置、验收脚本。
 
-## 9. 关联文档
-
-- `SOC对接全链路-PRD.md`、`开放平台Partner鉴权与隔离-落地方案.md`、`开放平台对外REST执行面-分期落地方案.md`、`引擎对接与Mock模式方案.md`、`Open API与vul-pass内部接口映射表.md`
-- 本方案不否定各 PRD 的流程/接口/数据模型细节，只做架构归位与分期重排
-- 实例域两硬约束（vulInfoID≠id、写前先查 page 换 id）、双轨存储、双阶段扫描、修复核验状态机等业务设计不变
+建议不要直接进入 vul-pass 对接。mock 是后续真实链路的回滚基线，必须先固化为验收基线。

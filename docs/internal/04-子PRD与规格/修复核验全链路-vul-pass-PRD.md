@@ -1,9 +1,9 @@
 # 修复核验全链路（vul-pass）— 产品需求文档（PRD）
 
 > **用途**：部侧考核合规改造与修复核验业务闭环的**唯一产品规格**；Multi-Agent 自动化开发的上游输入。  
-> **状态**：`草稿` · **v1.4.7 Wave H 主/子状态码拆分** · **v1.4.6 Wave G 全阶段主链路（任务预检）** · **v1.4.5 子任务类型与 dispatchMode（去门闸术语）** · **v1.4.4 工作台 UI 定稿规格（§7.5.7 改造事项）** · **v1.4.2 任务详情工作台交互定稿** · **v1.4.1 门闸编排落地缺陷修复（见 §18）**  
-> **版本**：v1.4.7  
-> **日期**：2026-07-16
+> **状态**：`草稿` · **v1.4.10 台账外壳/内层与 procMethod 收敛** · **v1.4.9 Wave J 主任务自动化处置** · **v1.4.8 Wave I 处置类型自动分配与1028解析** · **v1.4.7 Wave H 主/子状态码拆分** · **v1.4.6 Wave G 全阶段主链路（任务预检）** · **v1.4.5 子任务类型与 dispatchMode（去门闸术语）** · **v1.4.4 工作台 UI 定稿规格（§7.5.7 改造事项）** · **v1.4.2 任务详情工作台交互定稿** · **v1.4.1 门闸编排落地缺陷修复（见 §18）**  
+> **版本**：v1.4.10  
+> **日期**：2026-07-17
 
 | 属性 | 值 |
 |------|-----|
@@ -51,7 +51,7 @@
 2. **门闸 + 策略化**：**先 1028 连通性门闸**（主机存活+端口），再按实例 `src_method` 结案或二次技术核验。
 3. **可确认**：预览后用户仅确认/取消；确认前不可下发（confirmToken）。
 4. **离线优先**：`tsk_model=1`（0=在线，1=离线）；离线可用完整报告内生存活段**等价完成 Gate**（须可举证）。
-- `logType`：1060（或 bas-enabled=true 时二次显式 1061）；`verify_src_method` / 内容 srcMethod 为真实 1028/1022/1027/1021
+5. **外壳/内层字段收敛（v1.4.10）**：台账 `logType` ← **主任务** `procMethod`；实例/rela `srcMethod` ← **子任务** `procMethod`（实际手段）；**废弃** `verify_src_method`（见 §5.4、§6.7）。
 
 ### 1.3 成功标准（可衡量）
 
@@ -59,8 +59,8 @@
 |------|------|----------|
 | 排查 IP 覆盖率 | 专项工单 `vulNetAddr` ⊆ 台账 `onlineAddrFileLoc` | SQL / 台账查询 |
 | 存活一致性比率 | `alive_consistent=true` 占比 **≥80%**（手段与存活场景匹配，见 §6.6） | 靶标 / ComplianceMetrics |
-| 核验方式匹配率 | Gate=1028；1050 存活后再 1022/1027(配置项)；1051 存活后固定 1021 POC（BAS 1061 暂未落地）；禁止对不存活 1050/1051 做技术核验结论 | verify_src_method + 编排顺序 |
-| 台账完整性 | 每条物理 subTask 一对 **9+10**，Gate 的 10 必含 `onlineAddrFileLoc` | logNum = subTask×2 |
+| 核验方式匹配率 | Gate 子任务 `proc_method=1028`；1050 存活后再 1022/1027(配置项)；1051 存活后固定 1021 POC（BAS 1061 暂未落地）；禁止对不存活 1050/1051 做技术核验结论 | 子任务 `proc_method` + 编排顺序 |
+| 台账完整性 | 每条物理 subTask 一对 **9+10**，Gate 的 10 必含 `onlineAddrFileLoc`；**logType=主任务外壳** | logNum = subTask×2；logType 抽样 |
 | 混合工单 | 共用 Gate；1052/1053 Gate 后结案；1050/1051 仅存活进入二次 Scan | 联调 |
 
 ### 1.4 不做边界
@@ -98,6 +98,7 @@
 | US-06 | 系统 | 每条物理 subTask 完整 9/10，Gate 必写 onlineAddr | 部侧审计通过 | P0 |
 | US-07 | 运营 | 混合工单一次预览：Gate 批 + 条件二次 Scan 批 | 常见生产场景可用 | P1 |
 | US-08 | 运营 | 主任务列表点行看摘要，全页查看子任务编排/结果/台账，子任务可去处置 | 核验过程可追踪、可操作 | P2′ |
+| US-09 | 运营 | 主任务一点「自动化处置」，按顺序/并行编排驱动多子任务完成处置 | 少点「去处置」、减少漏跑波次 | P2′ |
 
 ### 3.2 入口与触发
 
@@ -121,7 +122,17 @@
   1050 无 fixLnk / 1051|1052 无 defDev → 校验失败（与处置阶段一致）
 ```
 
-**术语**：本文 **src_method** 指实例修复阶段的源处置方式（1050–1053），与子任务核验 `proc_method`（1060/1061）区分。
+**术语（v1.4.10）**：
+
+| 词 | 含义 |
+|----|------|
+| 实例 **src_method**（修复史） | 修复阶段源处置方式 **1050–1053**（实例上记录「怎么修的」） |
+| **主任务** `proc_method` | **外壳**：工单约定技术处置方式（核验多为 **1060**；修复工单可为 **105** 等） |
+| **子任务** `proc_method` | **实际手段**：本物理子任务真正执行的方式（核验 Gate=**1028**、Scan=**1022/1021…**；修复下发=**1050–1053**） |
+| 台账 **logType** | **始终取自主任务** `proc_method`（部侧外壳） |
+| 实例/rela **srcMethod**（回传内层） | 核验等拆分场景取自 **子任务** `proc_method`；排查主子一致时可同源 |
+
+> **废弃**：子任务字段 `verify_src_method` / API `verifySrcMethod`（原「实际手段」职责并入子任务 `proc_method`）。迁移见 Wave K 计划。
 
 ---
 
@@ -133,8 +144,8 @@
 
 ```text
 【Wave-Gate】对工单影响资产做连通性检测（主机存活 + 端口扫描）
-  · 实际手段 verify_src_method / 台账内层 srcMethod = 1028
-  · 台账外壳 logType = 1060（格式同系统漏洞排查/弱口令；BAS 规范未下发前同此）
+  · 子任务 proc_method（实际手段）/ 实例内层 srcMethod = 1028
+  · 台账外壳 logType = 主任务 proc_method = 1060（格式同系统漏洞排查/弱口令；BAS 规范未下发前同此）
   · 必写 onlineAddrFileLoc（覆盖本批；支撑四元组匹配）
   · 可按 astUnitNum 对唯一 IP 切批；engType bit=16；可受 eng_hash_cnt 池约束
 
@@ -159,8 +170,8 @@
 
 ### 4.2 物理子任务展开（v1.4）
 
-| 波次 | 策略类 | 覆盖实例 | verify_src_method | 台账外壳 | 切批 |
-|------|--------|----------|------------------|----------|------|
+| 波次 | 策略类 | 覆盖实例 | 子任务 `proc_method`（实际手段） | 台账外壳 logType（←主任务） | 切批 |
+|------|--------|----------|----------------------------------|------------------------------|------|
 | Gate | CONNECTIVITY_GATE | 工单内全部待核验实例的资产 | **1028**（主机存活+端口扫描） | **1060** | ×astUnitNum |
 | Scan | VUL_SCAN | Gate 后仍存活的 **1050** | 配置项 `default-version-login`：**1022** 漏洞扫描(混合) / **1027** 登录扫描 / 1020 指纹插件 | 1060 | ×astUnitNum |
 | Scan | POC_BAS | Gate 后仍存活的 **1051** | **1021** POC 插件（BAS 1061 暂未落地，固定 POC） | 1060 | ×astUnitNum |
@@ -211,26 +222,27 @@ URL 类实例单独 HTTP 可达规则，不硬套 `ip:port`。
 ### 5.1 子任务唯一键
 
 ```text
-subTaskKey = (wave, strategyClass, verify_src_method, eng_hash, astUnitNum分片)
-wave ∈ { GATE, SCAN }
-strategyClass ∈ { CONNECTIVITY_GATE, VUL_SCAN, POC_BAS }
+subTaskKey = (wave, strategyClass, proc_method实际手段, eng_hash, astUnitNum分片)
+wave ∈ { CONNECTIVITY_CHECK, REPAIR_VERIFY }（兼容 GATE/SCAN）
+strategyClass ∈ { CONNECTIVITY_CHECK, VUL_SCAN, POC_BAS }
 ```
 
-- Gate：`strategyClass=CONNECTIVITY_GATE`，`verify_src_method=1028`。
-- Scan：仅含 Gate 后存活的 1050/1051；`astUnitNum` 对唯一 IP 切批。
+- Gate：`strategyClass=CONNECTIVITY_CHECK`，子任务 `proc_method=1028`（外壳 1060 在主任务）。
+- Scan：仅含 Gate 后存活的 1050/1051；`astUnitNum` 对唯一 IP 切批；手段写入子任务 `proc_method`。
 - **PORT(12) 不落物理子任务。**
 
-### 5.2 tsk_type 字段语义（v1.4）
+### 5.2 tsk_type 字段语义（v1.4 · v1.4.9 文案纠偏）
 
-`tsk_type` **复用**表字段，表示该物理子任务的**波次主类型**：
+`tsk_type` **复用**表字段，表示该物理子任务的**任务类型**（策略类主类型）。  
+`wave` 表示**编排阶段**（连通性检测 / 修复核验），二者互补，UI 勿都叫「类型」。
 
 | code | 枚举名 | 物理子任务含义 |
 |------|--------|----------------|
 | 10 | DEFAULT | 历史默认 |
-| 11 | CONNECTIVITY_GATE | **Wave-Gate**：1028 连通性门闸（含原 1052/1053 结案） |
-| 13 | VUL_SCAN | **Wave-Scan**：存活 1050 二次技术核验 |
-| 14 | POC | **Wave-Scan**：存活 1051 POC |
-| 15 | BAS | **Wave-Scan**：存活 1051 BAS/攻击模拟 |
+| 11 | CONNECTIVITY | 连通性核验（对应编排阶段 CONNECTIVITY_CHECK） |
+| 13 | VUL_SCAN / VERSION_LOGIN | 漏洞扫描核验（编排阶段 REPAIR_VERIFY） |
+| 14 | POC | POC验证（编排阶段 REPAIR_VERIFY） |
+| 15 | BAS | BAS攻击模拟（编排阶段 REPAIR_VERIFY） |
 | 12 | PORT | **保留枚举，不单独落物理子任务** |
 
 ### 5.3 tsk_stat 扩展（VulScanTaskStatEnum）
@@ -244,29 +256,40 @@ strategyClass ∈ { CONNECTIVITY_GATE, VUL_SCAN, POC_BAS }
 | **4** | **PREVIEW** | 预览态，未确认 |
 | **5** | **WAITING_IMPORT** | 已确认，待离线导入 |
 
-### 5.4 子任务表字段（`vul_scan_task_sub` 新增/明确）
+### 5.4 子任务表字段（`vul_scan_task_sub` 新增/明确）（v1.4.10 收敛）
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `src_method` | smallint | 源处置方式 1050–1053 |
-| `tsk_type` | tinyint | 策略类主类型，见 §5.2（PORT 不落物理行） |
-| `proc_method` | smallint | 核验处置 1060 / 1061（台账 logType 依据） |
-| `verify_src_method` | smallint | 实际执行 1020/1027/1028/1061 等（实例回传） |
+| `src_method` | smallint | 覆盖实例修复史源处置方式 1050–1053（编排分流用） |
+| `tsk_type` | tinyint | 任务类型（设备 engType 匹配粒度），见 §5.2 |
+| `proc_method` | smallint | **实际手段**（v1.4.10）：核验 Gate=1028、Scan=1022/1021…；修复下发=1050–1053；排查可与主任务一致。**写入实例/rela 内层 srcMethod 的依据** |
+| ~~`verify_src_method`~~ | — | **废弃（Wave K 删除）**：原「实际手段」职责并入本表 `proc_method` |
 | `expect_alive` | boolean | 策略预期存活 |
 | `actual_alive` | boolean | 导入解析实测 |
 | `alive_consistent` | boolean | expect 与 actual 是否一致 |
 | `scanner_source` | varchar(16) | LAST_SCAN / FALLBACK / MANUAL |
 | `confirm_token` | varchar(64) | 主任务级预览令牌（冗余便于查询） |
+| `wave` | varchar(32) | 编排阶段 CONNECTIVITY_CHECK / REPAIR_VERIFY |
+| `depend_gate_id` | bigint | 关联连通性检测子任务 ID |
 
 主任务 `vul_scan_task`：
 
 | 字段 | 说明 |
 |------|------|
-| `proc_method` | 工单层，一般 **1060** |
+| `proc_method` | **外壳**（v1.4.10）：工单约定技术处置方式；核验一般 **1060**；**台账 logType / 管理类型依据** |
 | `tsk_model` | **1 离线**（考核/专项/常态化统一；DDL：`0=在线, 1=离线导入`） |
 | `tsk_phase` | **4** 核验阶段（`OrderPhaseEnum.PHASE_VERIFICATION`） |
 | `confirm_token` | 预览确认令牌 |
 | `ast_unit_num` | 部侧工单拆分粒度 |
+
+#### 5.4.1 外壳 / 内层取值矩阵（全阶段 · v1.4.10）
+
+| 阶段 | 主任务 `proc_method`（外壳→logType） | 子任务 `proc_method`（实际→实例 srcMethod） | 说明 |
+|------|--------------------------------------|---------------------------------------------|------|
+| **排查** | 与子任务一致（如 1020/1022…） | 同主任务 | 主子同源，从主任务写台账外壳即可 |
+| **验证** | 工单约定 | 默认同主；**交叉扫描**可不一致 | 不一致时内层跟子任务；可产品强制一致或特例处理 |
+| **修复** | 工单可为 **105** 等外壳 | 实际下发 **1050–1053** | 外壳跟主；手段跟子 |
+| **核验** | **1060**（或显式 1061） | Gate **1028** / Scan **1022/1021…** | 部侧考核核心：logType=1060，srcMethod=102x |
 
 ### 5.5 proc_method 优先级（工单覆盖策略）
 
@@ -460,7 +483,7 @@ XLSX 推断连通性标记 `dataSource=INFERRED`（默认允许；考核以 XML 
 **存活一致性比率** = count(`alive_consistent=true`) / count(参与核验实例) ≥ **80%**。  
 口径：手段与场景匹配（1050/1051 须 expect 在线且 actual 一致才技术判定；1052/1053 经 1028 且 actual 可判定即计一致）。
 
-### 6.7 台账（106 类，硬约束）（v1.4）
+### 6.7 台账（106 类，硬约束）（v1.4 · v1.4.10 取值纠偏）
 
 **每一条物理 subTask**（含 Gate 与 Scan）必须有一对完整台账：
 
@@ -469,18 +492,31 @@ XLSX 推断连通性标记 `dataSource=INFERRED`（默认允许；考核以 XML 
 | **9** | 下发验证任务 | `IssueVerifyTaskActionService` |
 | **10** | 获取验证结果 | `VerifyResultActionService` |
 
+**取值硬规则（v1.4.10 · 满足部侧）：**
+
+```text
+logInfoReqParams.logType          ← 主任务.procMethod（外壳）
+实例 / rela / content.srcMethod   ← 子任务.procMethod（实际手段；有拆分时）
+台账管理类型 / 是否走 106 类 9+10 ← 主任务.procMethod
+禁止：用子任务实际手段覆盖 logType
+禁止：核验场景把实例 srcMethod 写成主任务 1060（丢掉 1028/1022）
+禁止：把修复史 1050–1053 当作核验上报内层 srcMethod
+```
+
 **接口测试文档对齐（1060 自适应）：**
 
-- 工单/外壳处置：**1060**；`logInfoReqParams.logType=1060`
+- 工单/外壳处置：**1060**；`logInfoReqParams.logType=1060`（←主任务）
 - 报文格式：同系统漏洞排查、弱口令扫描日志（BAS 规范未下发前）
-- **内层实际手段**写入实例/content 的 srcMethod（或 `verify_src_method`）：Gate=**1028**；1050 二次=1022/1027(配置项)；1051 二次=1021（POC，BAS 1061 未落地）
-- 勿把修复史 **1050–1053** 当作上报内层 srcMethod
+- **内层实际手段**写入实例/content 的 srcMethod（←子任务 `proc_method`）：Gate=**1028**；1050 二次=1022/1027(配置项)；1051 二次=1021（POC，BAS 1061 未落地）
+- 其它处置方式：主子通常一致，logType 与处置方式 1:1（仍取自主任务外壳）
 
 **opCode=10 关键字段：**
 
 - `prcAstNum`、`prcVulNum`（可 0）、`vulInfo`、`vulPocInfo`
 - `onlineAddrFileLoc`：经 **OnlineAddrMerger**；**Gate 必填且覆盖本批负责 IP**
-- `logType`：1060（或 bas-enabled=true 时二次显式 1061）；`verify_src_method` / 内容 srcMethod 为真实 1028/1022/1027/1021
+- `logType`：主任务外壳（1060 或 bas-enabled 时二次显式 1061）；内容 srcMethod 为子任务真实 1028/1022/1027/1021
+
+**交叉扫描特例**：验证阶段若子任务 `proc_method` 与主任务不一致，**logType 仍跟主任务**；实例实际手段跟该子任务。产品可选强制子=主以简化，不得反向把核验内层改成只写 1060。
 
 ---
 
@@ -497,6 +533,11 @@ XLSX 推断连通性标记 `dataSource=INFERRED`（默认允许；考核以 XML 
 | POST | `/vul-pass/vul-scan-task/recycle/auto` | 自动回收 | 已有 | `getVulnScanTaskRecycleAuto` |
 | POST | `/vul-pass/vul-scan-task/submit` | 稽核完成 / 工单回传 | P2 | `submitVulnScanTaskSub`（已封装未接线） |
 | GET | `/vul-pass/compliance/verify-fix/metrics` | 存活一致性等指标（可选） | P3 | 待新增 |
+| POST | `/vul-pass/vul-scan-task/auto-dispose/preview` | 自动化处置队列预览 | P2′ | `previewVulnScanTaskAutoDispose` |
+| POST | `/vul-pass/vul-scan-task/auto-dispose` | 启动自动化处置（在线编排 / 离线批量指引） | P2′ | `startVulnScanTaskAutoDispose` |
+| GET | `/vul-pass/vul-scan-task/auto-dispose/{runId}` | 查询自动化处置进度 | P2′ | `getVulnScanTaskAutoDispose` |
+| POST | `/vul-pass/vul-scan-task/auto-dispose/{runId}/pause` | 暂停 | P2′ | `pauseVulnScanTaskAutoDispose` |
+| POST | `/vul-pass/vul-scan-task/auto-dispose/{runId}/resume` | 继续 | P2′ | `resumeVulnScanTaskAutoDispose` |
 
 ### 7.2 前端落点（`asset-newleak-manage`）
 
@@ -512,7 +553,42 @@ XLSX 推断连通性标记 `dataSource=INFERRED`（默认允许；考核以 XML 
 | 任务抽屉 | `.../TaskDetails/TaskDrawer.vue` | 主/子任务列表与详情入口 | 已有 |
 | 离线处置 | `.../TaskDetails/ProMethodDrawer.vue` | reportType 默认 3/10；preview→submit | P2 |
 | **任务详情工作台** | **§7.5 + HTML 原型** | **主任务全页 + 子任务卡片 + 处置弹窗** | **P2′（Vue 待落地）** |
+| **自动化处置** | `.../TaskDetails/AutoDisposeDrawer.vue` | 队列预览 + 在线一键 / 离线有序批量导入 | P2′ |
 | API | `src/api/Assembly/NewLeakVulnInfo.js` | plan/confirmToken；`changeTskPhase` 与 token 同步 | P1′ |
+
+### 7.6 主任务自动化处置（v1.4.9 · Wave J）
+
+**定位**：不替代 preDispatch/dispatch；只对**已下发且待处置**子任务，按 wave 编排自动驱动 `recycle` / `recycle/auto`。
+
+#### 7.6.1 与 dispatchMode 关系
+
+| dispatchMode | 下发落库 | 自动化处置执行 |
+|--------------|----------|----------------|
+| `sequential`（默认） | 先连通性；修复核验在连通性终态后 spawn | 先跑连通性队列 → 等待/触发 spawn → 再跑修复核验队列 |
+| `parallel` | 连通性+修复核验同时落库 | 同波次可并行启动；**回收判定仍先连通性后修复核验** |
+
+#### 7.6.2 在线 / 离线
+
+| 模式 | 行为 |
+|------|------|
+| `online` | 子任务 `reportType.upload≠1`：后端编排器自动调用在线 recycle，使用已落库 reportType |
+| `offline-batch` | 需上传：返回有序槽位；连通性未终态时修复核验槽位锁定；前端按槽位调现有 `/recycle` |
+
+#### 7.6.3 失败策略
+
+1. 同波次单个失败**不阻断**同波其它子任务（`continueOnError` 默认 true）。
+2. 连通性波次**未全部成功**时，不自动进入修复核验。
+3. 支持 pause / resume；可随时回退到单条子任务「去处置」。
+4. 提交处置类型：直接使用子任务已落库 `reportType`，不弹窗手选。
+
+#### 7.6.4 字段补齐与展示口径
+
+- `vul_scan_task_sub.wave`：**编排阶段**（全阶段预留；核验先行 CONNECTIVITY_CHECK / REPAIR_VERIFY，兼容 GATE/SCAN）；UI 勿称「子任务类型」
+- `vul_scan_task_sub.tsk_type`：**任务类型** 11/13/14/15（设备 engType 匹配；**UI 默认不展示**，避免与 wave/procMethod 重复）
+- `vul_scan_task_sub.proc_method`：**实际手段**（台账内层 / 处置方式 Tag）
+- `vul_scan_task_sub.depend_gate_id`：修复核验子任务关联的连通性子任务 ID（展示用）
+- sequential spawn：按连通性结果过滤存活实例后再派生修复核验（对齐 §17.3.4）
+- **核验跃迁单路径**：主任务 recycle 与单条子任务 `handlerVulProcess` 在通用插件跃迁后，均调用 `VerifyFixVerdictService` 覆盖写实例 6/7/10
 
 ### 7.3 页面交互（修复核验）
 
@@ -535,7 +611,7 @@ XLSX 推断连通性标记 `dataSource=INFERRED`（默认允许；考核以 XML 
 |------|------|----------|
 | 策略类 | `strategyClass` | 漏洞扫描型 / POC·BAS型 / 连通性核验型 |
 | 原修复方式 | `srcMethods[]` | **白底描边 Tag** + `SetName`/`VulProcessMethod`（多值多个 Tag） |
-| 核验方式 | `verifySrcMethod` | **与原修复方式同一套白底描边 Tag 样式**（勿单独蓝底/数字裸显） |
+| 核验方式 | `procMethod`（子任务实际手段；v1.4.10 起不再用 `verifySrcMethod`） | **与原修复方式同一套白底描边 Tag 样式**（勿单独蓝底/数字裸显） |
 | 安全资源 | engName/engTypeLabel/devIp/engHash | 多行友好展示；未匹配红标；engType 释义遵循 §6.3.1 |
 | 漏洞实例数 | `instanceCount` | 本组系统漏洞实例条数 |
 | IP 数 | `uniqueIpCount`（字段名可保留，**列标题显示「IP 数」**） | assetIps 去重后数量；astUnitNum 切批依据 |
@@ -692,7 +768,7 @@ XLSX 推断连通性标记 `dataSource=INFERRED`（默认允许；考核以 XML 
 | 项 | 定稿 |
 |----|------|
 | 顶栏 | 子任务 ID（边框盒，高度与 Tag 对齐约 `22px`）+ Tag 区 + 进度 |
-| Tag | 波次（若有）、策略类（若有）、**处置方式**（`procMethod`，volcano）、**核验手段**（`verifySrcMethod`，geekblue）、任务状态、报告类型（完成且有时） |
+| Tag | **编排阶段**（`wave`，全阶段预留；核验先行连通性检测/修复核验）、**处置方式**（子任务 `procMethod`=实际手段）、处置类型（`reportType`，若有）、任务状态；**不展示 `tskType`（后端保留 engType 匹配）** |
 | 不展示 | **不展示「阶段」**（与主任务摘要阶段 Tag 重复） |
 | 指标 | 资产/实际、实际产品漏洞、设备匹配；有则附带 engHash |
 | engHash | 与指标同一行，`flex: 1 1 280px`；样式同长串（`#595959`、常规字重、全文） |
@@ -868,7 +944,7 @@ compliance:
 |----|------|
 | Q7 XLSX 推断存活 | 允许 INFERRED |
 | Q9 LastScanner 范围 | 仅排查 102x |
-| Q10 1052/1053 台账 | proc_method/logType=1060，内层 verify_src_method=1028 |
+| Q10 1052/1053 台账 | **logType←主任务 1060**；**内层←子任务 proc_method=1028**（v1.4.10） |
 | **Q11 物理子任务模型** | **v1.4：允许 1028 Gate → 条件 Scan；禁止 PORT 半截台账** |
 | **Q12 1052/1053 检测** | **仅 1028 连通性；Gate 后结案** |
 | **Q13 方式未知** | **不等于 1051–1053；本期不做** |
@@ -882,13 +958,16 @@ compliance:
 | **Q21 核验过程** | **原「证据能力」列改名为「核验过程」** |
 | **Q22 核验方式样式** | **与原修复方式同：白底描边 Tag** |
 | **Q23 1052/1053 仍存活** | **v1.4：stat=7 核验未修复（非 10）** |
-| **Q24 1060 台账外壳** | **logType=1060；内层 srcMethod=1028/1020…（对齐接口测试注）** |
+| **Q24 1060 台账外壳** | **logType←主任务 1060；内层 srcMethod←子任务实际手段 1028/1020…（对齐接口测试注）** |
 | **Q25 二次手段** | **1050∈{1020,1022,1023,1024,1027}；1051∈{1021,1061}** |
+| **Q26 字段收敛** | **v1.4.10：废弃 verify_src_method；子任务 proc_method=实际手段；主任务 proc_method=外壳→logType** |
+| **Q27 交叉扫描** | **logType 仍跟主任务；实例手段跟子任务；可选强制子=主，不得内层只写外壳** |
 
 ### 12.3 修订记录
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| **v1.4.10** | **2026-07-17** | **台账外壳/内层与 procMethod 收敛：logType←主任务；实例 srcMethod←子任务实际手段；废弃 verify_src_method；§5.4.1 全阶段矩阵；§6.7 取值硬规则；计划见 Wave K** |
 | v1.0 | 2026-07-13 | 初稿 |
 | v1.1 | 2026-07-14 | 分支对照；tsk_model=1；§14–§15 |
 | **v1.2** | **2026-07-15** | **产品研讨纠偏：扫描器语义子任务；1052/1053 实例级连通性规则；废止阶段物理拆分；§16** |
@@ -896,6 +975,8 @@ compliance:
 | **v1.3.1** | **2026-07-15** | **engType 部侧依据；eng_hash_cnt 强制候选池；列：IP数/核验过程；删建议报告；核验方式白底框对齐原修复方式** |
 | **v1.4** | **2026-07-15** | **1028 连通性门闸物理编排；1052/1053 存活→7/不可达→6；1060 外壳+102x 内层台账；二次 1050/1051 手段清单；对齐考核「方式与存活不匹配」** |
 | **v1.4.1** | **2026-07-16** | **门闸编排落地缺陷修复：门闸态被 setTask 覆盖(§18.1)、子任务 ast_num 为 null(§18.2)、子任务落库字段缺失 tskId/prcAstNum/prcVulNum(§18.3)、前端状态标签缺失/下标越界(§18.4)；新增 §18 已修复缺陷记录、§19 回归用例索引** |
+| **v1.4.9** | **2026-07-16** | **Wave J：主任务自动化处置（online 编排 + offline-batch 有序导入）；wave/depend_gate_id 落库；spawn 存活过滤；§7.6 / US-09** |
+| **v1.4.8** | **2026-07-16** | **Wave I：处置类型自动分配（source+ctxCode）；1028→码34+ConnectivityCheckParser；预览/下发落库 reportType；前端去掉 ctxCode==2 误判** |
 | **v1.4.7** | **2026-07-16** | **Wave H：主/子任务状态码拆分（主 10/20/30/40/50/60/90，子 0/1/2/3/4）；去掉「离线导入」状态语义；读兼容旧 0～8；计划见 WaveH 开发计划 v1.0** |
 | **v1.4.6** | **2026-07-16** | **Wave G：全阶段主链路推导（任务预检→下发→阶段子任务链→回收→稽核→结束）；DTO 瞬态字段 lifecycleStep/lifecycleSteps；前端步骤条配置化；计划见 WaveG 开发计划 v1.0** |
 | **v1.4.5** | **2026-07-16** | **子任务类型 v2：`CONNECTIVITY_CHECK` / `REPAIR_VERIFY`（兼容 `GATE`/`SCAN`）；`dispatch-mode` sequential（默认）/ parallel；回收顺序固定先连通性后修复核验；预览去波次列；验收见 `06-Mock与联调/修复核验全链路-v2子任务编排验收报告-v1.0.md`** |
@@ -968,6 +1049,7 @@ compliance:
 P0～P2′  门闸编排 + §18 修复 + 预览波次列  → 已落地，Wave A 联调回归
 Wave B   完整报告 recycle / Verdict / submit + ProMethodDrawer 接线
 Wave F-W2  任务详情工作台 Vue 落地（§7.5 / HTML 原型）
+Wave K   台账外壳/内层 + procMethod 收敛（删 verify_src_method）  ← 下一步
 P3       metrics / 在线（可选）
 ```
 
@@ -1007,12 +1089,25 @@ P3       metrics / 在线（可选）
 | 预览 / 落库 | 无 wave | 展示 `wave=GATE\|SCAN` |
 | 台账 content | verify_src_method 扩展 | **外壳 1060 + 内层 1028/1020…** |
 
+### 16.2.1 v1.4.10 必须改（Wave K · 字段收敛）
+
+| 位置 | 现状 | v1.4.10 目标 |
+|------|------|--------------|
+| 子任务落库 | `procMethod=1060` + `verifySrcMethod=1028/1022…` | **`procMethod`=实际手段**；废弃 `verifySrcMethod` |
+| `AbstractLedgerLog.initLog` / `doWriteLedger` | 易用子任务 procMethod 当 logType | **logType ← 主任务.procMethod** |
+| recycle / rela / 实例 srcMethod | 混用 verifySrcMethod / 主任务外壳 | **← 子任务.procMethod** |
+| Liquibase | 列 `verify_src_method` | 数据迁移后 **dropColumn** |
+| 前端预览/卡片 | 双显 procMethod + verifySrcMethod | **只显子任务实际处置方式** |
+
 ### 16.3 一句话（v1.4）
 
 1060 自适应核验：**先 1028 门闸写存活与 onlineAddr -> 1052/1053 按存活给 7/6 -> 1050/1051 仅存活再 1022·1027/1021**；堵住「核验方式与目标存活状态不匹配」。（BAS 1061 未落地，1051 固定 POC）
 
+**v1.4.10**：台账 **logType←主任务**；实例 **srcMethod←子任务实际 proc_method**；删 `verify_src_method`。
+
 ### 16.4 补齐项
 
+- Wave K：台账/回收取值纠偏 + 数据迁移 + 删列 + 前端去 `verifySrcMethod`（见 Wave K 计划）
 - 报告 → 实例键匹配；Gate/Scan 各自完整 9+10；工单 submit 回传
 - 单测：TC-01～TC-11（门闸切分 + 1052 仍存活→7）
 

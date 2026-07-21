@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>方案三 · 编排画布型 · 自动化处置原型</title>
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --card: #fff;
+      --border: #e8e8e8;
+      --text: #262626;
+      --muted: #8c8c8c;
+      --primary: #1890ff;
+      --primary-bg: #e6f7ff;
+      --success: #52c41a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f0f2f5;
+      font-size: 13px;
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 12px;
+      min-height: 100vh;
+    }
+    @media (max-width: 960px) {
+      .shell { grid-template-columns: 1fr; }
+    }
+    .proto-badge {
+      position: fixed; top: 12px; right: 12px;
+      background: #531dab; color: #fff;
+      padding: 4px 10px; border-radius: 4px; font-size: 12px;
+      z-index: 5;
+    }
+    a.back {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: var(--primary);
+      font-size: 12px;
+      text-decoration: none;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .panel-hd {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .panel-hd h1 { margin: 0; font-size: 15px; font-weight: 600; }
+    .panel-bd { padding: 16px; }
+
+    .tag {
+      display: inline-block;
+      padding: 0 7px;
+      height: 22px;
+      line-height: 20px;
+      border-radius: 2px;
+      font-size: 12px;
+      border: 1px solid transparent;
+    }
+    .tag.method { background: #fff; border-color: #d9d9d9; color: #595959; }
+    .tag.purple { background: #f9f0ff; border-color: #d3adf7; color: #531dab; }
+    .tag.green { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
+    .tag.orange { background: #fff7e6; border-color: #ffd591; color: #d46b08; }
+    .tag.gray { background: #f5f5f5; color: #8c8c8c; border-color: #d9d9d9; }
+
+    /* DAG 画布 */
+    .canvas {
+      min-height: 320px;
+      background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 24px 16px;
+      position: relative;
+      overflow-x: auto;
+    }
+    .dag-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: nowrap;
+      gap: 0;
+      min-width: 720px;
+    }
+    .dag-node {
+      width: 140px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 10px;
+      text-align: center;
+      background: #fff;
+      cursor: pointer;
+      transition: all .2s;
+      flex-shrink: 0;
+    }
+    .dag-node:hover { border-color: #91d5ff; }
+    .dag-node.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(24,144,255,.2);
+    }
+    .dag-node.done { border-color: var(--success); background: #f6ffed; }
+    .dag-node.running { border-color: var(--primary); background: var(--primary-bg); }
+    .dag-node.wait { opacity: .65; border-style: dashed; }
+    .node-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      margin: 0 auto 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      background: #f0f0f0;
+      color: #999;
+    }
+    .dag-node.done .node-icon { background: var(--success); color: #fff; }
+    .dag-node.running .node-icon { background: var(--primary); color: #fff; }
+    .node-title { font-weight: 600; font-size: 12px; margin-bottom: 4px; }
+    .node-sub { font-size: 11px; color: var(--muted); }
+    .dag-edge {
+      width: 48px;
+      height: 2px;
+      background: #d9d9d9;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .dag-edge::after {
+      content: '';
+      position: absolute;
+      right: 0; top: -4px;
+      border: 5px solid transparent;
+      border-left-color: #d9d9d9;
+    }
+    .dag-edge.active { background: var(--primary); }
+    .dag-edge.active::after { border-left-color: var(--primary); }
+
+    .canvas-legend {
+      display: flex;
+      gap: 16px;
+      margin-top: 16px;
+      font-size: 11px;
+      color: var(--muted);
+      justify-content: center;
+    }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #f0f0f0; border: 1px solid #d9d9d9;
+    }
+    .legend-dot.done { background: var(--success); border-color: var(--success); }
+    .legend-dot.run { background: var(--primary); border-color: var(--primary); }
+
+    /* 右侧详情 */
+    .side-panel .panel-bd { padding: 14px 16px; }
+    .side-title { font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+    .side-meta { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+    .kv { margin-bottom: 10px; }
+    .kv label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+    .kv div { font-size: 13px; }
+    .ledger-tip {
+      background: #fffbe6;
+      border: 1px solid #ffe58f;
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #874d00;
+      margin: 12px 0;
+    }
+    .btn-row { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+    .btn {
+      height: 32px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn.link { border: none; background: none; color: var(--primary); text-align: left; padding: 0; height: auto; }
+
+    .global-bar {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: #fafafa;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <span class="proto-badge">方案三 · 编排画布型</span>
+
+  <div style="max-width:1200px;margin:0 auto;padding:16px 16px 0;">
+    <a class="back" href="修复核验-自动化处置-三方案原型索引.html">← 返回三方案索引</a>
+  </div>
+
+  <div class="shell">
+    <main class="panel">
+      <header class="panel-hd">
+        <h1>自动化处置 · 编排视图</h1>
+        <span class="tag purple">1060 修复核验自适应</span>
+      </header>
+      <div class="panel-bd">
+        <p style="margin:0 0 12px;color:var(--muted);font-size:12px;">
+          与工作台子任务卡片联动：点击节点高亮对应子任务 · 顺序下发 sequential
+        </p>
+
+        <div class="canvas">
+          <div class="dag-row" id="dag">
+            <div class="dag-node done" data-id="n1">
+              <div class="node-icon">✓</div>
+              <div class="node-title">连通性检测</div>
+              <div class="node-sub">1028</div>
+              <div style="margin-top:6px"><span class="tag green">成功</span></div>
+            </div>
+            <div class="dag-edge active"></div>
+            <div class="dag-node running selected" data-id="n2">
+              <div class="node-icon">2</div>
+              <div class="node-title">修复核验 A</div>
+              <div class="node-sub">1022 混合扫描</div>
+              <div style="margin-top:6px"><span class="tag orange">待上传</span></div>
+            </div>
+            <div class="dag-edge"></div>
+            <div class="dag-node wait" data-id="n3">
+              <div class="node-icon">3</div>
+              <div class="node-title">修复核验 B</div>
+              <div class="node-sub">1021 POC</div>
+              <div style="margin-top:6px"><span class="tag gray">等待</span></div>
+            </div>
+          </div>
+          <div class="canvas-legend">
+            <span class="legend-item"><span class="legend-dot done"></span> 已完成</span>
+            <span class="legend-item"><span class="legend-dot run"></span> 进行中</span>
+            <span class="legend-item"><span class="legend-dot"></span> 未开始</span>
+          </div>
+        </div>
+
+        <div class="global-bar">
+          <span>模式 <strong>离线批量</strong></span>
+          <span>进度 <strong>1/3</strong></span>
+          <span>Run <strong>#AD-20260717-001</strong></span>
+          <span>spawn 后修复核验 2 条</span>
+        </div>
+      </div>
+    </main>
+
+    <aside class="panel side-panel">
+      <header class="panel-hd">
+        <h1 style="font-size:14px;">节点详情</h1>
+      </header>
+      <div class="panel-bd" id="sideDetail">
+        <h2 class="side-title">修复核验 A · 漏洞扫描混合</h2>
+        <p class="side-meta">子任务 #88421 · wave=REPAIR_VERIFY</p>
+
+        <div class="kv">
+          <label>编排阶段</label>
+          <div>修复核验（REPAIR_VERIFY）</div>
+        </div>
+        <div class="kv">
+          <label>处置方式（子任务实际手段）</label>
+          <div><span class="tag method">1022-漏洞扫描（混合）</span></div>
+        </div>
+        <div class="kv">
+          <label>处置类型</label>
+          <div>漏洞扫描报告 V1.2（绿盟-XML）</div>
+        </div>
+        <div class="kv">
+          <label>依赖</div>
+          <div>连通性检测 #88420 已完成</div>
+        </div>
+
+        <div class="ledger-tip">
+          <strong>台账口径：</strong>logType 取主任务外壳 <strong>1060</strong>；实例关系内层 srcMethod 取子任务 <strong>1022</strong>。勿将 1028 误作工单处置类型。
+        </div>
+
+        <div class="btn-row">
+          <button type="button" class="btn primary">上传报告并回收</button>
+          <button type="button" class="btn">单条「去处置」</button>
+          <button type="button" class="btn link">在子任务列表中定位 →</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    var nodeInfo = {
+      n1: {
+        title: '连通性检测',
+        meta: '子任务 #88420 · wave=CONNECTIVITY_CHECK',
+        method: '1028-连通性检测',
+        report: '连通性检测 V1.0',
+        dep: '无（首节点）',
+        tip: 'logType=1060 · srcMethod=1028',
+        primary: false
+      },
+      n2: {
+        title: '修复核验 A · 漏洞扫描混合',
+        meta: '子任务 #88421 · wave=REPAIR_VERIFY',
+        method: '1022-漏洞扫描（混合）',
+        report: '漏洞扫描报告 V1.2（绿盟-XML）',
+        dep: '连通性检测 #88420 已完成',
+        tip: 'logType=1060 · srcMethod=1022',
+        primary: true
+      },
+      n3: {
+        title: '修复核验 B · POC 插件',
+        meta: '子任务 #88422 · wave=REPAIR_VERIFY',
+        method: '1021-POC插件',
+        report: 'POC 漏洞验证（绿盟-XML）',
+        dep: '修复核验 A 完成后解锁',
+        tip: 'logType=1060 · srcMethod=1021',
+        primary: false
+      }
+    };
+    document.querySelectorAll('.dag-node').forEach(function (node) {
+      node.addEventListener('click', function () {
+        document.querySelectorAll('.dag-node').forEach(function (n) { n.classList.remove('selected'); });
+        node.classList.add('selected');
+        var id = node.getAttribute('data-id');
+        var d = nodeInfo[id];
+        document.getElementById('sideDetail').innerHTML =
+          '<h2 class="side-title">' + d.title + '</h2>' +
+          '<p class="side-meta">' + d.meta + '</p>' +
+          '<div class="kv"><label>处置方式</label><div><span class="tag method">' + d.method + '</span></div></div>' +
+          '<div class="kv"><label>处置类型</label><div>' + d.report + '</div></div>' +
+          '<div class="kv"><label>依赖</label><div>' + d.dep + '</div></div>' +
+          '<div class="ledger-tip"><strong>台账口径：</strong>' + d.tip + '</div>' +
+          '<div class="btn-row">' +
+          (d.primary ? '<button type="button" class="btn primary">上传报告并回收</button>' : '<button type="button" class="btn" disabled>等待前置节点</button>') +
+          '<button type="button" class="btn">单条「去处置」</button>' +
+          '<button type="button" class="btn link">在子任务列表中定位 →</button></div>';
+      });
+    });
+  </script>
+</body>
+</html>

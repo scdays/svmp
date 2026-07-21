@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>自动化处置 · 方案一流程向导抽屉 · 原型</title>
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --card: #fff;
+      --border: #e8e8e8;
+      --text: #262626;
+      --muted: #8c8c8c;
+      --primary: #1890ff;
+      --primary-bg: #e6f7ff;
+      --success: #52c41a;
+      --warning: #fa8c16;
+      --error: #f5222d;
+      --purple: #722ed1;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: rgba(0,0,0,.45);
+      font-size: 13px;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .drawer {
+      width: 720px;
+      max-width: 100%;
+      min-height: 100vh;
+      background: var(--card);
+      display: flex;
+      flex-direction: column;
+      box-shadow: -2px 0 8px rgba(0,0,0,.15);
+    }
+    .drawer-hd {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .drawer-hd h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    .close { border: none; background: none; font-size: 18px; cursor: pointer; color: var(--muted); }
+    .drawer-bd { flex: 1; padding: 16px 20px 88px; overflow-y: auto; }
+
+    .banner {
+      background: #e6f7ff;
+      border: 1px solid #91d5ff;
+      border-radius: 4px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: #0050b3;
+    }
+    .ws-bar {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 6px 10px; background: #fafafa; border: 1px solid var(--border);
+      border-radius: 4px; margin-bottom: 12px; font-size: 11px; color: var(--muted);
+    }
+    .ws-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); display: inline-block; }
+    .ws-dot.off { background: var(--error); }
+    .ws-log { flex: 1; min-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .meta-row {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      margin-bottom: 12px; font-size: 12px; color: var(--muted);
+    }
+    .tag {
+      display: inline-block; padding: 0 7px; height: 22px; line-height: 20px;
+      border-radius: 2px; font-size: 12px; border: 1px solid transparent;
+    }
+    .tag.method { background: #fff; border-color: #d9d9d9; color: #595959; }
+    .tag.orange { background: #fff7e6; border-color: #ffd591; color: #d46b08; }
+    .tag.blue { background: #e6f7ff; border-color: #91d5ff; color: #096dd9; }
+    .tag.green { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
+    .tag.purple { background: #f9f0ff; border-color: #d3adf7; color: #531dab; }
+    .tag.cyan { background: #e6fffb; border-color: #87e8de; color: #08979c; }
+
+    .lifecycle {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+      margin-bottom: 14px; padding: 10px 12px; background: #fafafa;
+      border-radius: 4px; border: 1px solid var(--border); font-size: 12px;
+    }
+    .step { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+    .step .dot {
+      width: 18px; height: 18px; border-radius: 50%; background: #f0f0f0; color: #999;
+      display: inline-flex; align-items: center; justify-content: center; font-size: 11px;
+    }
+    .step.done .dot { background: var(--success); color: #fff; }
+    .step.current { color: var(--primary); font-weight: 600; }
+    .step.current .dot { background: var(--primary); color: #fff; }
+    .step-sep { color: #d9d9d9; margin: 0 2px; }
+
+    .mode-tabs {
+      display: flex; border: 1px solid var(--border); border-radius: 4px;
+      overflow: hidden; margin-bottom: 12px;
+    }
+    .mode-tab {
+      flex: 1; padding: 8px 10px; text-align: center; font-size: 12px;
+      background: #fafafa; border: none; cursor: pointer; color: var(--muted);
+    }
+    .mode-tab.active { background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+    .mode-tab + .mode-tab { border-left: 1px solid var(--border); }
+    .mode-desc { font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+
+    .unified-panel {
+      border: 1px dashed #91d5ff; border-radius: 4px; padding: 12px;
+      background: #f0f9ff; margin-bottom: 14px;
+    }
+    .unified-panel h4 { margin: 0 0 8px; font-size: 13px; }
+    .param-row {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 10px; font-size: 12px;
+    }
+    .param-row label { color: var(--muted); white-space: nowrap; }
+    .param-row select {
+      height: 28px; border: 1px solid var(--border); border-radius: 4px;
+      padding: 0 8px; font-size: 12px; min-width: 140px;
+    }
+    .upload-zone {
+      border: 1px dashed #d9d9d9; border-radius: 4px; padding: 16px;
+      text-align: center; background: #fafafa; margin-top: 8px;
+    }
+    .upload-zone p { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+    .match-list { margin: 10px 0 0; padding: 0; list-style: none; font-size: 12px; }
+    .match-list li {
+      padding: 6px 8px; background: #fff; border: 1px solid var(--border);
+      border-radius: 4px; margin-bottom: 6px;
+    }
+    .match-list li.uncovered { border-color: #ffd591; background: #fffbe6; color: #ad6800; }
+
+    .timeline { position: relative; padding-left: 28px; }
+    .timeline::before {
+      content: ''; position: absolute; left: 9px; top: 8px; bottom: 8px;
+      width: 2px; background: #e8e8e8;
+    }
+    .step-card {
+      position: relative; border: 1px solid var(--border); border-radius: 6px;
+      padding: 14px 16px; margin-bottom: 14px; background: #fff;
+      cursor: pointer; transition: border-color .2s, box-shadow .2s;
+    }
+    .step-card:hover:not(.locked) { border-color: #91d5ff; }
+    .step-card.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(24,144,255,.15); }
+    .step-card.done { background: #fafafa; }
+    .step-card.running { border-color: #91d5ff; background: #f0f9ff; }
+    .step-card.locked { opacity: .72; cursor: not-allowed; }
+    .step-card::before {
+      content: ''; position: absolute; left: -23px; top: 18px;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #fff; border: 2px solid #d9d9d9; z-index: 1;
+    }
+    .step-card.done::before { border-color: var(--success); background: var(--success); }
+    .step-card.active::before, .step-card.running::before {
+      border-color: var(--primary); background: var(--primary);
+    }
+    .step-card.locked::before { background: #f5f5f5; }
+    .step-card-hd {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    }
+    .step-title { font-weight: 600; font-size: 14px; }
+    .step-sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .step-body { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+    .step-body.hidden { display: none; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      height: 32px; padding: 0 16px; border-radius: 4px;
+      border: 1px solid var(--border); background: #fff; cursor: pointer; font-size: 13px;
+    }
+    .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn.link { border: none; background: transparent; color: var(--primary); padding: 0 6px; height: auto; font-size: 12px; }
+
+    .drawer-ft {
+      position: sticky; bottom: 0; padding: 12px 20px;
+      border-top: 1px solid var(--border); background: #fff;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .next-hint { font-size: 12px; color: var(--muted); flex: 1; }
+    .next-hint strong { color: var(--text); }
+    .proto-badge {
+      position: fixed; top: 12px; left: 12px; background: #531dab; color: #fff;
+      padding: 4px 10px; border-radius: 4px; font-size: 12px; z-index: 10;
+    }
+    a.back { color: var(--primary); font-size: 12px; text-decoration: none; }
+    .event-toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,.75); color: #fff; padding: 8px 16px;
+      border-radius: 4px; font-size: 12px; opacity: 0; transition: opacity .3s;
+      pointer-events: none; z-index: 30;
+    }
+    .event-toast.show { opacity: 1; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <span class="proto-badge">方案一 · 自动化处置抽屉</span>
+  <div class="event-toast" id="eventToast"></div>
+
+  <!-- 模拟：任务详情页点击「自动化处置」打开此抽屉 -->
+  <div class="drawer" role="dialog" aria-label="自动化处置">
+    <header class="drawer-hd">
+      <div>
+        <h1>自动化处置</h1>
+        <a class="back" href="修复核验-自动化处置-三方案原型索引.html">← 返回索引</a>
+      </div>
+      <button class="close" type="button" aria-label="关闭">×</button>
+    </header>
+
+    <div class="drawer-bd">
+      <div class="banner" id="runBanner">运行中 · 离线批量 · 顺序下发 · 进度 1/3</div>
+
+      <div class="ws-bar">
+        <span class="ws-dot" id="wsDot"></span>
+        <span class="tag cyan">inbox-model 静默</span>
+        <span class="ws-log" id="wsLog">已连接 · 编排事件推送不弹通知</span>
+        <button type="button" class="btn link" id="btnReconnect">断线重连</button>
+        <button type="button" class="btn link" id="btnRefresh">刷新快照</button>
+      </div>
+
+      <div class="meta-row">
+        <span class="tag purple">1060-修复核验自适应扫描</span>
+        <span class="tag method">工单外壳</span>
+        <span>主任务 #2001847</span>
+        <span>· runId <code id="runId">run-demo-001</code> v<span id="runVersion">1</span></span>
+      </div>
+
+      <div class="lifecycle" aria-label="任务生命周期">
+        <span class="step done"><span class="dot">✓</span>任务预检</span><span class="step-sep">→</span>
+        <span class="step done"><span class="dot">✓</span>任务下发</span><span class="step-sep">→</span>
+        <span class="step done"><span class="dot">✓</span>连通性检测</span><span class="step-sep">→</span>
+        <span class="step current"><span class="dot">4</span>修复核验</span><span class="step-sep">→</span>
+        <span class="step"><span class="dot">5</span>结果回收</span><span class="step-sep">→</span>
+        <span class="step"><span class="dot">6</span>任务结束</span>
+      </div>
+
+      <!-- 导入方式：统一报告导入 / 逐任务上传 -->
+      <div class="mode-tabs" role="tablist">
+        <button type="button" class="mode-tab active" data-mode="unified" role="tab">统一报告导入</button>
+        <button type="button" class="mode-tab" data-mode="single" role="tab">逐任务上传</button>
+      </div>
+      <p class="mode-desc" id="modeDesc">
+        上传一份或多份报告，解析后按资产自动匹配多个子任务；下方可<strong>统一配置</strong>资产匹配规则。
+      </p>
+
+      <!-- 统一报告导入区 -->
+      <div class="unified-panel" id="panelUnified">
+        <h4>统一报告导入</h4>
+        <div class="param-row">
+          <label for="unifiedMatchRule">资产匹配规则（统一）</label>
+          <select id="unifiedMatchRule">
+            <option value="1">1 - 按资产匹配</option>
+            <option value="0">0 - 全量导入</option>
+          </select>
+          <span style="color:var(--muted);">应用于本次解析后分发的所有子任务</span>
+        </div>
+        <div class="upload-zone">
+          <p>支持 .xml / .xmls · 同一解析器能力 · 解析一次按 IP 分发</p>
+          <button type="button" class="btn primary" id="btnUnifiedUpload">选择报告并解析匹配</button>
+        </div>
+        <ul class="match-list hidden" id="matchList"></ul>
+      </div>
+
+      <!-- 步骤时间线 -->
+      <div class="timeline" id="timeline">
+        <article class="step-card done" data-step="1" data-sub="1001" data-needs-upload="0">
+          <div class="step-card-hd">
+            <div>
+              <div class="step-title">第 1 步 · 连通性检测</div>
+              <div class="step-sub"><span class="tag method">1028</span> 子任务 #1001 · 在线回收</div>
+            </div>
+            <span class="tag green step-tag">已完成</span>
+          </div>
+          <div class="step-sub">2026-07-17 14:20 · 存活 IP 3 个</div>
+        </article>
+
+        <article class="step-card active" data-step="2" data-sub="1002" data-needs-upload="1">
+          <div class="step-card-hd">
+            <div>
+              <div class="step-title">第 2 步 · 修复核验 A</div>
+              <div class="step-sub"><span class="tag method">1022</span> 绿盟-XML · 资产 10.1.1.10-12</div>
+            </div>
+            <span class="tag orange step-tag">待上传</span>
+          </div>
+          <div class="step-body" id="body2">
+            <div class="param-row single-only hidden">
+              <label>资产匹配规则</label>
+              <select class="match-rule-select" data-sub="1002">
+                <option value="1" selected>1 - 按资产匹配</option>
+                <option value="0">0 - 全量导入</option>
+              </select>
+            </div>
+            <div class="upload-zone single-only hidden">
+              <p>为此子任务单独选择报告文件</p>
+              <button type="button" class="btn primary btn-single-upload" data-sub="1002">选择文件并上传</button>
+            </div>
+            <p class="unified-hint" style="margin:0;font-size:12px;color:#595959;">
+              统一导入模式下：由顶部报告解析后自动匹配本子任务资产范围。
+            </p>
+          </div>
+        </article>
+
+        <article class="step-card locked" data-step="3" data-sub="1003" data-needs-upload="1">
+          <div class="step-card-hd">
+            <div>
+              <div class="step-title">第 3 步 · 修复核验 B</div>
+              <div class="step-sub"><span class="tag method">1021</span> 绿盟-XML · 资产 10.1.1.20</div>
+            </div>
+            <span class="tag blue step-tag">等待上一步</span>
+          </div>
+          <div class="step-sub">第 2 步成功回收后自动解锁</div>
+          <div class="step-body hidden" id="body3">
+            <div class="param-row single-only hidden">
+              <label>资产匹配规则</label>
+              <select class="match-rule-select" data-sub="1003">
+                <option value="1" selected>1 - 按资产匹配</option>
+                <option value="0">0 - 全量导入</option>
+              </select>
+            </div>
+            <div class="upload-zone single-only hidden">
+              <button type="button" class="btn primary btn-single-upload" data-sub="1003">选择文件并上传</button>
+            </div>
+            <p class="unified-hint" style="margin:0;font-size:12px;color:#595959;">
+              统一导入模式下：由顶部报告解析后自动匹配本子任务资产范围。
+            </p>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <footer class="drawer-ft">
+      <div class="next-hint" id="nextHint">下一步：<strong>统一导入报告或逐任务上传第 2 步</strong></div>
+      <button type="button" class="btn" id="btnPause">暂停</button>
+      <button type="button" class="btn" id="btnCancel">取消</button>
+      <button type="button" class="btn primary" id="btnSimulate">模拟自动推进</button>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var mode = 'unified'
+      var paused = false
+      var wsConnected = true
+      var runVersion = 1
+
+      var modeDesc = document.getElementById('modeDesc')
+      var panelUnified = document.getElementById('panelUnified')
+      var matchList = document.getElementById('matchList')
+      var nextHint = document.getElementById('nextHint')
+      var wsLog = document.getElementById('wsLog')
+      var wsDot = document.getElementById('wsDot')
+      var runVersionEl = document.getElementById('runVersion')
+      var eventToast = document.getElementById('eventToast')
+      var runBanner = document.getElementById('runBanner')
+
+      function toast (text) {
+        eventToast.textContent = text
+        eventToast.classList.add('show')
+        setTimeout(function () { eventToast.classList.remove('show') }, 2200)
+      }
+
+      function pushEvent (detail) {
+        if (!wsConnected) {
+          wsLog.textContent = 'WebSocket 断开 · 请手动刷新快照'
+          return
+        }
+        runVersion++
+        runVersionEl.textContent = runVersion
+        wsLog.textContent = '静默事件 v' + runVersion + ' · ' + detail
+      }
+
+      function setMode (m) {
+        mode = m
+        document.querySelectorAll('.mode-tab').forEach(function (t) {
+          t.classList.toggle('active', t.getAttribute('data-mode') === m)
+        })
+        var isUnified = m === 'unified'
+        panelUnified.classList.toggle('hidden', !isUnified)
+        document.querySelectorAll('.single-only').forEach(function (el) {
+          el.classList.toggle('hidden', isUnified)
+        })
+        document.querySelectorAll('.unified-hint').forEach(function (el) {
+          el.classList.toggle('hidden', !isUnified)
+        })
+        modeDesc.innerHTML = isUnified
+          ? '上传一份或多份报告，解析后按资产自动匹配多个子任务；下方可<strong>统一配置</strong>资产匹配规则。'
+          : '每个需导入报告的子任务可<strong>单独上传</strong>并<strong>单独选择</strong>资产匹配规则。'
+        nextHint.innerHTML = isUnified
+          ? '下一步：<strong>在顶部统一导入报告</strong>'
+          : '下一步：<strong>为第 2 步选择报告与匹配规则</strong>'
+      }
+
+      function setStep (step, state, tagText, tagClass) {
+        var card = document.querySelector('.step-card[data-step="' + step + '"]')
+        if (!card) return
+        card.classList.remove('active', 'done', 'running', 'locked')
+        if (state) card.classList.add(state)
+        var tag = card.querySelector('.step-tag')
+        if (tag) { tag.textContent = tagText; tag.className = 'tag step-tag ' + tagClass }
+      }
+
+      document.querySelectorAll('.mode-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () { setMode(tab.getAttribute('data-mode')) })
+      })
+
+      document.querySelectorAll('.step-card:not(.locked)').forEach(function (card) {
+        card.addEventListener('click', function () {
+          if (card.classList.contains('locked')) return
+          document.querySelectorAll('.step-card').forEach(function (c) { c.classList.remove('active') })
+          card.classList.add('active')
+          var body = card.querySelector('.step-body')
+          if (body) body.classList.remove('hidden')
+        })
+      })
+
+      document.getElementById('btnReconnect').addEventListener('click', function () {
+        wsConnected = !wsConnected
+        wsDot.className = 'ws-dot' + (wsConnected ? '' : ' off')
+        wsLog.textContent = wsConnected ? '已重连 · 静默通道恢复' : '已断开 · 请手动刷新'
+        toast(wsConnected ? 'WebSocket 已重连' : 'WebSocket 已断开')
+      })
+
+      document.getElementById('btnRefresh').addEventListener('click', function () {
+        runVersion++
+        runVersionEl.textContent = runVersion
+        wsLog.textContent = 'REST 快照 v' + runVersion
+        toast('已刷新编排快照')
+      })
+
+      document.getElementById('btnUnifiedUpload').addEventListener('click', function () {
+        if (paused) { toast('编排已暂停'); return }
+        var rule = document.getElementById('unifiedMatchRule').value
+        var ruleLabel = rule === '1' ? '按资产匹配' : '全量导入'
+        matchList.classList.remove('hidden')
+        matchList.innerHTML =
+          '<li>规则 <strong>' + ruleLabel + '</strong> · scan_report.xml</li>' +
+          '<li>✓ 命中 #1002（10.1.1.10-12）→ 将自动回收</li>' +
+          '<li class="uncovered">⚠ 未覆盖 #1003（10.1.1.20）· 保持待上传，可补传报告</li>'
+        pushEvent('统一报告已解析 · 规则=' + ruleLabel)
+        toast('报告已解析 · 1 命中 / 1 未覆盖')
+        nextHint.innerHTML = '下一步：<strong>自动回收 #1002，随后解锁 #1003</strong>'
+      })
+
+      document.querySelectorAll('.btn-single-upload').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var sub = btn.getAttribute('data-sub')
+          var sel = document.querySelector('.match-rule-select[data-sub="' + sub + '"]')
+          var rule = sel ? sel.options[sel.selectedIndex].text : ''
+          pushEvent('子任务 #' + sub + ' 单文件上传 · ' + rule)
+          toast('子任务 #' + sub + ' 报告已提交')
+        })
+      })
+
+      document.getElementById('btnSimulate').addEventListener('click', function () {
+        if (paused) { toast('编排已暂停'); return }
+        var steps = [
+          function () {
+            setStep(2, 'running', '回收中', 'blue')
+            pushEvent('子任务 #1002 开始回收')
+            toast('第 2 步执行中…')
+          },
+          function () {
+            setStep(2, 'done', '已完成', 'green')
+            pushEvent('子任务 #1002 回收成功')
+            runBanner.textContent = '运行中 · 进度 2/3 · 当前阶段：修复核验'
+          },
+          function () {
+            var c3 = document.querySelector('.step-card[data-step="3"]')
+            c3.classList.remove('locked')
+            setStep(3, 'active', '待上传', 'orange')
+            c3.querySelector('.step-body').classList.remove('hidden')
+            pushEvent('第 3 步已解锁')
+            nextHint.innerHTML = '下一步：<strong>为 #1003 上传报告（统一或逐任务）</strong>'
+            toast('第 3 步已自动解锁')
+          },
+          function () {
+            setStep(3, 'running', '回收中', 'blue')
+            pushEvent('子任务 #1003 开始回收')
+          },
+          function () {
+            setStep(3, 'done', '已完成', 'green')
+            pushEvent('编排完成')
+            runBanner.textContent = '已完成 · 3/3'
+            nextHint.innerHTML = '全部完成 · <strong>可关闭抽屉</strong>'
+            document.getElementById('btnSimulate').disabled = true
+            toast('自动有序执行完成')
+          }
+        ]
+        var i = 0
+        ;(function tick () {
+          if (i >= steps.length) return
+          steps[i++]()
+          setTimeout(tick, 1100)
+        })()
+      })
+
+      document.getElementById('btnPause').addEventListener('click', function () {
+        paused = !paused
+        this.textContent = paused ? '继续' : '暂停'
+        toast(paused ? '编排已暂停' : '编排已继续')
+      })
+
+      setMode('unified')
+    })()
+  </script>
+</body>
+</html>

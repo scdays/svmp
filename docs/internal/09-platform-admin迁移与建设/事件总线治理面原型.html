@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>事件总线治理面 - 原型</title>
+<style>
+/* ===== Ant Design Vue 风格基础样式 ===== */
+:root {
+  --primary: #1890ff;
+  --success: #52c41a;
+  --warning: #faad14;
+  --error: #ff4d4f;
+  --bg: #f0f2f5;
+  --card-bg: #fff;
+  --border: #f0f0f0;
+  --text: #333;
+  --text-secondary: #666;
+  --text-muted: #999;
+  --radius: 4px;
+  --shadow: 0 1px 2px rgba(0,0,0,.06);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif; background:var(--bg); color:var(--text); font-size:14px; display:flex; min-height:100vh; }
+a { color:var(--primary); text-decoration:none; cursor:pointer; }
+a:hover { color:#40a9ff; }
+
+/* ===== 侧边栏 ===== */
+.sidebar {
+  width:220px; min-width:220px; background:#001529; color:#fff; display:flex; flex-direction:column;
+  position:sticky; top:0; height:100vh; overflow-y:auto; z-index:10;
+}
+.sidebar-logo { padding:16px 24px; font-size:16px; font-weight:600; border-bottom:1px solid rgba(255,255,255,.1); white-space:nowrap; }
+.sidebar-menu { flex:1; padding:8px 0; }
+.menu-group { margin-bottom:4px; }
+.menu-group-title { padding:8px 24px 4px; font-size:12px; color:rgba(255,255,255,.45); text-transform:uppercase; }
+.menu-item {
+  display:flex; align-items:center; padding:10px 24px; cursor:pointer; color:rgba(255,255,255,.65);
+  transition:all .2s; font-size:14px; white-space:nowrap; position:relative;
+}
+.menu-item:hover { color:#fff; background:rgba(255,255,255,.08); }
+.menu-item.active { color:#fff; background:var(--primary); }
+.menu-item .icon { width:16px; margin-right:10px; text-align:center; font-size:14px; }
+
+/* ===== 主内容区 ===== */
+.main { flex:1; display:flex; flex-direction:column; min-width:0; }
+.header { background:#fff; padding:0 24px; height:48px; display:flex; align-items:center; justify-content:space-between; box-shadow:var(--shadow); z-index:5; }
+.header-left { display:flex; align-items:center; gap:16px; }
+.header-right { display:flex; align-items:center; gap:12px; color:var(--text-secondary); font-size:13px; }
+.content { flex:1; padding:16px 24px; overflow-y:auto; }
+
+/* ===== 面包屑 ===== */
+.breadcrumb { padding:12px 0; font-size:13px; color:var(--text-muted); }
+.breadcrumb span { color:var(--text-muted); }
+.breadcrumb span:last-child { color:var(--text); }
+
+/* ===== 卡片 ===== */
+.card { background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:16px; }
+.card-header { padding:12px 16px; border-bottom:1px solid var(--border); font-weight:500; font-size:14px; display:flex; align-items:center; justify-content:space-between; }
+.card-body { padding:16px; }
+.card-title { font-size:14px; font-weight:500; }
+
+/* ===== 表单 ===== */
+.form-row { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; align-items:flex-end; }
+.form-item { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.form-item label { font-size:13px; color:var(--text-secondary); white-space:nowrap; }
+.form-item input, .form-item select, .form-item textarea {
+  height:32px; padding:0 11px; border:1px solid #d9d9d9; border-radius:var(--radius); font-size:13px;
+  outline:none; transition:border-color .2s; background:#fff; color:var(--text);
+}
+.form-item input:focus, .form-item select:focus, .form-item textarea:focus { border-color:var(--primary); box-shadow:0 0 0 2px rgba(24,144,255,.2); }
+.form-item select { cursor:pointer; }
+.form-item textarea { height:auto; padding:8px 11px; resize:vertical; font-family:'Consolas','Monaco',monospace; min-height:120px; }
+.form-item input[type="date"] { font-family:inherit; }
+.form-item .readonly { background:#f5f5f5; color:var(--text-secondary); cursor:default; }
+
+/* ===== 按钮 ===== */
+.btn {
+  display:inline-flex; align-items:center; gap:4px; height:32px; padding:0 16px; border:1px solid #d9d9d9;
+  border-radius:var(--radius); font-size:13px; cursor:pointer; background:#fff; transition:all .2s;
+  white-space:nowrap; user-select:none;
+}
+.btn:hover { color:var(--primary); border-color:var(--primary); }
+.btn-primary { background:var(--primary); border-color:var(--primary); color:#fff; }
+.btn-primary:hover { background:#40a9ff; border-color:#40a9ff; color:#fff; }
+.btn-danger { color:var(--error); border-color:var(--error); }
+.btn-danger:hover { background:var(--error); color:#fff; }
+.btn-success { background:var(--success); border-color:var(--success); color:#fff; }
+.btn-success:hover { background:#73d13d; }
+.btn-sm { height:26px; padding:0 8px; font-size:12px; }
+.btn-link { border:none; background:none; color:var(--primary); padding:0 4px; }
+.btn-link:hover { color:#40a9ff; }
+
+/* ===== 表格 ===== */
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+table th { background:#fafafa; padding:10px 12px; text-align:left; font-weight:500; color:var(--text-secondary); border-bottom:1px solid var(--border); white-space:nowrap; }
+table td { padding:10px 12px; border-bottom:1px solid var(--border); }
+table tbody tr:hover { background:#fafafa; }
+
+/* ===== 标签 ===== */
+.tag { display:inline-block; padding:2px 8px; border-radius:2px; font-size:12px; line-height:18px; }
+.tag-blue { background:#e6f7ff; color:#1890ff; border:1px solid #91d5ff; }
+.tag-green { background:#f6ffed; color:#52c41a; border:1px solid #b7eb8f; }
+.tag-red { background:#fff2f0; color:#ff4d4f; border:1px solid #ffccc7; }
+.tag-orange { background:#fff7e6; color:#fa8c16; border:1px solid #ffd591; }
+.tag-gray { background:#fafafa; color:#666; border:1px solid #e8e8e8; }
+.tag-purple { background:#f9f0ff; color:#722ed1; border:1px solid #d3adf7; }
+
+/* ===== 分页 ===== */
+.pagination { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:12px 0; font-size:13px; color:var(--text-secondary); }
+.pagination .page-btn { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border:1px solid #d9d9d9; border-radius:var(--radius); cursor:pointer; background:#fff; }
+.pagination .page-btn:hover { color:var(--primary); border-color:var(--primary); }
+.pagination .page-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+.pagination .page-btn.disabled { color:#d9d9d9; cursor:not-allowed; }
+
+/* ===== 描述列表 ===== */
+.desc-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:8px 24px; }
+.desc-item { display:flex; gap:8px; }
+.desc-item .label { color:var(--text-muted); white-space:nowrap; min-width:90px; }
+.desc-item .value { color:var(--text); word-break:break-all; }
+
+/* ===== 时间线 ===== */
+.timeline { position:relative; padding-left:24px; }
+.timeline::before { content:''; position:absolute; left:7px; top:4px; bottom:4px; width:2px; background:#e8e8e8; }
+.timeline-item { position:relative; margin-bottom:20px; }
+.timeline-item:last-child { margin-bottom:0; }
+.timeline-dot {
+  position:absolute; left:-21px; top:4px; width:12px; height:12px; border-radius:50%;
+  border:2px solid var(--primary); background:#fff; z-index:1;
+}
+.timeline-dot.green { border-color:var(--success); }
+.timeline-dot.red { border-color:var(--error); }
+.timeline-dot.orange { border-color:var(--warning); }
+.timeline-time { font-size:12px; color:var(--text-muted); margin-bottom:2px; }
+.timeline-content { font-size:13px; }
+
+/* ===== 卡片网格 ===== */
+.card-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px; }
+.catalog-card { background:#fff; border-radius:var(--radius); border:1px solid var(--border); padding:16px; cursor:pointer; transition:all .2s; }
+.catalog-card:hover { border-color:var(--primary); box-shadow:0 2px 8px rgba(24,144,255,.12); }
+.catalog-card .event-type { font-size:15px; font-weight:500; color:var(--text); margin-bottom:8px; word-break:break-all; }
+.catalog-card .meta { font-size:12px; color:var(--text-muted); display:flex; gap:16px; }
+
+/* ===== 弹窗 ===== */
+.modal-mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; align-items:center; justify-content:center; }
+.modal-mask.show { display:flex; }
+.modal { background:#fff; border-radius:4px; width:420px; max-width:90vw; box-shadow:0 4px 12px rgba(0,0,0,.15); }
+.modal-header { padding:16px 24px; border-bottom:1px solid var(--border); font-weight:500; display:flex; align-items:center; justify-content:space-between; }
+.modal-body { padding:24px; font-size:14px; }
+.modal-footer { padding:12px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; }
+.modal-close { cursor:pointer; color:var(--text-muted); font-size:18px; background:none; border:none; line-height:1; }
+.modal-close:hover { color:var(--text); }
+.modal-wide { width:720px; max-width:95vw; }
+
+/* ===== JSON 报文查看器 ===== */
+.payload-viewer { background:#1e1e1e; border-radius:var(--radius); padding:16px; position:relative; }
+.payload-viewer pre { color:#d4d4d4; font-family:'Consolas','Monaco','Courier New',monospace; font-size:13px; line-height:1.6; white-space:pre-wrap; word-break:break-all; max-height:400px; overflow-y:auto; margin:0; }
+.payload-viewer .toolbar { display:flex; gap:6px; margin-bottom:10px; }
+.payload-viewer .toolbar .btn { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.2); color:#d4d4d4; height:28px; font-size:12px; }
+.payload-viewer .toolbar .btn:hover { background:rgba(255,255,255,.2); border-color:rgba(255,255,255,.3); color:#fff; }
+.payload-meta { color:var(--text-muted); font-size:12px; margin-bottom:12px; }
+.payload-empty { text-align:center; padding:40px; color:var(--text-muted); }
+.payload-empty .icon { font-size:40px; margin-bottom:12px; }
+
+/* ===== 结果卡片 ===== */
+.result-card { display:none; border:1px solid #b7eb8f; background:#f6ffed; border-radius:var(--radius); padding:16px; }
+.result-card.show { display:block; }
+.result-card.error { border-color:#ffccc7; background:#fff2f0; }
+.result-card .result-title { font-size:14px; font-weight:500; margin-bottom:8px; }
+.result-card .result-title.success { color:var(--success); }
+.result-card .result-title.error { color:var(--error); }
+
+/* ===== 空状态 ===== */
+.empty { text-align:center; padding:40px; color:var(--text-muted); }
+
+/* ===== 页面切换 ===== */
+.page { display:none; }
+.page.active { display:block; }
+
+/* ===== 统计卡片 ===== */
+.stat-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:16px; }
+.stat-card { background:#fff; border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; }
+.stat-card .stat-value { font-size:28px; font-weight:600; margin-bottom:4px; }
+.stat-card .stat-label { font-size:13px; color:var(--text-muted); }
+
+/* ===== 提示信息 ===== */
+.info-bar { background:#fff; border-radius:var(--radius); box-shadow:var(--shadow); padding:12px 16px; margin-bottom:16px; font-size:13px; display:flex; align-items:center; gap:8px; }
+.info-bar .info-icon { color:var(--primary); font-size:16px; }
+
+/* ===== 筛选栏 ===== */
+.filter-section { display:flex; flex-wrap:wrap; gap:8px 12px; }
+.filter-section .form-item { flex:0 0 auto; }
+.filter-section .form-item input, .filter-section .form-item select { width:160px; }
+
+/* ===== 响应式辅助 ===== */
+.w-60 { width:60px; min-width:60px; }
+.w-80 { width:80px; min-width:80px; }
+.w-100 { width:100px; min-width:100px; }
+.w-120 { width:120px; min-width:120px; }
+.w-140 { width:140px; min-width:140px; }
+.w-160 { width:160px; min-width:160px; }
+.w-200 { width:200px; min-width:200px; }
+.text-mono { font-family:'Consolas','Monaco',monospace; font-size:12px; }
+.text-truncate { max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; }
+.cursor-pointer { cursor:pointer; }
+</style>
+</head>
+<body>
+
+<!-- ===== 侧边栏 ===== -->
+<aside class="sidebar">
+  <div class="sidebar-logo">🔧 资产安全平台</div>
+  <nav class="sidebar-menu">
+    <div class="menu-group">
+      <div class="menu-group-title">平台治理</div>
+      <div class="menu-item" data-page="dashboard">
+        <span class="icon">📊</span> 概览面板
+      </div>
+    </div>
+    <div class="menu-group">
+      <div class="menu-group-title">事件治理</div>
+      <div class="menu-item active" data-page="traces">
+        <span class="icon">📋</span> 事件轨迹
+      </div>
+      <div class="menu-item" data-page="dead-letters">
+        <span class="icon">⚠️</span> 死信管理
+      </div>
+      <div class="menu-item" data-page="publish">
+        <span class="icon">📤</span> 事件发布
+      </div>
+      <div class="menu-item" data-page="catalogs">
+        <span class="icon">📂</span> 事件目录
+      </div>
+      <div class="menu-item" data-page="subscriptions">
+        <span class="icon">🔗</span> 订阅管理
+      </div>
+      <div class="menu-item" data-page="audit-logs">
+        <span class="icon">📝</span> 审计日志
+      </div>
+    </div>
+  </nav>
+</aside>
+
+<!-- ===== 主内容区 ===== -->
+<main class="main">
+  <header class="header">
+    <div class="header-left">
+      <span style="font-weight:500;">事件治理</span>
+    </div>
+    <div class="header-right">
+      <span>👤 zhangsan (admin)</span>
+      <span style="color:var(--text-muted);">|</span>
+      <span>🏢 天融信 (partner)</span>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ===== 概览面板 ===== -->
+    <div class="page" id="page-dashboard">
+      <div class="breadcrumb"><span>事件治理</span> / <span>概览面板</span></div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--primary);">1,234</div>
+          <div class="stat-label">今日发布 <span style="color:var(--success);">↑12%</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--success);">1,180</div>
+          <div class="stat-label">消费成功 <span style="color:var(--success);">↑8%</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--error);">42</div>
+          <div class="stat-label">消费失败 <span style="color:var(--success);">↓3%</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--warning);">12</div>
+          <div class="stat-label">死信待处理 <span style="color:var(--error);">↑2</span></div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="card">
+          <div class="card-header"><span>按租户分布（Top 5）</span></div>
+          <div class="card-body">
+            <table>
+              <thead><tr><th>租户</th><th>发布量</th><th>占比</th></tr></thead>
+              <tbody>
+                <tr><td>partner: 天融信</td><td>556</td><td><span class="tag tag-blue">45%</span></td></tr>
+                <tr><td>partner: 绿盟</td><td>345</td><td><span class="tag tag-green">28%</span></td></tr>
+                <tr><td>partner: 奇安信</td><td>185</td><td><span class="tag tag-purple">15%</span></td></tr>
+                <tr><td>internal: SOAR</td><td>99</td><td><span class="tag tag-orange">8%</span></td></tr>
+                <tr><td>internal: 其他</td><td>49</td><td><span class="tag tag-gray">4%</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span>消费组健康状态</span></div>
+          <div class="card-body">
+            <table>
+              <thead><tr><th>消费组</th><th>状态</th><th>Lag</th><th>死信率</th></tr></thead>
+              <tbody>
+                <tr><td>platform-admin-invocation</td><td><span class="tag tag-green">● 正常</span></td><td>0</td><td>0%</td></tr>
+                <tr><td>vul-pass-notification</td><td><span class="tag tag-orange">◉ 积压</span></td><td>23</td><td>2.1%</td></tr>
+                <tr><td>webhook-delivery</td><td><span class="tag tag-green">● 正常</span></td><td>1</td><td>0.5%</td></tr>
+                <tr><td>task-executor</td><td><span class="tag tag-red">◎ 离线</span></td><td>—</td><td>—</td></tr>
+                <tr><td>audit-consumer</td><td><span class="tag tag-green">● 正常</span></td><td>0</td><td>0%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 事件轨迹列表 ===== -->
+    <div class="page active" id="page-traces">
+      <div class="breadcrumb"><span>事件治理</span> / <span>事件轨迹</span></div>
+
+      <!-- 搜索栏 -->
+      <div class="card">
+        <div class="card-body">
+          <div class="filter-section">
+            <div class="form-item">
+              <label>事件类型</label>
+              <input type="text" placeholder="模糊匹配" id="trace-eventType">
+            </div>
+            <div class="form-item">
+              <label>topic</label>
+              <select id="trace-topic">
+                <option value="">全部</option>
+                <option>asset-security-domain-event</option>
+                <option>vul-pass-event</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>来源服务</label>
+              <input type="text" placeholder="来源服务" id="trace-sourceService">
+            </div>
+            <div class="form-item">
+              <label>traceId</label>
+              <input type="text" placeholder="链路追踪ID" id="trace-traceId">
+            </div>
+            <div class="form-item">
+              <label>状态</label>
+              <select id="trace-status">
+                <option value="">全部</option>
+                <option>PUBLISHED</option>
+                <option>RECEIVED</option>
+                <option>FAILED</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>时间范围</label>
+              <div style="display:flex; gap:4px; align-items:center;">
+                <input type="date" style="width:140px;" id="trace-startTime">
+                <span>~</span>
+                <input type="date" style="width:140px;" id="trace-endTime">
+              </div>
+            </div>
+            <div class="form-item" style="align-self:flex-end;">
+              <label>&nbsp;</label>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-primary" onclick="searchTraces()">🔍 查询</button>
+                <button class="btn" onclick="resetTraces()">重置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 表格 -->
+      <div class="card">
+        <div class="card-header"><span>事件轨迹列表</span><span style="color:var(--text-muted);font-weight:400;">共 126 条</span></div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="w-60">序号</th>
+                  <th class="w-200">eventId</th>
+                  <th style="width:180px;">事件类型</th>
+                  <th class="w-160">topic</th>
+                  <th class="w-120">来源服务</th>
+                  <th class="w-80">状态</th>
+                  <th class="w-120">操作人</th>
+                  <th class="w-140">租户</th>
+                  <th style="width:170px;">发生时间</th>
+                  <th class="w-100">操作</th>
+                </tr>
+              </thead>
+              <tbody id="trace-table-body"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span>共 126 条</span>
+            <span class="page-btn disabled">‹</span>
+            <span class="page-btn active">1</span>
+            <span class="page-btn">2</span>
+            <span class="page-btn">3</span>
+            <span class="page-btn">›</span>
+            <select style="height:32px;padding:0 8px;border:1px solid #d9d9d9;border-radius:var(--radius);"><option>20条/页</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 事件详情 ===== -->
+    <div class="page" id="page-detail">
+      <div class="breadcrumb"><span>事件治理</span> / <a onclick="navigateTo('traces')">事件轨迹</a> / <span>详情</span></div>
+
+      <!-- ① 发布轨迹卡片 -->
+      <div class="card">
+        <div class="card-header"><span>📋 发布轨迹</span><button class="btn btn-sm" onclick="showPayloadModal('a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', 'trace', 'vul-pass.vulnerability.created')">📄 查看报文</button></div>
+        <div class="card-body">
+          <div class="desc-list">
+            <div class="desc-item"><span class="label">eventId:</span><span class="value text-mono">a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6</span></div>
+            <div class="desc-item"><span class="label">事件类型:</span><span class="value"><span class="tag tag-blue">vul-pass.vulnerability.created</span></span></div>
+            <div class="desc-item"><span class="label">topic:</span><span class="value">asset-security-domain-event</span></div>
+            <div class="desc-item"><span class="label">来源服务:</span><span class="value">vul-pass</span></div>
+            <div class="desc-item"><span class="label">traceId:</span><span class="value text-mono">trace-x9y8z7w6v5u4</span></div>
+            <div class="desc-item"><span class="label">idempotentKey:</span><span class="value text-mono">vuln-VULN-001-created</span></div>
+            <div class="desc-item"><span class="label">发生时间:</span><span class="value">2026-06-27 14:30:01</span></div>
+            <div class="desc-item"><span class="label">状态:</span><span class="value"><span class="tag tag-green">PUBLISHED</span></span></div>
+            <div class="desc-item"><span class="label">操作人:</span><span class="value"><span class="tag tag-blue">admin:zhangsan</span></span></div>
+            <div class="desc-item"><span class="label">租户:</span><span class="value"><span class="tag tag-purple">partner:天融信</span></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ② 消费轨迹卡片 -->
+      <div class="card">
+        <div class="card-header"><span>📡 消费轨迹</span><span style="color:var(--text-muted);font-weight:400;">2 个消费组</span></div>
+        <div class="card-body">
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div style="border:1px solid var(--border); border-radius:var(--radius); padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-weight:500;">consumer: platform-admin-invocation</span>
+                <span class="tag tag-green">SUCCESS</span>
+              </div>
+              <div class="desc-list">
+                <div class="desc-item"><span class="label">handler:</span><span class="value">InvocationRecordedEventHandler</span></div>
+                <div class="desc-item"><span class="label">retry:</span><span class="value">0</span></div>
+                <div class="desc-item"><span class="label">startedAt:</span><span class="value">2026-06-27 14:30:02</span></div>
+                <div class="desc-item"><span class="label">finishedAt:</span><span class="value">2026-06-27 14:30:02</span></div>
+                <div class="desc-item"><span class="label">耗时:</span><span class="value">23ms</span></div>
+                <div class="desc-item"><span class="label">lastError:</span><span class="value">—</span></div>
+              </div>
+            </div>
+            <div style="border:1px solid var(--border); border-radius:var(--radius); padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-weight:500;">consumer: vul-pass-notification</span>
+                <span class="tag tag-red">FAILED</span>
+              </div>
+              <div class="desc-list">
+                <div class="desc-item"><span class="label">handler:</span><span class="value">VulPassNotificationHandler</span></div>
+                <div class="desc-item"><span class="label">retry:</span><span class="value">3</span></div>
+                <div class="desc-item"><span class="label">startedAt:</span><span class="value">2026-06-27 14:30:02</span></div>
+                <div class="desc-item"><span class="label">finishedAt:</span><span class="value">2026-06-27 14:30:05</span></div>
+                <div class="desc-item"><span class="label">耗时:</span><span class="value">3.2s</span></div>
+                <div class="desc-item"><span class="label">lastError:</span><span class="value" style="color:var(--error);">connection timeout</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ③ 死信信息 -->
+      <div class="card" style="border-left:3px solid var(--error);">
+        <div class="card-header"><span>💀 死信信息</span><div><span class="tag tag-red" style="margin-right:8px;">需处理</span><button class="btn btn-sm" onclick="showPayloadModal('a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', 'dead-letter', 'vul-pass.vulnerability.created')">📄 查看报文</button></div></div>
+        <div class="card-body">
+          <div class="desc-list">
+            <div class="desc-item"><span class="label">failedService:</span><span class="value">vul-pass-notification</span></div>
+            <div class="desc-item"><span class="label">failedHandler:</span><span class="value">VulPassNotificationHandler</span></div>
+            <div class="desc-item"><span class="label">failedReason:</span><span class="value" style="color:var(--error);">connection timeout</span></div>
+            <div class="desc-item"><span class="label">retryCount:</span><span class="value">3</span></div>
+            <div class="desc-item"><span class="label">deadTime:</span><span class="value">2026-06-27 14:30:05</span></div>
+            <div class="desc-item"><span class="label">replayStatus:</span><span class="value"><span class="tag tag-orange">PENDING</span></span></div>
+          </div>
+          <div style="margin-top:12px;">
+            <button class="btn btn-primary" onclick="showReplayModal()">🔄 重放</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ④ 事件时间线 -->
+      <div class="card">
+        <div class="card-header"><span>⏱ 事件时间线</span></div>
+        <div class="card-body">
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-time">14:30:01</div>
+              <div class="timeline-content">📤 <strong>published</strong> → topic: asset-security-domain-event</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot green"></div>
+              <div class="timeline-time">14:30:02</div>
+              <div class="timeline-content">✅ consumed by <strong>platform-admin-invocation</strong> → <span class="tag tag-green">SUCCESS</span> (23ms)</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot red"></div>
+              <div class="timeline-time">14:30:02</div>
+              <div class="timeline-content">❌ consumed by <strong>vul-pass-notification</strong> → <span class="tag tag-red">FAILED</span> (retry: 3)</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot orange"></div>
+              <div class="timeline-time">14:30:05</div>
+              <div class="timeline-content">💀 <strong>dead_letter</strong> → reason: connection timeout</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 死信列表 ===== -->
+    <div class="page" id="page-dead-letters">
+      <div class="breadcrumb"><span>事件治理</span> / <span>死信管理</span></div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="filter-section">
+            <div class="form-item">
+              <label>事件类型</label>
+              <input type="text" placeholder="事件类型" id="dl-eventType">
+            </div>
+            <div class="form-item">
+              <label>originTopic</label>
+              <select id="dl-originTopic">
+                <option value="">全部</option>
+                <option>asset-security-domain-event</option>
+                <option>vul-pass-event</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>consumerGroup</label>
+              <input type="text" placeholder="消费组" id="dl-consumerGroup">
+            </div>
+            <div class="form-item">
+              <label>failedService</label>
+              <input type="text" placeholder="失败服务" id="dl-failedService">
+            </div>
+            <div class="form-item">
+              <label>replayStatus</label>
+              <select id="dl-replayStatus">
+                <option value="">全部</option>
+                <option>PENDING</option>
+                <option>REPLAYED</option>
+                <option>FAILED</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>时间范围</label>
+              <div style="display:flex; gap:4px; align-items:center;">
+                <input type="date" style="width:140px;" id="dl-startTime">
+                <span>~</span>
+                <input type="date" style="width:140px;" id="dl-endTime">
+              </div>
+            </div>
+            <div class="form-item" style="align-self:flex-end;">
+              <label>&nbsp;</label>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-primary" onclick="searchDeadLetters()">🔍 查询</button>
+                <button class="btn">重置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span>死信事件列表</span><span style="color:var(--text-muted);font-weight:400;">共 12 条</span></div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="w-60">序号</th>
+                  <th class="w-200">eventId</th>
+                  <th style="width:160px;">事件类型</th>
+                  <th class="w-120">失败服务</th>
+                  <th class="w-200">失败处理器</th>
+                  <th style="width:200px;">失败原因</th>
+                  <th class="w-80">重试次数</th>
+                  <th style="width:90px;">重放状态</th>
+                  <th style="width:170px;">死信时间</th>
+                  <th class="w-120">操作</th>
+                </tr>
+              </thead>
+              <tbody id="dl-table-body"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span>共 12 条</span>
+            <span class="page-btn disabled">‹</span>
+            <span class="page-btn active">1</span>
+            <span class="page-btn">›</span>
+            <select style="height:32px;padding:0 8px;border:1px solid #d9d9d9;border-radius:var(--radius);"><option>20条/页</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 事件发布 ===== -->
+    <div class="page" id="page-publish">
+      <div class="breadcrumb"><span>事件治理</span> / <span>发布事件</span></div>
+
+      <!-- 当前操作人信息 -->
+      <div class="info-bar">
+        <span class="info-icon">👤</span>
+        <span>当前操作人: <strong>zhangsan</strong> (admin)</span>
+        <span style="margin:0 12px;color:var(--text-muted);">|</span>
+        <span>所属租户: <strong>天融信</strong> (partner)</span>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span>发布事件</span></div>
+        <div class="card-body">
+          <div class="form-row" style="flex-direction:column; gap:16px;">
+            <div style="display:flex; gap:16px; flex-wrap:wrap;">
+              <div class="form-item" style="flex:1; min-width:240px;">
+                <label>eventType <span style="color:var(--error);">*</span></label>
+                <input type="text" placeholder="例如 vul-pass.vulnerability.created" id="pub-eventType" value="vul-pass.vulnerability.created">
+              </div>
+              <div class="form-item" style="flex:1; min-width:240px;">
+                <label>topic</label>
+                <input type="text" placeholder="不填使用默认 topic" id="pub-topic" value="asset-security-domain-event">
+              </div>
+            </div>
+            <div style="display:flex; gap:16px; flex-wrap:wrap;">
+              <div class="form-item" style="flex:1; min-width:240px;">
+                <label>idempotentKey <span style="color:var(--error);">*</span></label>
+                <input type="text" placeholder="业务幂等键" id="pub-idempotentKey" value="vuln-VULN-002-created">
+              </div>
+              <div class="form-item" style="flex:1; min-width:240px;">
+                <label>partitionKey</label>
+                <input type="text" placeholder="默认使用幂等键" id="pub-partitionKey">
+              </div>
+            </div>
+            <div style="display:flex; gap:16px; flex-wrap:wrap;">
+              <div class="form-item" style="flex:1; min-width:240px;">
+                <label>eventVersion</label>
+                <input type="text" value="1.0" id="pub-eventVersion">
+              </div>
+              <div class="form-item" style="flex:1; min-width:240px;">
+                <label>operator (自动)</label>
+                <input type="text" class="readonly" value="admin:zhangsan" readonly>
+              </div>
+            </div>
+            <div class="form-item" style="flex:1; min-width:240px;">
+              <label>tenantType (自动)</label>
+              <input type="text" class="readonly" value="partner" readonly>
+            </div>
+            <div class="form-item" style="width:100%;">
+              <label>payload <span style="color:var(--error);">*</span></label>
+              <textarea placeholder='{"vulnId": "VULN-001", "severity": "HIGH"}' id="pub-payload" style="min-height:180px; font-family:Consolas,Monaco,monospace; font-size:13px;">{
+  "vulnId": "VULN-001",
+  "severity": "HIGH",
+  "title": "SQL注入漏洞",
+  "affectedHost": "192.168.1.100",
+  "description": "在登录接口发现SQL注入漏洞"
+}</textarea>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-primary" onclick="publishEvent()">📤 发布</button>
+              <button class="btn" onclick="resetPublishForm()">🔄 重置</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 发布结果 -->
+      <div class="card result-card" id="publish-result">
+        <div class="card-header"><span id="result-title">✓ 发布成功</span></div>
+        <div class="card-body">
+          <div class="desc-list">
+            <div class="desc-item"><span class="label">eventId:</span><span class="value text-mono" id="result-eventId">a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6</span></div>
+            <div class="desc-item"><span class="label">topic:</span><span class="value" id="result-topic">asset-security-domain-event</span></div>
+            <div class="desc-item"><span class="label">messageId:</span><span class="value" id="result-messageId">12345</span></div>
+          </div>
+          <div style="margin-top:12px;">
+            <a onclick="navigateTo('detail')">查看事件详情 →</a>
+            <span style="margin:0 8px;color:var(--text-muted);">|</span>
+            <a onclick="showPayloadModal(document.getElementById('result-eventId').textContent, 'trace', document.getElementById('pub-eventType').value)">查看报文 →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 事件目录 ===== -->
+    <div class="page" id="page-catalogs">
+      <div class="breadcrumb"><span>事件治理</span> / <span>事件目录</span></div>
+
+      <div class="card">
+        <div class="card-header"><span>事件目录</span><button class="btn btn-sm" onclick="refreshCatalogs()">🔄 刷新</button></div>
+        <div class="card-body">
+          <div class="card-grid" id="catalog-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 订阅管理 ===== -->
+    <div class="page" id="page-subscriptions">
+      <div class="breadcrumb"><span>事件治理</span> / <span>订阅管理</span></div>
+
+      <div class="card">
+        <div class="card-header"><span>订阅关系列表</span><span style="color:var(--text-muted);font-weight:400;">共 8 条</span></div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>topic</th>
+                  <th>消费组</th>
+                  <th>事件类型</th>
+                  <th>payload 类型</th>
+                  <th class="w-80">最大重试</th>
+                  <th class="w-80">死信</th>
+                </tr>
+              </thead>
+              <tbody id="sub-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 审计日志 ===== -->
+    <div class="page" id="page-audit-logs">
+      <div class="breadcrumb"><span>事件治理</span> / <span>审计日志</span></div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="filter-section">
+            <div class="form-item">
+              <label>操作人ID</label>
+              <input type="text" placeholder="操作人ID" id="al-operatorId">
+            </div>
+            <div class="form-item">
+              <label>操作类型</label>
+              <select id="al-operationType">
+                <option value="">全部</option>
+                <option>PUBLISH</option>
+                <option>REPLAY</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>目标类型</label>
+              <select id="al-targetType">
+                <option value="">全部</option>
+                <option>EVENT</option>
+                <option>DEAD_LETTER</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>结果</label>
+              <select id="al-result">
+                <option value="">全部</option>
+                <option>SUCCESS</option>
+                <option>FAILED</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>时间范围</label>
+              <div style="display:flex; gap:4px; align-items:center;">
+                <input type="date" style="width:140px;" id="al-startTime">
+                <span>~</span>
+                <input type="date" style="width:140px;" id="al-endTime">
+              </div>
+            </div>
+            <div class="form-item" style="align-self:flex-end;">
+              <label>&nbsp;</label>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-primary" onclick="searchAuditLogs()">🔍 查询</button>
+                <button class="btn">重置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span>治理操作审计日志</span><span style="color:var(--text-muted);font-weight:400;">共 38 条</span></div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="w-60">序号</th>
+                  <th style="width:170px;">操作时间</th>
+                  <th class="w-140">操作人</th>
+                  <th style="width:90px;">操作类型</th>
+                  <th class="w-100">目标类型</th>
+                  <th class="w-200">目标ID</th>
+                  <th class="w-80">结果</th>
+                  <th style="width:160px;">详情</th>
+                  <th class="w-120">客户端IP</th>
+                </tr>
+              </thead>
+              <tbody id="al-table-body"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span>共 38 条</span>
+            <span class="page-btn disabled">‹</span>
+            <span class="page-btn active">1</span>
+            <span class="page-btn">2</span>
+            <span class="page-btn">›</span>
+            <select style="height:32px;padding:0 8px;border:1px solid #d9d9d9;border-radius:var(--radius);"><option>20条/页</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ===== 重放确认弹窗 ===== -->
+<div class="modal-mask" id="replay-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span>确认重放</span>
+      <button class="modal-close" onclick="hideReplayModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>确定要重放该死信事件吗？</p>
+      <p style="margin-top:8px; color:var(--text-muted);">
+        eventId: <span class="text-mono" id="replay-eventId">a1b2c3d4...</span>
+      </p>
+      <p style="margin-top:4px; color:var(--text-muted);">
+        重放后事件将重新投递到原 topic，消费端可重新消费。
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="hideReplayModal()">取消</button>
+      <button class="btn btn-primary" onclick="confirmReplay()">确认重放</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 报文查看弹窗 ===== -->
+<div class="modal-mask" id="payload-modal">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <span>📄 事件报文</span>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:12px; color:var(--text-muted);" id="payload-source-label"></span>
+        <button class="modal-close" onclick="hidePayloadModal()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="payload-meta">
+        eventId: <span class="text-mono" id="payload-eventId"></span>
+      </div>
+      <div class="payload-viewer">
+        <div class="toolbar">
+          <button class="btn btn-sm" onclick="copyPayload()" title="复制到剪贴板">📋 复制</button>
+          <button class="btn btn-sm" onclick="downloadPayload()" title="下载为 JSON 文件">💾 下载</button>
+          <button class="btn btn-sm" onclick="formatPayload()" title="格式化 JSON">🔧 格式化</button>
+        </div>
+        <pre id="payload-content">暂无报文数据</pre>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span style="color:var(--text-muted); font-size:12px;" id="payload-size-info"></span>
+      <button class="btn" onclick="hidePayloadModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== 导航 =====
+function navigateTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+  const pageEl = document.getElementById('page-' + page);
+  if (pageEl) pageEl.classList.add('active');
+  const menuItem = document.querySelector(`[data-page="${page}"]`);
+  if (menuItem) menuItem.classList.add('active');
+}
+
+document.querySelectorAll('.menu-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const page = item.dataset.page;
+    if (page === 'detail') return;
+    navigateTo(page);
+  });
+});
+
+// ===== 事件轨迹 mock 数据 =====
+const traceData = [
+  { eventId:'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', eventType:'vul-pass.vulnerability.created', topic:'asset-security-domain-event', sourceService:'vul-pass', status:'PUBLISHED', subjectType:'admin', subjectId:'zhangsan', tenantType:'partner', tenantId:'天融信', occurredAt:'2026-06-27 14:30:01' },
+  { eventId:'b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7', eventType:'open-platform.invocation.recorded', topic:'asset-security-domain-event', sourceService:'partner-gateway', status:'RECEIVED', subjectType:'system', subjectId:'SOAR', tenantType:'partner', tenantId:'绿盟', occurredAt:'2026-06-27 14:28:15' },
+  { eventId:'c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8', eventType:'webhook.delivery.completed', topic:'webhook-event', sourceService:'platform-admin', status:'FAILED', subjectType:'admin', subjectId:'lisi', tenantType:'internal', tenantId:'SOAR', occurredAt:'2026-06-27 14:25:00' },
+  { eventId:'d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9', eventType:'task.scan.completed', topic:'task-event', sourceService:'task-center', status:'PUBLISHED', subjectType:'system', subjectId:'scheduler', tenantType:'internal', tenantId:'task-center', occurredAt:'2026-06-27 14:20:33' },
+  { eventId:'e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0', eventType:'vul-pass.vulnerability.updated', topic:'asset-security-domain-event', sourceService:'vul-pass', status:'RECEIVED', subjectType:'admin', subjectId:'wangwu', tenantType:'partner', tenantId:'奇安信', occurredAt:'2026-06-27 14:15:00' },
+];
+
+function renderTraceTable() {
+  const tbody = document.getElementById('trace-table-body');
+  tbody.innerHTML = traceData.map((r, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td><a class="text-mono" onclick="navigateToDetail('${r.eventId}')" title="${r.eventId}">${r.eventId.substring(0, 20)}...</a></td>
+      <td><span class="tag tag-blue">${r.eventType}</span></td>
+      <td>${r.topic}</td>
+      <td>${r.sourceService}</td>
+      <td>${r.status === 'PUBLISHED' ? '<span class="tag tag-green">PUBLISHED</span>' : r.status === 'RECEIVED' ? '<span class="tag tag-blue">RECEIVED</span>' : '<span class="tag tag-red">FAILED</span>'}</td>
+      <td><span class="tag tag-blue">${r.subjectType}:${r.subjectId}</span></td>
+      <td><span class="tag tag-purple">${r.tenantType}:${r.tenantId}</span></td>
+      <td>${r.occurredAt}</td>
+      <td>
+        <a onclick="navigateToDetail('${r.eventId}')" style="margin-right:8px;">详情</a>
+        <a onclick="navigateToDetail('${r.eventId}')" style="margin-right:8px;">时间线</a>
+        <a onclick="showPayloadModal('${r.eventId}', 'trace', '${r.eventType}')">报文</a>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function navigateToDetail(eventId) {
+  navigateTo('detail');
+  // 滚动到顶部
+  document.querySelector('.content').scrollTop = 0;
+}
+
+function searchTraces() {
+  alert('搜索条件已更新，实际将调用 GET /internal/admin/event-center/traces');
+}
+
+function resetTraces() {
+  document.querySelectorAll('#page-traces input, #page-traces select').forEach(el => { if(el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = ''; });
+}
+
+// ===== 死信列表 mock 数据 =====
+const dlData = [
+  { eventId:'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', eventType:'vul-pass.vulnerability.created', failedService:'vul-pass-notification', failedHandler:'VulPassNotificationHandler', failedReason:'connection timeout', retryCount:3, replayStatus:'PENDING', deadTime:'2026-06-27 14:30:05' },
+  { eventId:'x1y2z3w4v5u6t7s8r9q0p1o2n3m4l5k6', eventType:'webhook.delivery.completed', failedService:'webhook-delivery', failedHandler:'WebhookDeliveryHandler', failedReason:'HTTP 503 Service Unavailable', retryCount:5, replayStatus:'REPLAYED', deadTime:'2026-06-27 13:45:00' },
+  { eventId:'k9j8i7h6g5f4e3d2c1b0a9z8y7x6w5', eventType:'task.scan.completed', failedService:'task-executor', failedHandler:'TaskScanCompletedHandler', failedReason:'java.lang.OutOfMemoryError: Java heap space', retryCount:2, replayStatus:'FAILED', deadTime:'2026-06-27 12:10:00' },
+];
+
+function renderDLTable() {
+  const tbody = document.getElementById('dl-table-body');
+  tbody.innerHTML = dlData.map((r, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td><a class="text-mono" onclick="navigateToDetail('${r.eventId}')" title="${r.eventId}">${r.eventId.substring(0, 20)}...</a></td>
+      <td><span class="tag tag-blue">${r.eventType}</span></td>
+      <td>${r.failedService}</td>
+      <td>${r.failedHandler}</td>
+      <td><span class="text-truncate" title="${r.failedReason}">${r.failedReason}</span></td>
+      <td style="text-align:center;">${r.retryCount}</td>
+      <td>${r.replayStatus === 'PENDING' ? '<span class="tag tag-orange">PENDING</span>' : r.replayStatus === 'REPLAYED' ? '<span class="tag tag-green">REPLAYED</span>' : '<span class="tag tag-red">FAILED</span>'}</td>
+      <td>${r.deadTime}</td>
+      <td>
+        <a onclick="navigateToDetail('${r.eventId}')" style="margin-right:8px;">详情</a>
+        <a onclick="showReplayModalFor('${r.eventId}')" style="margin-right:8px;">重放</a>
+        <a onclick="showPayloadModal('${r.eventId}', 'dead-letter', '${r.eventType}')">报文</a>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function showReplayModalFor(eventId) {
+  document.getElementById('replay-eventId').textContent = eventId;
+  document.getElementById('replay-modal').classList.add('show');
+}
+
+function showReplayModal() {
+  document.getElementById('replay-eventId').textContent = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6';
+  document.getElementById('replay-modal').classList.add('show');
+}
+
+function hideReplayModal() {
+  document.getElementById('replay-modal').classList.remove('show');
+}
+
+function confirmReplay() {
+  const eventId = document.getElementById('replay-eventId').textContent;
+  alert(`已提交重放请求: POST /internal/admin/event-center/replay\n\neventId: ${eventId}\n\n操作人: zhangsan (admin)\n审计日志已自动记录`);
+  hideReplayModal();
+}
+
+function searchDeadLetters() {
+  alert('搜索条件已更新，实际将调用 GET /internal/admin/event-center/dead-letters');
+}
+
+// ===== 事件发布 =====
+function publishEvent() {
+  const eventType = document.getElementById('pub-eventType').value.trim();
+  const idempotentKey = document.getElementById('pub-idempotentKey').value.trim();
+  const payload = document.getElementById('pub-payload').value.trim();
+
+  if (!eventType) { alert('eventType 不能为空'); return; }
+  if (!idempotentKey) { alert('idempotentKey 不能为空'); return; }
+  if (!payload) { alert('payload 不能为空'); return; }
+
+  try { JSON.parse(payload); } catch(e) { alert('payload 不是合法的 JSON 格式'); return; }
+
+  const eventId = 'evt-' + Date.now().toString(36) + Math.random().toString(36).substring(2,8);
+  const result = document.getElementById('publish-result');
+  result.classList.add('show');
+  result.classList.remove('error');
+  document.getElementById('result-title').textContent = '✓ 发布成功';
+  document.getElementById('result-title').className = 'result-title success';
+  document.getElementById('result-eventId').textContent = eventId;
+  document.getElementById('result-topic').textContent = document.getElementById('pub-topic').value || 'asset-security-domain-event';
+  document.getElementById('result-messageId').textContent = Math.floor(Math.random() * 100000);
+  result.scrollIntoView({ behavior:'smooth' });
+}
+
+function resetPublishForm() {
+  document.getElementById('pub-eventType').value = '';
+  document.getElementById('pub-topic').value = '';
+  document.getElementById('pub-idempotentKey').value = '';
+  document.getElementById('pub-partitionKey').value = '';
+  document.getElementById('pub-eventVersion').value = '1.0';
+  document.getElementById('pub-payload').value = '{\n  \n}';
+  document.getElementById('publish-result').classList.remove('show');
+}
+
+// ===== 事件目录 mock 数据 =====
+const catalogData = [
+  { eventType:'open-platform.invocation.recorded', sourceService:'partner-gateway', subscriptionCount:2 },
+  { eventType:'vul-pass.vulnerability.created', sourceService:'vul-pass', subscriptionCount:1 },
+  { eventType:'vul-pass.vulnerability.updated', sourceService:'vul-pass', subscriptionCount:1 },
+  { eventType:'webhook.delivery.completed', sourceService:'platform-admin', subscriptionCount:3 },
+  { eventType:'task.scan.completed', sourceService:'task-center', subscriptionCount:1 },
+  { eventType:'task.scan.failed', sourceService:'task-center', subscriptionCount:1 },
+  { eventType:'partner.credential.rotated', sourceService:'platform-admin', subscriptionCount:2 },
+  { eventType:'open-platform.operation.case.created', sourceService:'open-api-service', subscriptionCount:1 },
+];
+
+function renderCatalogGrid() {
+  const grid = document.getElementById('catalog-grid');
+  grid.innerHTML = catalogData.map(c => `
+    <div class="catalog-card" onclick="alert('将跳转到事件轨迹列表，筛选 eventType=${c.eventType}')">
+      <div class="event-type">${c.eventType}</div>
+      <div class="meta">
+        <span>📡 来源: ${c.sourceService}</span>
+        <span>🔗 订阅: ${c.subscriptionCount} 个消费组</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function refreshCatalogs() {
+  alert('已刷新，实际调用 GET /internal/admin/event-center/catalogs');
+}
+
+// ===== 订阅管理 mock 数据 =====
+const subData = [
+  { topic:'asset-security-domain-event', group:'platform-admin-invocation', eventType:'open-platform.invocation.recorded', payloadType:'InvocationRecordedEvent', maxRetry:3, dlq:true },
+  { topic:'asset-security-domain-event', group:'vul-pass-notification', eventType:'vul-pass.vulnerability.created', payloadType:'VulnerabilityCreatedEvent', maxRetry:3, dlq:true },
+  { topic:'asset-security-domain-event', group:'vul-pass-notification', eventType:'vul-pass.vulnerability.updated', payloadType:'VulnerabilityUpdatedEvent', maxRetry:3, dlq:true },
+  { topic:'webhook-event', group:'webhook-delivery', eventType:'webhook.delivery.completed', payloadType:'WebhookDeliveryEvent', maxRetry:5, dlq:true },
+  { topic:'task-event', group:'task-executor', eventType:'task.scan.completed', payloadType:'TaskScanCompletedEvent', maxRetry:2, dlq:true },
+  { topic:'task-event', group:'task-executor', eventType:'task.scan.failed', payloadType:'TaskScanFailedEvent', maxRetry:2, dlq:true },
+  { topic:'asset-security-domain-event', group:'audit-consumer', eventType:'partner.credential.rotated', payloadType:'CredentialRotatedEvent', maxRetry:1, dlq:false },
+  { topic:'asset-security-domain-event', group:'operation-case-consumer', eventType:'open-platform.operation.case.created', payloadType:'OperationCaseCreatedEvent', maxRetry:3, dlq:true },
+];
+
+function renderSubTable() {
+  const tbody = document.getElementById('sub-table-body');
+  tbody.innerHTML = subData.map(r => `
+    <tr>
+      <td>${r.topic}</td>
+      <td><strong>${r.group}</strong></td>
+      <td><span class="tag tag-blue">${r.eventType}</span></td>
+      <td><span class="text-mono">${r.payloadType}</span></td>
+      <td style="text-align:center;">${r.maxRetry}</td>
+      <td>${r.dlq ? '<span class="tag tag-green">是</span>' : '<span class="tag tag-gray">否</span>'}</td>
+    </tr>
+  `).join('');
+}
+
+// ===== 审计日志 mock 数据 =====
+const auditData = [
+  { createdTime:'2026-06-27 14:32:01', operatorName:'zhangsan', operatorId:'admin001', operationType:'REPLAY', targetType:'DEAD_LETTER', targetId:'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', result:'SUCCESS', detail:'replayId=replay-x9y8z7', clientIp:'192.168.1.100' },
+  { createdTime:'2026-06-27 14:30:01', operatorName:'zhangsan', operatorId:'admin001', operationType:'PUBLISH', targetType:'EVENT', targetId:'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', result:'SUCCESS', detail:'topic=asset-security-domain-event', clientIp:'192.168.1.100' },
+  { createdTime:'2026-06-27 14:28:15', operatorName:'system', operatorId:'SOAR', operationType:'PUBLISH', targetType:'EVENT', targetId:'b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7', result:'SUCCESS', detail:'topic=asset-security-domain-event', clientIp:'10.0.0.50' },
+  { createdTime:'2026-06-27 14:15:00', operatorName:'lisi', operatorId:'admin002', operationType:'REPLAY', targetType:'DEAD_LETTER', targetId:'x1y2z3w4v5u6t7s8r9q0p1o2n3m4l5k6', result:'SUCCESS', detail:'replayId=replay-w6v5u4', clientIp:'192.168.1.101' },
+  { createdTime:'2026-06-27 13:50:00', operatorName:'wangwu', operatorId:'admin003', operationType:'REPLAY', targetType:'DEAD_LETTER', targetId:'k9j8i7h6g5f4e3d2c1b0a9z8y7x6w5', result:'FAILED', detail:'replayId=replay-t3s2r1 error=timeout', clientIp:'192.168.1.102' },
+];
+
+function renderAuditTable() {
+  const tbody = document.getElementById('al-table-body');
+  tbody.innerHTML = auditData.map((r, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${r.createdTime}</td>
+      <td>${r.operatorName}(${r.operatorId})</td>
+      <td>${r.operationType === 'PUBLISH' ? '<span class="tag tag-blue">PUBLISH</span>' : '<span class="tag tag-purple">REPLAY</span>'}</td>
+      <td>${r.targetType === 'EVENT' ? '<span class="tag tag-green">EVENT</span>' : '<span class="tag tag-orange">DEAD_LETTER</span>'}</td>
+      <td><a class="text-mono" onclick="navigateToDetail('${r.targetId}')" title="${r.targetId}">${r.targetId.substring(0, 20)}...</a></td>
+      <td>${r.result === 'SUCCESS' ? '<span class="tag tag-green">SUCCESS</span>' : '<span class="tag tag-red">FAILED</span>'}</td>
+      <td><span class="text-truncate" title="${r.detail}">${r.detail}</span></td>
+      <td>${r.clientIp}</td>
+    </tr>
+  `).join('');
+}
+
+function searchAuditLogs() {
+  alert('搜索条件已更新，实际将调用 GET /internal/admin/event-center/audit-logs');
+}
+
+// ===== 报文查看 =====
+const mockPayloads = {
+  'trace': {
+    'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6': JSON.stringify({
+      "eventId": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+      "eventType": "vul-pass.vulnerability.created",
+      "eventVersion": "1.0",
+      "timestamp": "2026-06-27T14:30:01.000Z",
+      "source": {"service": "vul-pass", "instance": "vul-pass-7d8f9-abc12"},
+      "tenant": {"tenantType": "partner", "tenantId": "天融信"},
+      "subject": {"subjectType": "admin", "subjectId": "zhangsan"},
+      "payload": {
+        "vulnId": "VULN-001",
+        "severity": "HIGH",
+        "title": "SQL注入漏洞",
+        "affectedHost": "192.168.1.100",
+        "affectedPort": 443,
+        "description": "在登录接口 /api/login 发现SQL注入漏洞，攻击者可构造恶意参数绕过认证",
+        "cveId": "CVE-2026-12345",
+        "cvssScore": 8.6,
+        "discoveredAt": "2026-06-27T14:00:00Z",
+        "reporter": "zhangsan",
+        "tags": ["sql-injection", "authentication", "critical"]
+      },
+      "traceId": "trace-x9y8z7w6v5u4",
+      "idempotentKey": "vuln-VULN-001-created"
+    }, null, 2),
+    'b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7': JSON.stringify({
+      "eventId": "b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7",
+      "eventType": "open-platform.invocation.recorded",
+      "eventVersion": "1.0",
+      "timestamp": "2026-06-27T14:28:15.000Z",
+      "source": {"service": "partner-gateway", "instance": "partner-gateway-5f8c3-xyz99"},
+      "tenant": {"tenantType": "partner", "tenantId": "绿盟"},
+      "subject": {"subjectType": "system", "subjectId": "SOAR"},
+      "payload": {
+        "invocationId": "INV-20260627-001",
+        "apiName": "QueryVulnerabilityList",
+        "partnerId": "p-lvmeng",
+        "requestSize": 2048,
+        "responseSize": 15680,
+        "statusCode": 200,
+        "latency": 234
+      },
+      "traceId": "trace-a1b2c3d4e5f6",
+      "idempotentKey": "inv-INV-20260627-001-recorded"
+    }, null, 2),
+    'c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8': JSON.stringify({
+      "eventId": "c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8",
+      "eventType": "webhook.delivery.completed",
+      "eventVersion": "1.0",
+      "timestamp": "2026-06-27T14:25:00.000Z",
+      "source": {"service": "platform-admin", "instance": "platform-admin-6d7c2-main01"},
+      "tenant": {"tenantType": "internal", "tenantId": "SOAR"},
+      "subject": {"subjectType": "admin", "subjectId": "lisi"},
+      "payload": {
+        "webhookId": "wh-001",
+        "callbackUrl": "https://partner.example.com/webhook/vuln-alert",
+        "deliveryStatus": "FAILED",
+        "httpStatus": 503,
+        "responseBody": "Service Unavailable",
+        "retryCount": 3,
+        "nextRetry": "2026-06-27T14:30:00Z"
+      },
+      "traceId": "trace-k9j8i7h6g5f4",
+      "idempotentKey": "wh-delivery-wh-001-20260627"
+    }, null, 2),
+    'd4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9': JSON.stringify({
+      "eventId": "d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9",
+      "eventType": "task.scan.completed",
+      "eventVersion": "1.0",
+      "timestamp": "2026-06-27T14:20:33.000Z",
+      "source": {"service": "task-center", "instance": "task-center-4a3b1-exec02"},
+      "tenant": {"tenantType": "internal", "tenantId": "task-center"},
+      "subject": {"subjectType": "system", "subjectId": "scheduler"},
+      "payload": {
+        "taskId": "TASK-20260627-001",
+        "scanType": "FULL_SCAN",
+        "targetCount": 1520,
+        "completedCount": 1520,
+        "vulnerabilityCount": 42,
+        "criticalCount": 3,
+        "highCount": 12,
+        "duration": 1847,
+        "status": "COMPLETED"
+      },
+      "traceId": "trace-e3d2c1b0a9z8",
+      "idempotentKey": "task-TASK-20260627-001-completed"
+    }, null, 2),
+    'e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0': JSON.stringify({
+      "eventId": "e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0",
+      "eventType": "vul-pass.vulnerability.updated",
+      "eventVersion": "1.0",
+      "timestamp": "2026-06-27T14:15:00.000Z",
+      "source": {"service": "vul-pass", "instance": "vul-pass-7d8f9-abc12"},
+      "tenant": {"tenantType": "partner", "tenantId": "奇安信"},
+      "subject": {"subjectType": "admin", "subjectId": "wangwu"},
+      "payload": {
+        "vulnId": "VULN-003",
+        "changes": {"severity": {"from": "MEDIUM", "to": "HIGH"}, "status": {"from": "OPEN", "to": "IN_PROGRESS"}},
+        "updatedBy": "wangwu",
+        "updatedAt": "2026-06-27T14:15:00Z",
+        "comment": "经复核确认为高危漏洞，已安排修复"
+      },
+      "traceId": "trace-y7x6w5v4u3t2",
+      "idempotentKey": "vuln-VULN-003-updated"
+    }, null, 2)
+  },
+  'dead-letter': {
+    'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6': JSON.stringify({
+      "eventId": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+      "eventType": "vul-pass.vulnerability.created",
+      "originTopic": "asset-security-domain-event",
+      "consumerGroup": "vul-pass-notification",
+      "failedAt": "2026-06-27T14:30:05.000Z",
+      "retryCount": 3,
+      "lastError": "connection timeout: failed to connect to notification service at 10.0.1.50:8080 after 3000ms",
+      "payload": {
+        "vulnId": "VULN-001",
+        "severity": "HIGH",
+        "title": "SQL注入漏洞",
+        "affectedHost": "192.168.1.100",
+        "description": "在登录接口 /api/login 发现SQL注入漏洞"
+      },
+      "headers": {
+        "x-event-id": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+        "x-event-type": "vul-pass.vulnerability.created",
+        "x-tenant-type": "partner",
+        "x-tenant-id": "天融信",
+        "x-subject-type": "admin",
+        "x-subject-id": "zhangsan",
+        "x-trace-id": "trace-x9y8z7w6v5u4"
+      }
+    }, null, 2),
+    'x1y2z3w4v5u6t7s8r9q0p1o2n3m4l5k6': JSON.stringify({
+      "eventId": "x1y2z3w4v5u6t7s8r9q0p1o2n3m4l5k6",
+      "eventType": "webhook.delivery.completed",
+      "originTopic": "webhook-event",
+      "consumerGroup": "webhook-delivery",
+      "failedAt": "2026-06-27T13:45:00.000Z",
+      "retryCount": 5,
+      "lastError": "HTTP 503 Service Unavailable: upstream webhook endpoint returned 503 after 5 retries",
+      "payload": {
+        "webhookId": "wh-005",
+        "callbackUrl": "https://partner.example.com/webhook/vuln-alert",
+        "deliveryStatus": "FAILED",
+        "httpStatus": 503
+      },
+      "headers": {
+        "x-event-id": "x1y2z3w4v5u6t7s8r9q0p1o2n3m4l5k6",
+        "x-event-type": "webhook.delivery.completed",
+        "x-delivery-attempt": "5"
+      }
+    }, null, 2),
+    'k9j8i7h6g5f4e3d2c1b0a9z8y7x6w5': JSON.stringify({
+      "eventId": "k9j8i7h6g5f4e3d2c1b0a9z8y7x6w5",
+      "eventType": "task.scan.completed",
+      "originTopic": "task-event",
+      "consumerGroup": "task-executor",
+      "failedAt": "2026-06-27T12:10:00.000Z",
+      "retryCount": 2,
+      "lastError": "java.lang.OutOfMemoryError: Java heap space",
+      "payload": {
+        "taskId": "TASK-20260627-050",
+        "scanType": "FULL_SCAN",
+        "targetCount": 50000,
+        "completedCount": 49800,
+        "status": "COMPLETED"
+      },
+      "headers": {
+        "x-event-id": "k9j8i7h6g5f4e3d2c1b0a9z8y7x6w5",
+        "x-event-type": "task.scan.completed",
+        "x-retry-count": "2"
+      }
+    }, null, 2)
+  }
+};
+
+let currentPayloadEventId = null;
+let currentPayloadRaw = null;
+
+function showPayloadModal(eventId, source, eventType) {
+  currentPayloadEventId = eventId;
+  const sourceData = mockPayloads[source] || {};
+  let payload = sourceData[eventId];
+
+  document.getElementById('payload-eventId').textContent = eventId;
+  document.getElementById('payload-source-label').textContent =
+    source === 'trace' ? '来源: event_trace' : '来源: event_dead_letter';
+
+  if (!payload) {
+    document.getElementById('payload-content').textContent = '（该事件暂无完整报文数据，仅存储了摘要。实际环境中报文由 EventBus 发布端写入 event_trace.payload 字段。）';
+    document.getElementById('payload-size-info').textContent = '无报文数据';
+    currentPayloadRaw = null;
+  } else {
+    try {
+      const parsed = JSON.parse(payload);
+      document.getElementById('payload-content').textContent = JSON.stringify(parsed, null, 2);
+    } catch(e) {
+      document.getElementById('payload-content').textContent = payload;
+    }
+    const size = new Blob([payload]).size;
+    document.getElementById('payload-size-info').textContent =
+      '报文大小: ' + (size > 1024 ? (size/1024).toFixed(1) + ' KB' : size + ' B');
+    currentPayloadRaw = payload;
+  }
+
+  document.getElementById('payload-modal').classList.add('show');
+}
+
+function hidePayloadModal() {
+  document.getElementById('payload-modal').classList.remove('show');
+}
+
+function copyPayload() {
+  const text = document.getElementById('payload-content').textContent;
+  if (!text || text.startsWith('（该事件暂无')) {
+    alert('暂无可复制的报文数据');
+    return;
+  }
+  navigator.clipboard.writeText(text).then(() => {
+    alert('报文已复制到剪贴板');
+  }).catch(() => {
+    // fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert('报文已复制到剪贴板');
+  });
+}
+
+function downloadPayload() {
+  const text = document.getElementById('payload-content').textContent;
+  if (!text || text.startsWith('（该事件暂无')) {
+    alert('暂无可下载的报文数据');
+    return;
+  }
+  const blob = new Blob([text], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (currentPayloadEventId || 'event') + '-payload.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function formatPayload() {
+  const text = document.getElementById('payload-content').textContent;
+  if (!text || text.startsWith('（该事件暂无')) return;
+  try {
+    const parsed = JSON.parse(text);
+    document.getElementById('payload-content').textContent = JSON.stringify(parsed, null, 2);
+    currentPayloadRaw = JSON.stringify(parsed);
+  } catch(e) {
+    alert('格式化失败: 报文不是合法的 JSON 格式');
+  }
+}
+
+// ===== 初始化 =====
+document.addEventListener('DOMContentLoaded', () => {
+  renderTraceTable();
+  renderDLTable();
+  renderCatalogGrid();
+  renderSubTable();
+  renderAuditTable();
+});
+
+// 点击弹窗遮罩关闭
+document.getElementById('replay-modal').addEventListener('click', function(e) {
+  if (e.target === this) hideReplayModal();
+});
+document.getElementById('payload-modal').addEventListener('click', function(e) {
+  if (e.target === this) hidePayloadModal();
+});
+</script>
+</body>
+</html>

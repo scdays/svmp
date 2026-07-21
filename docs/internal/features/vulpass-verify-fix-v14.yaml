@@ -1,0 +1,114 @@
+feature:
+  id: VULPASS-VERIFYFIX-V14
+  name: 修复核验全链路（vul-pass）v1.4 · 1028门闸
+  phase: P2prime-gate
+  prd: svmp/docs/internal/04-子PRD与规格/修复核验全链路-vul-pass-PRD.md
+  landing_plan: null
+  page_design: null
+  openapi: null
+  branch: feature/fix-ledger-log-records
+  notes: |
+    v1.4：工单1060 → 先Gate(1028)写onlineAddr → 1052/1053存活则stat=7/不可达则stat=6 → 1050/1051仅存活再二次1020…/1021/1061。
+    文档已定§17；VerdictService 1052→7已改码；剩余需改Planner/StrategyResolver/回收钩子/前端预览。
+    台账外壳logType=1060，内层实际手段1028/1020…；TC-12～TC-14补充用例。
+
+shared_reads:
+  - .cursor/skills/esmp-rd-standards/SKILL.md
+  - .cursor/skills/esmp-backend-dev/SKILL.md
+  - .cursor/skills/esmp-frontend-dev/SKILL.md
+  - .cursor/rules/java-hard-ban.mdc
+  - .cursor/rules/backend-layer-boundary-strict.mdc
+  - .cursor/rules/backend-ddd-layers.mdc
+  - .cursor/rules/backend-naming.mdc
+  - .cursor/rules/test-required-strict.mdc
+  - .cursor/rules/security-hard-ban.mdc
+  - svmp/docs/internal/04-子PRD与规格/修复核验全链路-vul-pass-PRD.md
+
+acceptance:
+  - 1060工单preview：先展示Gate(1028)批次，再展示Scan占位组（标注依赖对应Gate）
+  - 1052/1053：若目标存活→stat=7（核验未修复），不可达→stat=6（核验修复）
+  - 1050/1051：Gate存活一致后才做技术结论；不存活→stat=10且无二次Scan
+  - Gate完成后：存活的1050/1051才动态生成Scan子任务；若无存活Scan不生成
+  - 台账：外壳logType=1060，内层srcMethod为1028（Gate）/1020…/1021/1061（Scan）
+  - feature flag关走legacy
+  - mvn compile + VerifyFixVerdictServiceTest/VerifyFixDispatchPlannerTest通过
+
+agents:
+  - id: B-Gate
+    name: Backend-1028Gate-Planner-Strategy
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/vul-pass
+    allow_paths:
+      - src/main/java/com/vtc/security/domain/pass/service/verify/
+      - src/test/java/com/vtc/security/domain/pass/service/verify/
+      - src/main/java/com/vtc/security/domain/pass/model/vo/verify/
+    allow_globs:
+      - "**/verify/**/*.java"
+    deny_globs:
+      - "**/infra/**"
+    deliverable: VerifyFixDispatchPlanner 改为先Gate批次+Scan占位；VerifyFixStrategyResolver 新增CONNECTIVITY_GATE+Scan手段清单
+    verify:
+      - plan调用返回groups含wave=GATE和wave=SCAN；Scan组dependsOnGroupIndex正确
+      - 单测TC-12/13预览场景通过
+    skill: .cursor/skills/esmp-backend-dev/SKILL.md
+
+  - id: B-Hook
+    name: Backend-Scan-Spawn-Hook
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/vul-pass
+    allow_paths:
+      - src/main/java/com/vtc/security/domain/pass/service/business/impl/VulScanTaskSubDomainServiceImpl.java
+      - src/main/java/com/vtc/security/domain/pass/service/verify/
+      - src/main/java/com/vtc/security/domain/pass/service/event/log/
+      - src/test/java/com/vtc/security/domain/pass/service/verify/
+    allow_globs:
+      - "**/verify/**/*.java"
+      - "**/VulScanTaskSubDomainServiceImpl.java"
+    deliverable: VulScanTaskSubDomainServiceImpl.recycle 新增spawnScan钩子；Gate回收后仅存活1050/1051才生成Scan子任务
+    verify:
+      - Gate回收后有存活1050时生成对应Scan子任务，无存活则不生成
+      - 单测TC-12/13回收场景通过
+    skill: .cursor/skills/esmp-backend-dev/SKILL.md
+
+  - id: B-Plan-Model
+    name: Backend-Plan-PO-Extension
+    owner: 业务后端
+    repos:
+      - project_backend/svmp/vul-pass
+    allow_paths:
+      - src/main/java/com/vtc/security/domain/pass/model/vo/verify/
+      - src/main/java/com/vtc/security/domain/pass/model/entity/VulScanTaskSubDO.java
+      - src/main/java/com/vtc/security/infra/dao/po/VulScanTaskSubPO.java
+    allow_globs:
+      - "**/verify/**/*.java"
+      - "**/VulScanTaskSubDO.java"
+      - "**/VulScanTaskSubPO.java"
+    deliverable: VerifyFixDispatchPlan.Group 新增wave/dependsOnGroupIndex/aliveInstanceIds/deadInstanceIds；VulScanTaskSubDO 新增wave字段
+    skill: .cursor/skills/esmp-backend-dev/SKILL.md
+
+  - id: F-Preview-Wave
+    name: Frontend-1060-Gate-Scan-Preview
+    owner: 前端
+    repos:
+      - project_frontend/asset/asset-newleak-manage
+    allow_paths:
+      - src/views/VulnManagePlat/components/TaskSend/
+    allow_globs:
+      - "**/TaskSend/*.vue"
+      - "**/TaskSend/*.js"
+    deliverable: VerifyFixPlanPreview 新增波次列，展示GATE/SCAN；Scan组标注依赖对应Gate，若Gate deviceMatched=false禁用确认
+    skill: .cursor/skills/esmp-frontend-dev/SKILL.md
+
+  - id: B-Review
+    name: Backend-Review
+    owner: 评审
+    repos:
+      - project_backend/svmp/vul-pass
+    allow_paths:
+      - src/main/java/com/vtc/security/domain/pass/service/verify/
+      - src/main/java/com/vtc/security/domain/pass/service/business/impl/VulScanTaskSubDomainServiceImpl.java
+      - src/main/java/com/vtc/security/domain/pass/model/vo/verify/
+      - src/main/java/com/vtc/security/domain/pass/service/event/log/
+    skill: .cursor/skills/esmp-code-review-strict/SKILL.md

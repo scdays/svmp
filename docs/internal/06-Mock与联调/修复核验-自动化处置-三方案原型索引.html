@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>自动化处置 · 三方案原型索引</title>
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --card: #fff;
+      --border: #e8e8e8;
+      --text: #262626;
+      --muted: #8c8c8c;
+      --primary: #1890ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 24px;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; }
+    h1 { font-size: 20px; margin: 0 0 8px; }
+    .sub { color: var(--muted); margin-bottom: 24px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card h2 { margin: 0; font-size: 16px; }
+    .card p { margin: 0; color: var(--muted); font-size: 13px; flex: 1; }
+    .tag {
+      display: inline-block;
+      padding: 0 8px;
+      height: 22px;
+      line-height: 20px;
+      border-radius: 2px;
+      font-size: 12px;
+      background: #e6f7ff;
+      color: #096dd9;
+      border: 1px solid #91d5ff;
+    }
+    .tag.rec { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
+    a.btn {
+      display: inline-block;
+      text-align: center;
+      padding: 8px 16px;
+      background: var(--primary);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    a.btn:hover { background: #40a9ff; }
+    .note {
+      margin-top: 24px;
+      padding: 12px 16px;
+      background: #fffbe6;
+      border: 1px solid #ffe58f;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #874d00;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>自动化处置 · UI 原型</h1>
+    <p class="sub">
+      场景：修复核验自适应（1060）· 离线批量 · 顺序下发 · 1 条连通性已完成 + 2 条修复核验待上传。<br />
+      与现网 <code>AutoDisposeDrawer.vue</code> 对照，供产品/设计评审选用。
+    </p>
+
+    <div class="card" style="margin-bottom:20px;border-color:#91d5ff;background:#f0f9ff;">
+      <h2 style="margin:0 0 8px;font-size:16px;">★ 本期推荐 · 自动化处置抽屉（方案一）</h2>
+      <p style="margin:0 0 12px;color:#595959;font-size:13px;">
+        任务详情点击「自动化处置」打开抽屉 · 统一报告导入 / 逐任务上传 · 资产匹配规则可统一配置或逐任务选择 · inbox-model 静默 WebSocket。
+      </p>
+      <a class="btn" href="修复核验-自动化处置-方案一-流程向导-原型.html" target="_blank">打开自动化处置抽屉原型</a>
+    </div>
+
+    <h2 style="font-size:15px;margin:0 0 12px;color:#595959;">早期三方案对比（抽屉形态）</h2>
+    <div class="grid">
+      <div class="card">
+        <span class="tag rec">推荐 MVP</span>
+        <h2>方案一 · 流程向导型</h2>
+        <p>纵向步骤卡片 + 主链路步骤条 + 底部「下一步」引导。适合一线运营按序上传报告。</p>
+        <a class="btn" href="修复核验-自动化处置-方案一-流程向导-原型.html" target="_blank">打开原型</a>
+      </div>
+      <div class="card">
+        <span class="tag">二期增强</span>
+        <h2>方案二 · 控制台型</h2>
+        <p>三态页眉 + 进度条 + 左队列右详情。兼顾概览与错误日志，模式可用户确认。</p>
+        <a class="btn" href="修复核验-自动化处置-方案二-控制台-原型.html" target="_blank">打开原型</a>
+      </div>
+      <div class="card">
+        <span class="tag">三期 / 复杂编排</span>
+        <h2>方案三 · 编排画布型</h2>
+        <p>DAG 流程图 + 节点详情面板，与子任务卡片联动；显式台账外壳/内层口径。</p>
+        <a class="btn" href="修复核验-自动化处置-方案三-编排画布-原型.html" target="_blank">打开原型</a>
+      </div>
+    </div>
+    <div class="note">
+      <strong>评审说明：</strong>三个文件均为静态 HTML，样式对齐
+      <a href="修复核验-任务详情工作台-原型.html">任务详情工作台原型</a>。
+      方案三含简单节点点击切换；方案一含步骤展开交互。
+    </div>
+  </div>
+</body>
+</html>
