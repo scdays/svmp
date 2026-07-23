@@ -1,6 +1,6 @@
 # {功能名称} — 产品需求文档（PRD）
 
-> **用途**：Multi-Agent 自动化开发的**上游输入**。填写完成后，按 [prd-to-multi-agent-工作流](../prd-to-multi-agent-工作流.md) 拆分为任务矩阵并生成 Agent Prompt。
+> **用途**：Multi-Agent 自动化开发的**上游输入**。填写完成后，按 [prd-to-multi-agent-工作流](../08-工具与指南/prd-to-multi-agent-工作流.md) 拆分为任务矩阵并生成 Agent Prompt。
 >
 > **状态**：`草稿` | `已评审` | `已拆分` | `开发中` | `已交付`
 

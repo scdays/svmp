@@ -1,118 +1,45 @@
 # SOC 对接全链路 · 设计文档集
 
-本目录是「SOC 对接全链路」项目的设计文档集，覆盖开放平台网关、Partner 鉴权、漏洞业务编排、扫描治理、运营案件、修复核验、Mock 联调等全链路设计。
+本目录按**需求**分目录组织，每个需求目录内部再用编号子目录细分文档类型（`01-架构与总览` / `02-主PRD` / `03-落地方案` / `04-子PRD与规格` / `05-接口契约` / `06-Mock与联调` / `07-multi-agent执行Prompts`，外加 `prototypes/` `_archive/`）。同一需求的 PRD、落地方案、契约、验收报告、原型集中在一处，便于检索与维护。
 
-## 推荐阅读路径
+## 需求目录索引
 
-> 新人按编号顺序读 01 → 06 即可建立全貌；07/08 为辅助工具。
+| 需求目录 | 定位 | 关键文档 |
+|---|---|---|
+| [soc-link-SOC对接全链路/](soc-link-SOC对接全链路/) | 三发起方(OPEN/METRIC/ASSESS)统一、双轨存储、状态机、SOC 事件链路 | `02-主PRD/` 三份（v1.0 → v2修订附录 → 代码分析修正）、`03-落地方案/双阶段交叉扫描`、`05-接口契约/漏扫任务事件接口文档` |
+| [open-platform-开放平台/](open-platform-开放平台/) | 开放平台对外 REST 执行面、Partner 鉴权、集成管理后台、运营案件 | `03-落地方案/` 6 份、`05-接口契约/` 映射表 + internal-api.yaml、`07-multi-agent执行Prompts/` 5 份、`prototypes/` |
+| [open-gateway-网关合并改造/](open-gateway-网关合并改造/) | 网关合并 + 平台/业务解耦 + mock 纯桩化的目标架构与分期 | `01-架构与总览/` 改造方案 + 开发计划、`03-落地方案/partner-gateway-route-mode`、`06-Mock与联调/开放平台mock链路验收清单`（Phase 0 基线） |
+| [platform-admin-控制面建设/](platform-admin-控制面建设/) | platform-admin 统一控制面、业务能力迁移 M1-M9、EventBus 治理 | `01-架构与总览/控制面与EventBus-Starter架构设计`、`03-落地方案/` 4 份、`04-子PRD与规格/` 00-主计划 + M1-M9、`prototypes/事件总线治理面原型` |
+| [verify-fix-修复核验全链路/](verify-fix-修复核验全链路/) | 修复核验（vul-pass）全链路：PRD + 开发计划双权威、Wave 验收、自动化处置 | `04-子PRD与规格/修复核验全链路-文档地图与索引-v1.1.md`（**文档群总入口**）、`06-Mock与联调/` 11 份验收报告、`prototypes/` 7 个、`_archive/` 18 份迭代留痕 |
+| [vuln-task-center-扫描治理中心/](vuln-task-center-扫描治理中心/) | 扫描治理中心三层能力模型、ScannerAdapter、对账四态、厂商适配 | `04-子PRD与规格/扫描治理中心-PRD` + `prototype-v3-spec`、`05-接口契约/vuln-task-center-ab-contract.yaml`、`prototypes/` |
+| [scan-window-扫描时间窗/](scan-window-扫描时间窗/) | 漏洞管理平台扫描时间窗 + 超窗暂停/恢复（VULPASS-SCANWINDOW-P0~P3） | `04-子PRD与规格/扫描时间窗管理-vul-pass-PRD-v1.0.md` |
+| [vuln-model-扫描任务迁移/](vuln-model-扫描任务迁移/) | vuln-model 扫描任务重构迁移至 vul-pass | `03-落地方案/`（**注意：该文件内容为 GBK 编码且存在历史乱码，未改写**） |
+| [mock-引擎对接与联调/](mock-引擎对接与联调/) | adapter-mode=mock 联调策略、Mock Instance DB、半人工导入 | `03-落地方案/引擎对接与Mock模式方案`、`04-子PRD与规格/open-api-mock-instance-db-PRD`、`06-Mock与联调/` 配置指南 + 联调手册、`07-multi-agent执行Prompts/Mock-P1-DB` |
 
-1. **01-架构与总览** — 先看整体架构与最新改造方向
-2. **02-主PRD** — 全链路基础设计（含版本演进）
-3. **03-落地方案** — 各子域工程落地方案
-4. **04-子PRD与规格** — 子系统 PRD 与原型规格
-5. **05-接口契约** — 对外/内部接口映射与事件契约
-6. **06-Mock与联调** — 联调期 Mock 配置与缺口记录
-7. **07-multi-agent执行Prompts** — AI 多智能体执行编排（辅助）
-8. **08-工具与指南** — Cursor/自动开发使用指南（辅助）
+## 共享工程资产（顶层，跨需求复用）
+
+| 目录 | 内容 | 说明 |
+|---|---|---|
+| `features/` | 任务拆分矩阵 YAML（P0/P1/P2、SOC-LINK、Mock 等） | 被 `.cursor/skills/prd-to-multi-agent` 与 `scripts/generate-multi-agent-prompts.py` 硬编码引用 |
+| `templates/` | PRD 模板、需求分析模板、任务拆分矩阵模板 | 被 skills 引用 |
+| `scripts/` | DDL 应用、PRD/原型生成、multi-agent prompts 生成、open-api DDD 校验等 | 被 `.cursor/rules`、`.cursor/skills`、项目 README 引用 |
+| `08-工具与指南/` | Cursor 指南、一句话自动开发、ESMP AI Rules/Skills 工程化治理与索引、prd-to-multi-agent-工作流 | 被 `CLAUDE.md`、`.cursor/rules`、`.cursor/skills` 引用 |
+| `_archive/杂物/` | 误存/测试残留文件（install.cmd、xxx.html、_enc_test.html） | 仅留痕 |
 
 ## 权威性提示
 
 主 PRD 三份存在版本演进：`SOC对接全链路-PRD.md`(v1.0) → `SOC对接全链路-PRD-v2修订附录.md`(正式采纳) → `SOC对接全链路-PRD-代码分析修正.md`(工程代码校准)。**冲突处以最新版本为准**，关键演进点（SOC_DUAL 废弃、verify-fix 真实复扫、任务域路径、UNION 状态落库）已在各文档内标注。
 
----
+修复核验文档群以 [verify-fix-修复核验全链路/04-子PRD与规格/修复核验全链路-文档地图与索引-v1.1.md](verify-fix-修复核验全链路/04-子PRD与规格/修复核验全链路-文档地图与索引-v1.1.md) 为总入口：有效执行文档为 **PRD v2.0.0 + 开发计划 v2.0** 双权威。
 
-## 01-架构与总览
+## 已知失效链接（迁移前即失效，未回改）
 
-| 文档 | 说明 |
-|---|---|
-| [一、架构总览线条.md](01-架构与总览/一、架构总览线条.md) | 全链路架构分层、Partner REST 执行面 17 接口清单、Mock 引擎跑通链路总览 |
-| [open-gateway合并与平台业务解耦改造方案.md](01-架构总览/open-gateway合并与平台业务解耦改造方案.md) | 架构纠偏：网关合并 + 平台/业务解耦 + mock 纯桩化的目标架构与分期（最新改造方向） |
-| [open-gateway改造开发计划.md](01-架构与总览/open-gateway改造开发计划.md) | 上述方案的任务卡级开发计划：Phase 0-4 任务卡、依赖图、里程碑、风险跟踪 |
+以下链接在重构前就已指向不存在的文件，本次按需求分目录后**未改动其目标**，仅在此登记，待对应文档补齐后再修：
 
-## 02-主PRD
+- `联调手册-P0.md`、`partner-gateway与open-api-service-模块与接口清单.md`、`组件职责与接口映射.md`、`开放平台API治理与调用生命周期.md`、`漏洞管理平台对外集成能力设计方案-V2.0.md` — 见于 `open-platform-开放平台/03-落地方案/` 多份文档及 `svmp/README.md`、`project_backend/svmp/open-api-service/README.md`、`project_backend/svmp/partner-gateway/README.md`
+- `../external/开放平台API接口规范.md` — `svmp/docs/external/` 下无此文件
+- `vuln-model-扫描任务迁移/03-落地方案/vuln-model扫描任务重构迁移至vul-pass-落地方案.md` 内容本身为 GBK 编码且含历史乱码，内部链接未校验
 
-| 文档 | 说明 |
-|---|---|
-| [SOC对接全链路-PRD.md](02-主PRD/SOC对接全链路-PRD.md) | 主 PRD v1.0：三发起方(OPEN/METRIC/ASSESS)统一、双轨存储、状态机、Wave 矩阵 |
-| [SOC对接全链路-PRD-v2修订附录.md](02-主PRD/SOC对接全链路-PRD-v2修订附录.md) | v2 修订（正式采纳）：废弃 SOC_DUAL、autoVerify 双阶段、推迟回调、Webhook 时机矩阵 |
-| [SOC对接全链路-PRD-代码分析修正.md](02-主PRD/SOC对接全链路-PRD-代码分析修正.md) | 工程代码校准：已有 vs 需新建清单、Feign/Kafka 契约、接口路径修正 |
+## 目录调整记录
 
-## 03-落地方案
-
-| 文档 | 说明 |
-|---|---|
-| [开放平台Partner鉴权与隔离-落地方案.md](03-落地方案/开放平台Partner鉴权与隔离-落地方案.md) | Partner Token 签发/校验、能力码拦截、partner_id 隔离、三套入口鉴权 |
-| [开放平台对外REST执行面-分期落地方案.md](03-落地方案/开放平台对外REST执行面-分期落地方案.md) | Open API 对外 REST 执行面 OP-OPENAPI-P0~P3 分期、Wave 顺序 |
-| [开放平台集成管理-完整落地方案.md](03-落地方案/开放平台集成管理-完整落地方案.md) | 集成管理后台工程边界、qiankun 子应用、P0~P2 页面、治理面展示约束 |
-| [开放平台集成管理后台-页面设计.md](03-落地方案/开放平台集成管理后台-页面设计.md) | 后台页面交互与信息架构设计 |
-| [open-api-vtc-pass-落地方案.md](03-落地方案/open-api-vtc-pass-落地方案.md) | open-api → vul-pass 内部接口落地方案、新任务域路径 `/internal/open/v1/tasks` |
-| [漏洞实例与生命周期双轨存储-落地方案.md](03-落地方案/漏洞实例与生命周期双轨存储-落地方案.md) | vul_archive_inst 主档 + oper/report 双轨、部侧查询改造、SQL 改造 |
-| [vuln-model扫描任务重构迁移至vul-pass-落地方案.md](03-落地方案/vuln-model扫描任务重构迁移至vul-pass-落地方案.md) | vuln-model 扫描任务重构迁移至 vul-pass 的落地方案 |
-| [引擎对接与Mock模式方案.md](03-落地方案/引擎对接与Mock模式方案.md) | adapter-mode=mock 联调策略、bundles 占位、切流回归 |
-| [双阶段交叉扫描方案-SOC并集与部侧交集统一.md](03-落地方案/双阶段交叉扫描方案-SOC并集与部侧交集统一.md) | 排查单扫 + 验证双扫、UNION/INTERSECT 合并策略、dedupKey、SOC 时序 |
-| [开放平台运营案件-open_operation_case-方案.md](03-落地方案/开放平台运营案件-open_operation_case-方案.md) | case_id 统一句柄、5 表关联、case_type 枚举、统一工作台、渐进迁移 |
-
-## 04-子PRD与规格
-
-| 文档 | 说明 |
-|---|---|
-| [open-api-export-webhook-PRD.md](04-子PRD与规格/open-api-export-webhook-PRD.md) | Webhook 外发双格式(xml+json)、downloadUrl 构造、上传与投递 |
-| [open-api-mock-instance-db-PRD.md](04-子PRD与规格/open-api-mock-instance-db-PRD.md) | Mock Instance DB 设计 |
-| [vuln-task-center-扫描治理中心-PRD.md](04-子PRD与规格/vuln-task-center-扫描治理中心-PRD.md) | 扫描治理中心三层能力模型、ScannerAdapter、对账四态、厂商适配(LM/AH)、P0~P4 分期 |
-| [修复核验运营工作台-PRD.md](04-子PRD与规格/修复核验运营工作台-PRD.md) | verify-fix job 维度工作台、复用 open_task_sub(scan_phase=3)、双 Kafka 闭环 |
-| [OPEN状态跃迁与考核隔离说明.md](04-子PRD与规格/OPEN状态跃迁与考核隔离说明.md) | OPEN 三条状态路径冻结、UNION 不走 PassRoot、考核线禁改清单 |
-| [vuln-task-center-prototype-v3-spec.md](04-子PRD与规格/vuln-task-center-prototype-v3-spec.md) | 扫描治理中心原型 v3 交付规格（以 survey 实例工作台为主轴） |
-
-## 05-接口契约
-
-| 文档 | 说明 |
-|---|---|
-| [Open API与vul-pass内部接口映射表.md](05-接口契约/Open%20API与vul-pass内部接口映射表.md) | 对外 Open API ↔ vul-pass 内部接口映射、实例域两硬约束、状态码表 |
-| [漏扫任务事件接口文档.md](05-接口契约/漏扫任务事件接口文档.md) | SOC 事件接口：SurveyEvent 查询 + ScanTaskEvent 创建扫描计划入口 |
-| [open-api-vtc-pass-internal-api.yaml](05-接口契约/open-api-vtc-pass-internal-api.yaml) | open-api ↔ vul-pass 内部接口 OpenAPI 契约定义 |
-
-## 06-Mock与联调
-
-| 文档 | 说明 |
-|---|---|
-| [open-api-mock-manual-配置指南.md](06-Mock与联调/open-api-mock-manual-配置指南.md) | 半人工 Mock 报告导入配置指南 |
-| [联调手册-Mock-Instance-DB.md](06-Mock与联调/联调手册-Mock-Instance-DB.md) | Mock Instance DB 联调手册 |
-| [1. 当前缺口：修复核验没接报告回调.md](06-Mock与联调/1.%20当前缺口：修复核验没接报告回调.md) | 修复核验报告回调缺口分析与修复路径（VFS skip 根因） |
-
-## 07-multi-agent执行Prompts
-
-| 文档 | 说明 |
-|---|---|
-| [multi-agent-执行Prompts.md](07-multi-agent执行Prompts/multi-agent-执行Prompts.md) | 多智能体执行 Prompts 总入口 |
-| [multi-agent-执行Prompts-P1.md](07-multi-agent执行Prompts/multi-agent-执行Prompts-P1.md) | P1 阶段执行 Prompts |
-| [multi-agent-执行Prompts-P2.md](07-multi-agent执行Prompts/multi-agent-执行Prompts-P2.md) | P2 阶段执行 Prompts |
-| [multi-agent-执行Prompts-OpenAPI-P1.md](07-multi-agent执行Prompts/multi-agent-执行Prompts-OpenAPI-P1.md) | OpenAPI P1 阶段执行 Prompts |
-| [multi-agent-执行Prompts-OpenAPI-P2.md](07-multi-agent执行Prompts/multi-agent-执行Prompts-OpenAPI-P2.md) | OpenAPI P2 阶段执行 Prompts |
-| [multi-agent-执行Prompts-Mock-P1-DB.md](07-multi-agent执行Prompts/multi-agent-执行Prompts-Mock-P1-DB.md) | Mock P1 DB 阶段执行 Prompts |
-| [multi-agent-执行Prompts-SOC-LINK.md](07-multi-agent执行Prompts/multi-agent-执行Prompts-SOC-LINK.md) | SOC 全链路执行 Prompts |
-| [prd-to-multi-agent-工作流.md](07-multi-agent执行Prompts/prd-to-multi-agent-工作流.md) | PRD 转多智能体工作流说明 |
-
-## 08-工具与指南
-
-| 文档 | 说明 |
-|---|---|
-| [Cursor使用指南.md](08-工具与指南/Cursor使用指南.md) | Cursor 编辑器使用指南 |
-| [一句话自动开发.md](08-工具与指南/一句话自动开发.md) | 一句话驱动自动开发的用户说明 |
-
----
-
-## 工程产物目录（非文档）
-
-| 目录 | 内容 |
-|---|---|
-| `contracts/` | 接口契约 YAML（如 vuln-task-center-ab-contract.yaml） |
-| `features/` | 功能特性定义 YAML（P0/P1/P2 分期、任务矩阵） |
-| `prototypes/` | HTML 原型与构建脚本（admin/vtc/task-center 原型） |
-| `scripts/` | 工程脚本（DDL、PRD 生成、原型构建、中文文件写入等） |
-| `templates/` | PRD 模板与任务拆分矩阵模板 |
-
-## 历史归档
-
-`_archive/` 存放已合并进主 PRD 的拆分过程碎片（`prd-part-*`、`_ah_section_43`）与 PRD 合并/格式化过程脚本（`merge_prd*.py`、`fix_prd_format.py` 等），仅供历史追溯，不再维护。
-
-根目录保留 `SOC对接全链路-PRD.7z` 为原始压缩归档。
+- 2026-07-21：由原「按文档类型分目录」（01-架构与总览 … 09-platform-admin）重构为「按需求分目录」。共享工程资产（features/templates/scripts/08-工具与指南）保持顶层不动；垃圾文件移入 `_archive/杂物/`；同步更新 `.cursor/rules/asset-security-platform-context.mdc`、`.cursor/rules/auto-dev-orchestrator.mdc`、`.cursor/skills/{auto-dev-orchestrator,prd-to-multi-agent,esmp-frontend-dev}/SKILL.md` 中的文档路径引用，并修复被移动文档内的相对链接。

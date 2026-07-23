@@ -1,8 +1,11 @@
 # 修复核验全链路（vul-pass）— 产品需求文档（PRD）
 
 > **用途**：部侧考核合规改造与修复核验业务闭环的**唯一产品规格**。  
-> **版本**：**v2.0.0** · **日期**：2026-07-21 · **状态**：定稿  
-> **修订记录**：v2.0.0 由 v1.4.10 及 Wave A～L 全部迭代文档统一重构，只保留当前有效口径；历史演进见《修复核验全链路-开发计划-v2.0》Wave 演进纪要。
+> **版本**：**v2.1.0** · **日期**：2026-07-22 · **状态**：定稿  
+> **修订记录**：
+> - v2.1.0（2026-07-22）：补充全阶段下发模型统一（DispatchPlan）、全阶段缓存策略、统一设备匹配策略（EngDeviceMatcher 唯一入口）、全阶段设备选择、缓存数据结构优化；对应开发计划 v3.0 Wave O/P/Q/R。
+> - v2.1.0 补充（2026-07-22）：追加 Wave S 设备选择增强--a-select tooltip 显示设备详情（hash/全部设备类型/注册状态）；弱口令扫描设备映射 1030/1031/1032 -> WEAK_PASSWORD(bit 8)；1026 交叉扫描 -> VERSION_LOGIN 映射修复 + 双厂商默认设备自动分配 + 前端冲突校验；移除预览页 SafeSourceDriver/DualVendorScannerPick，设备选择全走 per-group a-select；对应开发计划 v3.0 Wave S。
+> - v2.0.0（2026-07-21）：由 v1.4.10 及 Wave A～L 全部迭代文档统一重构，只保留当前有效口径；历史演进见《修复核验全链路-开发计划-v3.0》Wave 演进纪要。
 
 | 属性 | 值 |
 |------|-----|
@@ -214,7 +217,7 @@ ELSE IF 工单 proc_method == 1061 → 1051 组优先 BAS/POC；1050 组仍走 1
 | 8 | 弱口令工具 | | | |
 
 - 匹配判定（禁止等值）：`(eng_type & requiredBit) != 0`。
-- 策略类 → requiredBit：CONNECTIVITY(11)→16；VUL_SCAN(13)→1；POC(14)→4；BAS(15)→32。
+- 策略类 → requiredBit：CONNECTIVITY(11)→16；VUL_SCAN(13)→1；POC(14)→4；BAS(15)→32；WEAK_PASSWORD(16)→8（Wave S 新增）。
 - 候选池：工单 `eng_hash_cnt`（JSON 字符串数组）非空 → **强制仅池内**（仍须满足 engType bit）；否则全量可用设备。
 - 解析顺序：构造候选池 → LastScannerResolver（仅 1050/1051 优先）→ STRATEGY_MATCH 按 engType bit → 仍失败 `deviceMatched=false`，预览红标，**禁止确认下发**。
 - 禁止用与策略 engType 不符、或落在 eng_hash_cnt 池外的 hash 冒充已匹配。溯源仅排查 102x，不含 1026。
@@ -324,7 +327,7 @@ strategyClass ∈ { CONNECTIVITY_CHECK, VUL_SCAN, POC_BAS }
 ```
 
 - PORT(12) **不落物理子任务**（仅证据能力，合并进报告解析）。
-- `tsk_type` 表示任务类型（设备 engType 匹配粒度）：10 DEFAULT / 11 CONNECTIVITY / 13 VUL_SCAN / 14 POC / 15 BAS；`wave` 表示编排阶段，二者互补，UI 勿都叫「类型」。
+- `tsk_type` 表示任务类型（设备 engType 匹配粒度）：10 DEFAULT / 11 CONNECTIVITY / 13 VUL_SCAN / 14 POC / 15 BAS / 16 WEAK_PASSWORD（Wave S 新增）；`wave` 表示编排阶段，二者互补，UI 勿都叫「类型」。
 
 ### 4.2 表字段（定稿）
 
@@ -429,10 +432,109 @@ strategyClass ∈ { CONNECTIVITY_CHECK, VUL_SCAN, POC_BAS }
 
 ### 5.2 预览与确认（preDispatch）
 
-- 响应 `summary`：实例数、按 src_method 统计、物理子任务总数、`allDevicesMatched`；`confirmToken` UUID 30 分钟有效。
-- 任一 group 未匹配设备时前端禁用确认；不可改 engHash / 拆分。
-- 确认下发携带 `confirmToken`；校验 token + 设备仍合法 → 落库，写 opCode=9。
+- 响应 `summary`：实例数、按 src_method 统计、物理子任务总数、`allDevicesMatched`；`confirmToken` 30 分钟有效。
+- 每个 group 返回：
+  - `groupKey`：全局唯一子任务标识，用于 dispatch 时精确映射设备分配。
+  - `engHash` / `engName` / `engType`：默认自动匹配设备。
+  - `candidateEngHashes[]`：满足该子任务策略 engType bit 且受 `eng_hash_cnt` 池约束的候选设备列表。
+- 确认下发前允许在候选池内调整每个子任务的 `engHash`；**禁止**增删子任务、修改策略类/批次/实例集合。
+- 任一 group 无可用候选设备时前端禁用确认；用户未分配设备时按默认自动匹配值下发。
+- 确认下发携带 `confirmToken` + `groupEngHashAssignments`；后端校验 token + 设备在候选池内且满足 engType → 落库，写 opCode=9。
 - 预览行 = 一条物理子任务；dispatch 阶段只落 Gate 波（sequential 模式 Scan 波待 Gate 回收后动态派生）。
+
+### 5.2.1 缓存与一致性策略（绝对安全）
+
+**核心原则**：
+
+1. **一份 plan 只对应一个 confirmToken**：token 是 plan 的唯一句柄，plan 是 token 的唯一内容。
+2. **token 强归属**：token 与 `用户 + 会话 + 工单` 绑定，无法伪造、无法跨会话共享。
+3. **原子化消费**：dispatch 是"查-验-写-删"的原子操作，中间状态加分布式锁。
+4. **成功即销毁**：dispatch 成功必须立即删除 plan；失败保留但限制重试；过期由 Redis 兜底清除。
+5. **强一致性优先于可用性**：Redis 异常时拒绝 dispatch，不允许降级重新生成 plan。
+
+**confirmToken 设计**：
+
+```text
+confirmToken = Sign(userId + ":" + sessionId + ":" + tenantId + ":" + orderId + ":" + timestamp + ":" + nonce)
+```
+
+- 服务端解析 token 即可知归属；防止伪造和跨会话共享。
+- 同一用户同一工单每次 preview 生成新 token，旧 token 不覆盖、自然过期。
+
+**Redis Key 结构**：
+
+| Key | 用途 | TTL |
+|------|------|-----|
+| `vul:dispatch-plan-cache:plan:{confirmToken}` | 缓存 preview 生成的 plan | 30 分钟 |
+| `vul:dispatch-plan-cache:dispatched:{confirmToken}` | 幂等标记，防止重复下发 | 7 天 |
+| `vul:dispatch-plan-cache:lock:dispatch:{confirmToken}` | 分布式锁，防止并发 dispatch | 30 秒 |
+
+**Plan 缓存 Value 结构**：
+
+```json
+{
+  "version": 1,
+  "checksum": "sha256(planJson)",
+  "createdAt": "2026-07-21T10:00:00Z",
+  "ttlSeconds": 1800,
+  "owner": { "userId": "...", "sessionId": "...", "tenantId": "...", "orderId": "..." },
+  "status": "PREVIEWED",
+  "dispatchAttemptCount": 0,
+  "maxDispatchAttempts": 3,
+  "plan": { "groups": [ ... ] }
+}
+```
+
+**添加策略（preDispatch）**：
+
+1. 生成签名 confirmToken。
+2. 构建 CachedPlan，计算 plan 内容 checksum。
+3. Redis `SET NX EX` 写入：`vul:dispatch-plan-cache:plan:{confirmToken}`，TTL 30 分钟。
+4. key 冲突时拒绝覆盖，提示重新预览。
+
+**查询策略（dispatch）**：
+
+1. 解析并校验 confirmToken 签名与归属。
+2. 查 Redis 获取 CachedPlan；不存在则报错"预览已过期，请重新预览"。
+3. 校验 checksum，反序列化失败或校验不通过则拒绝下发。
+4. 二次校验 value 中的 owner 与当前请求一致。
+5. 校验 status = `PREVIEWED`；校验 `groupEngHashAssignments` 中每个 engHash 在该 group 的 `candidateEngHashes` 中。
+
+**删除/销毁策略**：
+
+| 场景 | 操作 |
+|------|------|
+| dispatch 成功 | 立即原子删除 plan key，并设置幂等 key |
+| dispatch 业务失败 | status → `FAILED`，`dispatchAttemptCount++`；保留 plan 允许重试 |
+| dispatch 失败超限 | 删除 plan key |
+| 用户主动取消/关闭抽屉/切换工单 | 前端调 cancel API 删除 plan key |
+| token 自然过期 | Redis TTL 自动清除 |
+
+**原子消费脚本（Lua）**：
+
+```lua
+if redis.call('exists', KEYS[1]) == 1 then
+    redis.call('setex', KEYS[2], 604800, '1')
+    redis.call('del', KEYS[1])
+    return 1
+else
+    return 0
+end
+-- KEYS[1] = vul:dispatch-plan-cache:plan:{confirmToken}
+-- KEYS[2] = vul:dispatch-plan-cache:dispatched:{confirmToken}
+```
+
+**并发控制**：
+
+- dispatch 前获取分布式锁 `vul:dispatch-plan-cache:lock:dispatch:{confirmToken}`。
+- 锁获取失败返回"下发进行中，请勿重复提交"。
+- 幂等 key 已存在时直接拒绝重复提交。
+
+**异常处理**：
+
+- **Redis 不可用**：直接拒绝 dispatch，提示"系统繁忙，请重新预览"；不允许降级重新生成 plan。
+- **plan 反序列化/checksum 失败**：拒绝 dispatch，要求重新预览。
+- **owner 不匹配**：拒绝 dispatch，防止跨会话共享。
 
 ### 5.3 预览 UI 规格
 
@@ -441,14 +543,47 @@ strategyClass ∈ { CONNECTIVITY_CHECK, VUL_SCAN, POC_BAS }
 | 策略类 | `strategyClass` | 漏洞扫描型 / POC·BAS型 / 连通性核验型 |
 | 原修复方式 | `srcMethods[]` | 白底描边 Tag + `SetName`/`VulProcessMethod`（多值多个 Tag） |
 | 核验方式 | `procMethod`（子任务实际手段） | 与原修复方式同一套白底描边 Tag 样式 |
-| 安全资源 | engName/engTypeLabel/devIp/engHash | 多行友好展示；未匹配红标；engType 释义遵循 §3.5 |
+| 安全资源 | `engHash`（可编辑 Select） | 默认展示自动匹配设备；点击下拉从 `candidateEngHashes` 中选择；未匹配/候选池空红标 |
 | 漏洞实例数 | `instanceCount` | 本组系统漏洞实例条数 |
 | IP 数 | `uniqueIpCount` | assetIps 去重后数量；astUnitNum 切批依据 |
 | 核验过程 | `evidenceCapabilities[]` | Tag：连通性 / 端口 / 补丁·版本 / POC / BAS 等 |
 | 警告 | `warnings[]` | 有则橙标 |
 
 - 无「建议导入报告」列（报告类型仅在处置抽屉选择）。
-- `allDevicesMatched=false` → 禁用「确认下发」；有 `eng_hash_cnt` 时提示「受跨级联动指定设备池约束」。
+- `allDevicesMatched=false`（任一子任务无可用候选设备）→ 禁用「确认下发」；有 `eng_hash_cnt` 时提示「受跨级联动指定设备池约束」。
+
+### 5.3.1 设备分配交互（方案 A：行内快捷分配 + 智能批量填充）
+
+**定位**：最小改动、最贴近现有表格交互的设备分配方案。
+
+**行内编辑：**
+
+- 预览表「安全资源」列每行渲染为 `Select` 组件：
+  - 默认选项 = 后端自动匹配结果（`engHash`）。
+  - 下拉选项 = 该子任务 `candidateEngHashes`（已按策略 engType bit + `eng_hash_cnt` 强制池过滤）。
+  - 选项展示：`engName + engTypeLabel + devIp`（多行友好）。
+  - 选中项不满足 engType 时红标并禁用确认。
+- 用户切换设备后，前端仅更新本地 `groupEngHashAssignments` Map，**不实时调用后端写缓存**。
+
+**顶部批量操作按钮：**
+
+| 按钮 | 行为 |
+|------|------|
+| **按自动策略重填** | 所有子任务恢复后端默认匹配值 |
+| **按策略类批量应用** | 选择一个设备 → 自动应用到所有同策略类（同 engType bit 需求）的子任务；若某子任务候选池不含该设备则跳过并标红 |
+| **清空所选** | 清空手动选择，恢复默认；清空后任一子任务无设备则禁用确认 |
+
+**状态提示：**
+
+- 全部子任务有设备 → `allDevicesMatched=true`，确认按钮可用。
+- 存在子任务候选池为空 → 该行红标，顶部 Alert 提示「N 个子任务无可用安全资源，请维护设备后重新预览」。
+- 用户手动选择后，行尾显示「已手动」小 Tag，便于识别。
+
+**一致性保障：**
+
+- 用户选择只存在前端内存，点击「确认下发」时随 `confirmToken` 一起回传 `groupEngHashAssignments`。
+- 后端从 Redis 取出缓存 plan，按 `groupKey` 校验 `engHash ∈ candidateEngHashes`，校验通过后落库。
+- 禁止增删子任务、修改策略类/批次/实例集合。
 
 ### 5.4 任务详情工作台 UI 定稿
 
@@ -535,13 +670,14 @@ strategyClass ∈ { CONNECTIVITY_CHECK, VUL_SCAN, POC_BAS }
 6. 状态机：进行中当前步可闪、完成步不闪
 7. 相关文件 `npm run lint:nofix` 通过
 
-### 5.5 统一预览 dispatchPlan（Wave M，**已落地**）
+### 5.5 统一预览 dispatchPlan（Wave M / Wave Q，**已落地**）
 
-> 来源：《任务下发页面整改方案 v2.0》（已采纳并合入；原件已归档至 `svmp/docs/internal/verify-fix-修复核验全链路/_archive/design/`）。
+> 来源：《任务下发页面整改方案 v2.0》（已采纳并合入；原件已归档至 `svmp/docs/internal/verify-fix-修复核验全链路/_archive/design/`）。Wave Q（v2.1.0）进一步统一为全阶段通用 `DispatchPlan` 模型。
 
-- **已定稿口径**：`/pre/dispatch` 出参归一为**单一 `dispatchPlan`**（`DispatchPlanAssembler` 装配）——核验阶段（4）以 `verifyFixPlan`（`VerifyFixDispatchPlanner`）为唯一权威产出；阶段 0～3 由阶段子任务链预览产出；`PhaseDispatchPreviewBuilder` 在阶段 4 不再产生示意行，下发裁决权（`canConfirm`）归唯一 plan。
+- **已定稿口径**：`/pre/dispatch` 出参归一为**单一 `dispatchPlan`**（`DispatchPlanAssembler.fromDispatchPlan` 装配）——核验阶段（4）以 `verifyFixPlan`（`VerifyFixDispatchPlanner`）为唯一权威产出；阶段 0～3 由阶段子任务链预览产出；`PhaseDispatchPreviewBuilder` 在阶段 4 不再产生示意行，下发裁决权（`canConfirm`）归唯一 plan。
+- **Wave Q 模型统一**（v2.1.0）：`VerifyFixDispatchPlan` -> `DispatchPlan`（含 `DispatchPlanGroup` / `DispatchPlanSummary`），消除 `PhaseDispatchPreviewVO` / `PhaseDispatchPreviewRowVO`；`DispatchPlanGroup` 扩展全阶段字段（修复核验物化字段 + 阶段0-3 展示字段）；`DispatchPlanAssembler` 合并为 `fromDispatchPlan` 单一入口；`PhaseDispatchPreviewBuilder` 改输出 `DispatchPlan`。详见 §5.7。
 - 阶段 0～4 均有下发前预览表（一行 = 一条将下发的物理子任务）；跨级联动按 AstUnitNum 自动切批；1026 交叉扫描必须选择两个不同厂家扫描器（`role` 标注）。
-- **遗留（下一波，待执行）**：批次口径统一按 IP 拆分——`ast_unit_num` 阶段 0～3 与阶段 4 统一按 IP 维度切批；预览/下发同口径；1060 批次列对多批场景显示。详见 `04-子PRD与规格/任务下发批次口径统一-按IP拆分-开发计划-v1.0.md`。
+- **批次口径统一**（Wave N，已落地）：`ast_unit_num` 阶段 0～3 与阶段 4 统一按 IP 维度切批；预览/下发同口径；1060 批次列对多批场景显示。详见 `04-子PRD与规格/任务下发批次口径统一-按IP拆分-开发计划-v1.0.md`。
 
 ### 5.6 前端落点（`asset-newleak-manage`）
 
@@ -551,8 +687,8 @@ strategyClass ∈ { CONNECTIVITY_CHECK, VUL_SCAN, POC_BAS }
 | 路由 | `/VulnManagePlat/TaskManage/GangedTask` | 跨级联动（含 1063 核验） |
 | 下发抽屉 | `VulnManagePlat/components/TaskSend/AddTaskDrawer.vue` | 确认下发 + confirmToken |
 | 基础信息 | `.../TaskSend/BaseInfo.vue` | preDispatch 策略类 groups |
-| 预览组件 | `.../TaskSend/VerifyFixPlanPreview.vue` | 策略类一行一物理子任务 |
-| 设备选择 | `.../TaskSend/SafeSourceDriver.vue` | 核验确认态禁改 engHash |
+| 预览组件 | `.../TaskSend/DispatchPlanPreview.vue` | 统一下发预览（全阶段通用；per-group a-select 设备选择 + tooltip 设备详情） |
+| 设备选择 | ~~`.../TaskSend/SafeSourceDriver.vue`~~ / ~~`.../TaskSend/DualVendorScannerPick.vue`~~ | Wave S 移除预览页引用，设备选择全走 `DispatchPlanPreview` per-group a-select |
 | 任务抽屉 | `.../TaskDetails/TaskDrawer.vue` | 主/子任务列表与工作台宿主 |
 | 工作台组件 | `MainTaskSummary.vue` / `SubTaskCardList.vue` / `SubTaskWorkbench.vue` / `ResultSummaryPanel.vue` | §5.4 定稿 |
 | 离线处置 | `.../TaskDetails/ProMethodDrawer.vue` | reportType 默认 3/10/32；preview→submit |
@@ -564,7 +700,182 @@ strategyClass ∈ { CONNECTIVITY_CHECK, VUL_SCAN, POC_BAS }
 1. 按钮仅「确认下发」「取消」；无合法设备时禁用确认。
 2. 处置：选 `VulReportTypeEnum`（考核默认 10，生产默认 3）→ 上传一份完整报告 → recycle → 看分层判定。
 3. proc_method=1060 展示「自适应」；工单指定 1020/1027 时只读展示覆盖结果。
-4. confirmToken：父组件须在 `changeTskPhase`/预览回写后保留 token，下发必带。
+4. confirmToken：父组件须在 `changeTskPhase`/预览回写后保留 token，下发必带。全阶段（0-4）预览均返回 confirmToken，下发均携带 confirmToken（Wave Q）。
+
+### 5.7 全阶段下发模型统一与缓存策略（Wave O/P/Q/R，v2.1.0 补充）
+
+> 本节补录 2026-07-22 会话完成的架构改造：全阶段下发模型统一、全阶段缓存化、统一设备匹配、缓存数据结构优化、设备选择增强（tooltip/弱口令/交叉扫描双厂商/移除设备列表）。对应开发计划 v3.0 Wave O/P/Q/R/S。
+
+#### 5.7.1 全阶段下发模型统一
+
+**核心目标**：消除修复核验（阶段4）与阶段0-3 的模型分离，`DispatchPlan` 成为全阶段通用下发模型。
+
+| 改造点 | 改造前 | 改造后（Wave Q） |
+|--------|--------|------------------|
+| 下发模型 | `VerifyFixDispatchPlan`（阶段4）/ `PhaseDispatchPreviewVO`（阶段0-3） | `DispatchPlan`（全阶段通用，含 `DispatchPlanGroup` / `DispatchPlanSummary`） |
+| 阶段0-3 VO | `PhaseDispatchPreviewVO` / `PhaseDispatchPreviewRowVO` | 消除，阶段0-3 直接产出 `DispatchPlan` |
+| Group 字段 | 修复核验与阶段0-3 字段分离 | `DispatchPlanGroup` 扩展全阶段字段（修复核验物化字段 + 阶段0-3 展示字段） |
+| 装配入口 | `fromPhasePreview` / `fromVerifyFixPlan` 两条路径 | `DispatchPlanAssembler.fromDispatchPlan` 单一入口 |
+| 预览构建器 | `PhaseDispatchPreviewBuilder` 输出 `PhaseDispatchPreviewVO` | `PhaseDispatchPreviewBuilder` 输出 `DispatchPlan` |
+| 缓存 plan 类型 | `VerifyFixDispatchPlan` | `DispatchPlan`；`verifyFixFlow` 标志控制物化路径 |
+
+**物化保留两套**（按 `verifyFixPlan != null` 选择）：
+
+| 物化路径 | 驱动 | 适用场景 |
+|----------|------|----------|
+| `buildSubTasksFromDispatchPlan` | `plan.groups` | 修复核验门闸物化（阶段4，1028 Gate -> 条件 Scan） |
+| `astUnitHandle` | `assetList`（按 IP 分批） | 全阶段通用物化（阶段0-3） |
+
+**去 VerifyFix 命名**（非门闸专属类统一改名）：
+
+| 改造前 | 改造后 |
+|--------|--------|
+| `VerifyFixPlanCache*` | `DispatchPlanCache*`（Repository/Validator/Service） |
+| `IVerifyFixDispatchLock` | `IDispatchLock` |
+| `VerifyFixDeviceAssignmentValidator` | `DispatchDeviceAssignmentValidator` |
+| `VerifyFixDispatchMode` | `DispatchMode` |
+| 配置 `vul.verify-fix-plan` | `vul.dispatch-plan-cache` |
+| Redis key `vul:verify-fix-plan:` | `vul:dispatch-plan-cache:` |
+
+**保留 VerifyFix 命名**（1028 门闸专属，不改动）：`VerifyFixDispatchPlanner`、`VerifyFixInstanceValidator`、`VerifyFixStrategyResolver`、`VerifyFixSubTaskKind`、`VerifyFixAliveConsistencyChecker`、`VerifyFixVerdictService`、`VerifyFixAutoDispose*`、`isVerifyFixFlow`。
+
+#### 5.7.2 全阶段缓存策略
+
+**核心策略**：所有阶段（0-4）preDispatch 生成 confirmToken + 缓存，dispatch 从缓存消费；保留旧路径 fallback（缓存未命中时走原 dispatch 逻辑）。
+
+| 阶段 | preDispatch | dispatch |
+|------|-------------|----------|
+| 0-3（排查/验证/修复） | 生成 confirmToken + 写缓存（`DispatchPlan` + `PreviewContext`） | 从缓存消费（校验 owner/token/status + CAS consume）；缓存未命中走旧路径 |
+| 4（核验） | 生成 confirmToken + 写缓存（`DispatchPlan` + `PreviewContext`） | 从缓存消费（校验 owner/token/status + 设备分配 + CAS consume）；缓存未命中走旧路径 |
+
+**配置开关**：`vul.dispatch-plan-cache.enabled`（默认 false），关闭时所有阶段走旧 dispatch 逻辑。
+
+**DDD 下沉**（Wave P）：缓存相关 15 个方法从 `VulScanTaskAppServiceImpl` 下沉到 `VulScanTaskDomainServiceImpl`；新增 `DispatchParam` 领域参数对象替代 `VulTaskDispatchDTO` 传入 DomainService。AppService 保留 `buildOwner`/`resolveSessionId`/auto-dispose 编排/DTO 装配。
+
+**跨级切批语义修正**（Wave P）：从「按资产拆多主任务」改为「一个主任务多子任务」。`plan.groups` 按 `astUnitNum` 切批（含 `batchIndex`），由 `buildSubTasksFromDispatchPlan` 物化多子任务。删除 `dispatchGangedBatches` / `sliceGangedBatches` / `VerifyFixPlanBatchSlicer`。
+
+#### 5.7.3 统一设备匹配策略（EngDeviceMatcher 全阶段唯一入口）
+
+**核心策略**：`EngDeviceMatcher` 作为阶段0-4 统一设备匹配入口，阶段0-3 不再各自实现设备匹配。
+
+**procMethod -> tskType -> engType bit 映射**：
+
+| procMethod | tskType | engType bit | 设备类型 |
+|------------|---------|-------------|----------|
+| 1028 | CONNECTIVITY(11) | 16 | 连通性探测工具 |
+| 1021 | POC(14) | 4 | POC引擎 |
+| 1022 / 1027 / 1026 | VERSION_LOGIN(13) | 1 | 主机扫描器 |
+| 1030 / 1031 / 1032 | WEAK_PASSWORD(16) | 8 | 弱口令工具 |
+| 1061 | BAS(15) | 32 | BAS设备 |
+
+> Wave S 补充：1026（交叉扫描验证）-> VERSION_LOGIN(13) -> bit 1；1030（字典组合暴破）/1031（规则猜测暴破）/1032（配置文件分析）-> WEAK_PASSWORD(16) -> bit 8。`TskTypeEnum` 新增 `WEAK_PASSWORD(16, "弱口令扫描")`；`EngDeviceMatcher` 新增 `ENG_WEAK_PASSWORD=8`/`ENG_WEB_SCANNER=2` 常量。
+
+**设备类型 bit 定义**（与 §3.5 一致，完整 7 项）：
+
+| bit 值 | 含义 | EngDeviceMatcher 常量 | 对应 procMethod |
+|--------|------|----------------------|-----------------|
+| 1 | 主机扫描器 | `ENG_HOST_SCANNER` | 1022 / 1027 / 1026 |
+| 2 | WEB 扫描器 | `ENG_WEB_SCANNER` | （预留，Wave S 定义常量） |
+| 4 | POC 引擎 | `ENG_POC` | 1021 |
+| 8 | 弱口令工具 | `ENG_WEAK_PASSWORD` | 1030 / 1031 / 1032 |
+| 16 | 连通性探测工具 | `ENG_CONNECTIVITY` | 1028 |
+| 32 | BAS 设备 | `ENG_BAS` | 1061 |
+| 0 | 其他 | - | - |
+
+- 匹配判定（禁止等值）：`(eng_type & requiredBit) != 0`。
+- 阶段0-3 也用 `EngDeviceMatcher.matchRequired` 生成 `candidateDevices` + `defaultEngHash`。
+- `candidateDevices` 填充设备详情：`CandidateDevice` 内部类（`engHash`/`engName`/`vendor`/`devIp`/`engType`/`engTypeLabel` + Wave S 新增 `engTypeLabels`（全部设备类型标签列表）/`status`（注册状态：0-在线/-1-离线）），前端 a-select 直接展示。
+- `EngDeviceMatcher.engTypeLabels(int engType)` 遍历 6 bit（1/2/4/8/16/32）展开全部类型标签，供前端 tooltip 展示设备全部类型。
+- 候选池约束：工单 `eng_hash_cnt` 非空 -> 强制仅池内（仍须满足 engType bit）；否则全量可用设备。
+
+#### 5.7.4 全阶段设备选择
+
+**交互设计**：全阶段（0-4）预览表「安全资源」列均渲染为 `a-select` 组件。
+
+| 要素 | 规则 |
+|------|------|
+| 默认选项 | 后端 `EngDeviceMatcher.matchRequired` 匹配首选 `defaultEngHash`，前端默认选中 |
+| 下拉选项 | 该子任务 `candidateDevices`（已按策略 engType bit + `eng_hash_cnt` 强制池过滤） |
+| 选项展示 | `engName（vendor / devIp）`；Wave S 新增 `a-tooltip` 悬浮显示设备详情（HASH + 全部设备类型 `engTypeLabels` + 注册状态 `status`） |
+| 用户切换 | 仅更新前端 `groupEngHashAssignments` Map，不实时调用后端写缓存 |
+| 确认下发 | 随 `confirmToken` 一起回传 `groupEngHashAssignments`；后端从缓存校验 `engHash` 在 `candidateDevices` 内 |
+
+- 全阶段统一：阶段0-3 与阶段4 使用相同的设备选择交互，不再有差异化处理。
+- 无可用候选设备时该行红标，禁用确认下发。
+
+**a-select tooltip 设备详情（Wave S）**：
+
+每个 `a-select-option` 外层包裹 `a-tooltip`，悬浮显示：
+- HASH：设备 engHash 完整值。
+- 设备类型：`engTypeLabels` 全部展开（如设备 engType=3 则显示「主机扫描器，WEB扫描器」）。
+- 注册状态：`status=0` 显示「在线」，`status=-1` 显示「离线」。
+
+**交叉扫描双厂商默认设备（Wave S）**：
+
+1026 交叉扫描验证需选择两个不同厂家的扫描器，系统自动分配不同厂商默认设备：
+
+| 环节 | 规则 |
+|------|------|
+| 后端默认分配 | `PhaseDispatchPreviewBuilder.adjustCrossScanDualVendor`：填充设备后调整交叉扫 group 的 `defaultEngHash` 为不同厂商设备；无不同厂商设备时至少选不同设备（`DualVendorScannerGuard` 报厂家相同） |
+| 前端冲突校验 | `crossScanConflict` 检测同厂商/同设备冲突：主扫与交叉扫 engHash 相同 -> 「不能是同一台设备」；厂商相同 -> 「要求两个不同厂家的扫描器」；冲突时禁用确认下发 |
+| 1026 映射 | `procMethodToTskType` 补 1026 -> VERSION_LOGIN(13) -> ENG_HOST_SCANNER(1)（Wave S 修复缺失映射） |
+
+**移除预览页设备列表组件（Wave S）**：
+
+- 移除预览页 `SafeSourceDriver` + `DualVendorScannerPick` 组件引用。
+- 设备选择全部走 `DispatchPlanPreview` 的 per-group `a-select`，不再有独立的设备列表区域。
+- `saveorSubmit` 从 `groupEngHashAssignments` 提取设备 hash；1026 主扫/交叉扫分别提取 `primaryEngHash`/`crossEngHash`。
+
+#### 5.7.5 缓存数据结构
+
+**PreviewContext.assetList 优化**：
+
+| 改造前 | 改造后（Wave R） |
+|--------|------------------|
+| 完整 `VulTaskDispatchAssetDTO` 列表 | `List<VulScanTaskSubAssetDO>`（按 IP 分组紧凑存储） |
+
+紧凑存储结构（与 `vul_scan_task_sub_asset` 表一致）：
+
+| 字段 | 说明 |
+|------|------|
+| `assetIp` | 资产 IP |
+| `assetInfo` | 资产 ID 列表（同一 IP 多资产合并） |
+| `astNum` | 资产数量 |
+| `targetPortFileLoc` | 目标端口文件位置 |
+
+**其他优化**：
+
+| 优化项 | 说明 |
+|--------|------|
+| `assetIps` 去重 | `buildBaseGroup` 用 `LinkedHashSet` 去重 IP |
+| `DispatchAssetGrouper` | 新建类，提取 IP 分组逻辑（从 `convertAssetListGroupBy`/`convertSubAssetList` 中抽出） |
+| `VulScanTaskDO.subAssetList` | 增加 `transient` 字段，缓存路径传递紧凑资产列表 |
+| `astUnitHandle` 缓存路径兼容 | `subAssetList` 非空时直接用，跳过 `convertAssetListGroupBy`/`convertSubAssetList`；旧路径（subAssetList 为空）不变 |
+
+**CachedPlan Value 结构**（v2.1.0 更新）：
+
+```json
+{
+  "version": 1,
+  "checksum": "sha256(planJson)",
+  "createdAt": "2026-07-22T10:00:00Z",
+  "ttlSeconds": 1800,
+  "owner": { "userId": "...", "sessionId": "...", "tenantId": "...", "orderId": "..." },
+  "status": "PREVIEWED",
+  "dispatchAttemptCount": 0,
+  "maxDispatchAttempts": 3,
+  "previewContext": {
+    "orderContext": { "...": "工单上下文" },
+    "userParams": { "...": "用户参数" },
+    "assetList": [ { "assetIp": "10.0.0.1", "assetInfo": "id1,id2", "astNum": 2, "targetPortFileLoc": "..." } ],
+    "vulInstList": [ { "...": "系统漏洞实例" } ],
+    "forcedEngHashes": ["hash-1", "hash-2"]
+  },
+  "plan": { "groups": [ ... ], "summary": { ... } }
+}
+```
+
+> `plan` 字段类型从 `VerifyFixDispatchPlan` 改为 `DispatchPlan`（Wave Q）。
 
 ---
 
@@ -659,6 +970,18 @@ strategyClass ∈ { CONNECTIVITY_CHECK, VUL_SCAN, POC_BAS }
 | Q29 | 主链路第一步定名「任务预检」；流程实例持久化后步骤条优先读库 |
 | Q30 | reportType：source=0 或 ctxCode=3 → 3；其它扫描 → 10；1028 固定 34 |
 | Q31 | 统一预览：pre/dispatch 出参归一单一 dispatchPlan（Wave M 已落地）；批次口径统一按 IP 拆分为下一波 |
+| Q32 | 设备分配：preDispatch 返回 candidateEngHashes + groupKey；dispatch 回传 groupEngHashAssignments；后端校验 engHash 在候选池内 |
+| Q33 | 缓存一致性：preview plan 写入 Redis，key=vul:dispatch-plan-cache:plan:{confirmToken}（Wave Q 去 VerifyFix 前缀）；dispatch 原子查-验-写-删；成功立即删除；失败可重试 3 次；Redis 异常拒绝 dispatch |
+| Q34 | 全阶段模型统一：DispatchPlan 全阶段通用，消除 VerifyFixDispatchPlan/PhaseDispatchPreviewVO 模型分离（Wave Q） |
+| Q35 | 全阶段缓存化：所有阶段 preDispatch 生成 confirmToken + 缓存，dispatch 从缓存消费；保留旧路径 fallback；配置 vul.dispatch-plan-cache.enabled 默认关闭 |
+| Q36 | 统一设备匹配：EngDeviceMatcher 全阶段唯一入口；procMethod->tskType->engType bit 映射（1028->16, 1021->4, 1022/1027->1, 1061->32）；阶段0-3 不再各自实现 |
+| Q37 | 全阶段设备选择：a-select 统一交互，默认选中 defaultEngHash（后端匹配首选）；candidateDevices 填充设备详情 |
+| Q38 | 缓存数据结构：assetList 改 List<VulScanTaskSubAssetDO> 按 IP 紧凑存储；assetIps 去重（LinkedHashSet）；DispatchAssetGrouper 提取 IP 分组 |
+| Q39 | DDD 下沉：缓存相关 15 方法从 AppService 下沉 DomainService；DispatchParam 替代 VulTaskDispatchDTO 入 DomainService |
+| Q40 | 跨级切批语义：一个主任务多子任务（plan.groups 按 astUnitNum 切批）；删除 dispatchGangedBatches/sliceGangedBatches/VerifyFixPlanBatchSlicer |
+| Q41 | 设备选择 tooltip：a-select-option 外层 a-tooltip 悬浮显示设备详情（HASH + 全部设备类型 engTypeLabels + 注册状态 status）；CandidateDevice 新增 status/engTypeLabels 字段；EngDeviceMatcher.engTypeLabels 遍历 6 bit 展开全部类型标签（Wave S） |
+| Q42 | 弱口令设备映射：1030/1031/1032 -> WEAK_PASSWORD(16) -> ENG_WEAK_PASSWORD(8 弱口令工具)；TskTypeEnum 新增 WEAK_PASSWORD(16)；1026 -> VERSION_LOGIN(13) -> ENG_HOST_SCANNER(1) 映射修复（Wave S） |
+| Q43 | 交叉扫描双厂商默认：1026 主扫/交叉扫自动分配不同厂商默认设备（adjustCrossScanDualVendor）；前端 crossScanConflict 检测同厂商/同设备冲突禁用确认；移除预览页 SafeSourceDriver/DualVendorScannerPick，设备选择全走 per-group a-select（Wave S） |
 
 ---
 
@@ -669,7 +992,7 @@ strategyClass ∈ { CONNECTIVITY_CHECK, VUL_SCAN, POC_BAS }
 - `svmp/docs/standards/基础电信企业网络安全漏洞管理平台建设指南(2025年版).docx`
 - `svmp/docs/standards/基础电信企业网络安全漏洞管理平台接口规范(2025年版).docx`
 - `svmp/docs/standards/基础电信企业网络安全漏洞管理平台测试规范(2025年版).docx`
-- `svmp/docs/internal/verify-fix-修复核验全链路/04-子PRD与规格/修复核验全链路-开发计划-v2.0.md`（执行状态 / Wave 演进 / 缺陷记录 / 测试索引）
+- `svmp/docs/internal/verify-fix-修复核验全链路/04-子PRD与规格/修复核验全链路-开发计划-v3.0.md`（执行状态 / Wave 演进 / 缺陷记录 / 测试索引）
 - `svmp/docs/internal/verify-fix-修复核验全链路/04-子PRD与规格/修复核验全链路-文档地图与索引-v1.1.md`（文档群索引）
 - `svmp/docs/internal/verify-fix-修复核验全链路/04-子PRD与规格/修复核验运营工作台-PRD.md`（open-api，独立）
 - `svmp/docs/internal/soc-link-SOC对接全链路/04-子PRD与规格/OPEN状态跃迁与考核隔离说明.md`（状态路径与考核线禁改约束）
