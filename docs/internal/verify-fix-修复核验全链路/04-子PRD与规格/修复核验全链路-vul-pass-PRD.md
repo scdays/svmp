@@ -993,7 +993,7 @@ end
 - `svmp/docs/standards/基础电信企业网络安全漏洞管理平台接口规范(2025年版).docx`
 - `svmp/docs/standards/基础电信企业网络安全漏洞管理平台测试规范(2025年版).docx`
 - `svmp/docs/internal/verify-fix-修复核验全链路/04-子PRD与规格/修复核验全链路-开发计划-v3.0.md`（执行状态 / Wave 演进 / 缺陷记录 / 测试索引）
-- `svmp/docs/internal/verify-fix-修复核验全链路/04-子PRD与规格/修复核验全链路-文档地图与索引-v1.2.md`（文档群索引）
+- `svmp/docs/internal/verify-fix-修复核验全链路/04-子PRD与规格/修复核验全链路-文档地图与索引-v1.3.md`（文档群索引）
 - `svmp/docs/internal/verify-fix-修复核验全链路/04-子PRD与规格/修复核验运营工作台-PRD.md`（open-api，独立）
 - `svmp/docs/internal/soc-link-SOC对接全链路/04-子PRD与规格/OPEN状态跃迁与考核隔离说明.md`（状态路径与考核线禁改约束）
 - `svmp/docs/internal/verify-fix-修复核验全链路/prototypes/修复核验-任务详情工作台-原型.html`（§5.4 定稿依据）

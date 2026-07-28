@@ -10,7 +10,7 @@
 | [open-platform-开放平台/](open-platform-开放平台/) | 开放平台对外 REST 执行面、Partner 鉴权、集成管理后台、运营案件 | `03-落地方案/` 6 份、`05-接口契约/` 映射表 + internal-api.yaml、`07-multi-agent执行Prompts/` 5 份、`prototypes/` |
 | [open-gateway-网关合并改造/](open-gateway-网关合并改造/) | 网关合并 + 平台/业务解耦 + mock 纯桩化的目标架构与分期 | `01-架构与总览/` 改造方案 + 开发计划、`03-落地方案/partner-gateway-route-mode`、`06-Mock与联调/开放平台mock链路验收清单`（Phase 0 基线） |
 | [platform-admin-控制面建设/](platform-admin-控制面建设/) | platform-admin 统一控制面、业务能力迁移 M1-M9、EventBus 治理 | `01-架构与总览/控制面与EventBus-Starter架构设计`、`03-落地方案/` 4 份、`04-子PRD与规格/` 00-主计划 + M1-M9、`prototypes/事件总线治理面原型` |
-| [verify-fix-修复核验全链路/](verify-fix-修复核验全链路/) | 修复核验（vul-pass）全链路：PRD + 开发计划双权威、Wave 验收、自动化处置 | `04-子PRD与规格/修复核验全链路-文档地图与索引-v1.2.md`（**文档群总入口**）、`06-Mock与联调/` 11 份验收报告、`prototypes/` 7 个、`_archive/` 18 份迭代留痕 |
+| [verify-fix-修复核验全链路/](verify-fix-修复核验全链路/) | 修复核验（vul-pass）全链路：PRD + 开发计划双权威、Wave 验收、自动化处置 | `04-子PRD与规格/修复核验全链路-文档地图与索引-v1.3.md`（**文档群总入口**）、`06-Mock与联调/` 11 份验收报告、`prototypes/` 7 个、`_archive/` 18 份迭代留痕 |
 | [vuln-task-center-扫描治理中心/](vuln-task-center-扫描治理中心/) | 扫描治理中心三层能力模型、ScannerAdapter、对账四态、厂商适配 | `04-子PRD与规格/扫描治理中心-PRD` + `prototype-v3-spec`、`05-接口契约/vuln-task-center-ab-contract.yaml`、`prototypes/` |
 | [scan-window-扫描时间窗/](scan-window-扫描时间窗/) | 漏洞管理平台扫描时间窗 + 超窗暂停/恢复（VULPASS-SCANWINDOW-P0~P3） | `04-子PRD与规格/扫描时间窗管理-vul-pass-PRD-v1.0.md` |
 | [vuln-model-扫描任务迁移/](vuln-model-扫描任务迁移/) | vuln-model 扫描任务重构迁移至 vul-pass | `03-落地方案/`（**注意：该文件内容为 GBK 编码且存在历史乱码，未改写**） |
@@ -30,7 +30,7 @@
 
 主 PRD 三份存在版本演进：`SOC对接全链路-PRD.md`(v1.0) → `SOC对接全链路-PRD-v2修订附录.md`(正式采纳) → `SOC对接全链路-PRD-代码分析修正.md`(工程代码校准)。**冲突处以最新版本为准**，关键演进点（SOC_DUAL 废弃、verify-fix 真实复扫、任务域路径、UNION 状态落库）已在各文档内标注。
 
-修复核验文档群以 [verify-fix-修复核验全链路/04-子PRD与规格/修复核验全链路-文档地图与索引-v1.2.md](verify-fix-修复核验全链路/04-子PRD与规格/修复核验全链路-文档地图与索引-v1.2.md) 为总入口：有效执行文档为 **PRD v2.0.0 + 开发计划 v2.0** 双权威。
+修复核验文档群以 [verify-fix-修复核验全链路/04-子PRD与规格/修复核验全链路-文档地图与索引-v1.3.md](verify-fix-修复核验全链路/04-子PRD与规格/修复核验全链路-文档地图与索引-v1.3.md) 为总入口：有效执行文档为 **PRD v2.0.0 + 开发计划 v2.0** 双权威。
 
 ## 已知失效链接（迁移前即失效，未回改）
 
